@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>สุขใจ</title>
+  <meta name="description" content="สุขใจ — เตือนกินยาและนัดหมอสำหรับคนที่เรารัก" />
+  <meta name="theme-color" content="#3FA796" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="สุขใจ" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <nav class="tabbar" id="tabbar">
+    <button data-tab="today"><span>🏠</span>วันนี้</button>
+    <button data-tab="meds"><span>💊</span>ยา</button>
+    <button data-tab="appts"><span>📅</span>นัดหมอ</button>
+    <button data-tab="people"><span>👨‍👩‍👧</span>ครอบครัว</button>
+  </nav>
+  <div id="modal" class="modal hidden"></div>
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
