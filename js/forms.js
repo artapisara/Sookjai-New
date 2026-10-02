@@ -505,6 +505,7 @@ document.addEventListener('click', async (ev) => {
         <span class="switch"><input type="checkbox" data-today-toggle="${p.id}" ${todayHidden().includes(p.id) ? '' : 'checked'}><i></i></span></label>`).join('')}
       <div class="row"><button class="btn" data-act="close">เสร็จแล้ว</button></div>`); break;
     case 'slot-name': toast(el.dataset.label); break;
+    case 'change-password': passwordForm(false); break;
     case 'add-contact': contactForm(); break;
     case 'del-contact': confirmSheet('ลบเบอร์นี้?', async () => {
       S.emergency_contacts = S.emergency_contacts.filter((x) => x.id !== id);
@@ -578,6 +579,61 @@ document.addEventListener('click', async (ev) => {
     case 'wipe': confirmSheet('ล้างข้อมูลทั้งหมดในเครื่องนี้? ย้อนกลับไม่ได้', async () => { DB.reset(false); S = await DB.loadAll(); ui.filter = 'all'; }, 'ล้างข้อมูล'); break;
   }
 });
+
+// ---------- เปลี่ยนรหัสผ่าน (ตอนล็อกอินอยู่ หรือหลังกดลิงก์ "ลืมรหัสผ่าน" จากอีเมล) ----------
+function passwordForm(recovery) {
+  const sheet = openSheet(`<h3>${recovery ? 'ตั้งรหัสผ่านใหม่' : 'เปลี่ยนรหัสผ่าน'}</h3>
+    ${recovery ? '<p class="small muted">ยืนยันตัวตนด้วยลิงก์ในอีเมลแล้ว ตั้งรหัสผ่านใหม่ได้เลย</p>' : ''}
+    <form id="f">
+      <label class="f"><span>รหัสผ่านใหม่ <small>(อย่างน้อย 6 ตัวอักษร)</small></span><input type="password" name="pw1" required minlength="6" autocomplete="new-password"></label>
+      <label class="f"><span>พิมพ์รหัสผ่านใหม่อีกครั้ง</span><input type="password" name="pw2" required minlength="6" autocomplete="new-password"></label>
+      <p class="small red-t hidden" id="pwErr"></p>
+      <div class="row"><button type="button" class="btn ghost" data-act="close">${recovery ? 'ไว้ก่อน' : 'ยกเลิก'}</button><button class="btn" type="submit">บันทึกรหัสผ่านใหม่</button></div>
+    </form>`);
+  const f = $('#f', sheet); const err = $('#pwErr', f);
+  f.onsubmit = async (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(f); const pw = String(fd.get('pw1'));
+    const fail = (m) => { err.textContent = m; err.classList.remove('hidden'); };
+    if (pw.length < 6) return fail('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+    if (pw !== fd.get('pw2')) return fail('รหัสผ่านสองช่องไม่ตรงกัน');
+    const btn = $('button[type=submit]', f); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try { await DB.updatePassword(pw); closeSheet(); toast('✓ เปลี่ยนรหัสผ่านแล้ว'); }
+    catch (e) { btn.disabled = false; btn.textContent = 'บันทึกรหัสผ่านใหม่'; fail(/same|different/i.test(e.message) ? 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม' : e.message); }
+  };
+}
+
+// ---------- นำเข้าข้อมูล (ไฟล์ .json ของสุขใจ: โปรไฟล์ + ยา) เข้าบัญชีที่ล็อกอินอยู่ ----------
+async function importFile(file) {
+  let data; try { data = JSON.parse(await file.text()); } catch { return toast('อ่านไฟล์ไม่ได้ — ต้องเป็นไฟล์ .json'); }
+  if (data?.app !== 'sukjai-import' || !Array.isArray(data.profiles) || !Array.isArray(data.medications)) return toast('นี่ไม่ใช่ไฟล์นำเข้าของสุขใจ');
+  const have = new Set(S.profiles.map((p) => p.name.trim()));
+  const dups = data.profiles.filter((p) => have.has(String(p.name).trim())).map((p) => p.name);
+  const sheet = openSheet(`<h3>นำเข้าข้อมูล</h3>
+    <div class="card flat">${data.profiles.map((p) => `<div class="kv"><span>${esc(p.name)}</span><b>${data.medications.filter((m) => m.profile_key === p.key).length} ยา</b></div>`).join('')}</div>
+    ${dups.length ? `<div class="alert sun"><div class="ic">⚠️</div><div><b>มีชื่อนี้อยู่แล้วในบัญชี</b><span class="small">${dups.map(esc).join(', ')} — ถ้านำเข้าจะได้คนซ้ำ ควรยกเลิกหรือลบของเดิมก่อน</span></div></div>` : ''}
+    <p class="small muted">จะสร้างโปรไฟล์และรายการยาใหม่ในบัญชีของคุณ (ไม่ลบหรือแก้ข้อมูลเดิม)</p>
+    <div class="row"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" id="doImport">นำเข้า</button></div>`);
+  $('#doImport', sheet).onclick = async (ev) => {
+    const btn = ev.currentTarget; btn.disabled = true; btn.textContent = 'กำลังนำเข้า…';
+    const now = new Date().toISOString(); const ids = {}; let nm = 0;
+    const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
+    try {
+      for (const p of data.profiles) {
+        ids[p.key] = uuid();
+        const row = { id: ids[p.key], chronic_diseases: [], drug_allergies: [], reminder_enabled: false, ...pick(p, ['name', 'relation', 'birth_year', 'blood_type', 'color', 'avatar']) };
+        await DB.insert('profiles', row); S.profiles.push(row);
+      }
+      for (const m of data.medications) {
+        if (!ids[m.profile_key]) continue;
+        const row = { id: uuid(), profile_id: ids[m.profile_key], status: 'active', status_reason: '', status_history: [], updated_at: now,
+          ...pick(m, ['name', 'purpose', 'slots', 'slot_reminders', 'dose', 'unit', 'stock', 'sort_order', 'status', 'status_reason', 'status_history', 'note', 'table_hint', 'warning', 'as_needed', 'no_pending']) };
+        await DB.insert('medications', row); S.medications.push(row); nm++;
+      }
+      closeSheet(); render(); toast(`✓ นำเข้า ${data.profiles.length} คน ${nm} ยาแล้ว`);
+    } catch (e) { console.error(e); closeSheet(); await reload(); toast('นำเข้าไม่สำเร็จ: ' + e.message); }
+  };
+}
 
 // ---------- เบอร์โทรฉุกเฉิน (เพิ่มเอง) ----------
 function contactForm() {
@@ -733,6 +789,7 @@ function viewCircle(c) {
 
 document.addEventListener('change', async (ev) => {
   const t = ev.target; if (!S) return;
+  if (t.dataset.import !== undefined) { const file = t.files[0]; t.value = ''; if (file) await importFile(file); return; }
   if (t.dataset.todayToggle) {
     const id = t.dataset.todayToggle;
     const hidden = new Set(todayHidden()); if (t.checked) hidden.delete(id); else hidden.add(id);

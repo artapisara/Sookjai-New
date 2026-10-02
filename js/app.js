@@ -369,7 +369,9 @@ function viewFamily() {
     <div class="card">
       <div class="small muted">เข้าสู่ระบบเป็น</div><b>${esc(DB.user?.email || '')}</b>
       ${DB.mode === 'supabase'
-        ? `<button class="btn ghost block" data-act="logout" style="margin-top:12px">ออกจากระบบ</button>`
+        ? `<button class="btn ghost block" data-act="change-password" style="margin-top:12px">🔑 เปลี่ยนรหัสผ่าน</button>
+           <label class="btn ghost block filebtn" style="margin-top:8px">📥 นำเข้าข้อมูลจากไฟล์<input type="file" accept=".json,application/json" data-import hidden></label>
+           <button class="btn ghost block" data-act="logout" style="margin-top:8px">ออกจากระบบ</button>`
         : `<p class="small muted">ยังไม่ได้เชื่อม Supabase — ข้อมูลอยู่ในเครื่องนี้เท่านั้น</p>
            <div class="row"><button class="btn ghost" data-act="demo">ข้อมูลตัวอย่าง</button><button class="btn danger" data-act="wipe">ล้างข้อมูล</button></div>`}
     </div>
@@ -440,7 +442,8 @@ async function boot() {
     render();
     Notifier.start();
   };
-  DB.onAuth((u) => start(u));
+  // กดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → เข้าแอพแล้วเด้งหน้าตั้งรหัสผ่านใหม่ทันที
+  DB.onAuth(async (u, ev) => { await start(u); if (ev === 'PASSWORD_RECOVERY' && u) passwordForm(true); });
   start(await DB.getUser());
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW', e));
 }

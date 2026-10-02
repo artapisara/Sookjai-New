@@ -17,7 +17,9 @@ class SupaDB {
     this.user = null;
   }
   async getUser() { const { data } = await this.sb.auth.getSession(); this.user = data.session?.user || null; return this.user; }
-  onAuth(cb) { this.sb.auth.onAuthStateChange((_e, s) => { this.user = s?.user || null; cb(this.user); }); }
+  // เรียก cb นอกคิวของ supabase-js (กันค้างเมื่อ cb ไปเรียก supabase ต่อ)
+  onAuth(cb) { this.sb.auth.onAuthStateChange((e, s) => { this.user = s?.user || null; setTimeout(() => cb(this.user, e), 0); }); }
+  async updatePassword(password) { const { error } = await this.sb.auth.updateUser({ password }); if (error) throw error; }
   async signIn(email, password) { const { error } = await this.sb.auth.signInWithPassword({ email, password }); if (error) throw error; }
   async signUp(email, password) {
     const { data, error } = await this.sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin } });
