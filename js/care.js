@@ -171,7 +171,7 @@ function careForm(c) {
       if (await dbDo(DB.update('care_plans', c.id, data))) toast('บันทึกแล้ว');
     } else {
       const row = { id: uuid(), status: 'active', created_at: new Date().toISOString(), ...data };
-      S.care_plans.push(row); ui.tab = 'care'; closeSheet(); render();
+      S.care_plans.push(row); ui.tab = 'meds'; ui.medsPage = 'care'; closeSheet(); render();
       if (await dbDo(DB.insert('care_plans', row))) toast('เพิ่มการติดตามอาการแล้ว');
     }
   };

@@ -20,7 +20,10 @@ const BLOOD_TYPES = ['A', 'B', 'AB', 'O'];
 const DEPARTMENTS = ['อายุรกรรม', 'จักษุแพทย์', 'สูตินรีเวช', 'ศัลยกรรม', 'กระดูกและข้อ', 'หัวใจ', 'ผิวหนัง', 'หู คอ จมูก', 'ทันตกรรม'];
 const VISIT_REASONS = ['ติดตามอาการ', 'รับยาต่อเนื่อง', 'ตรวจสุขภาพประจำปี', 'มีอาการผิดปกติ', 'ผ่าตัด/หัตถการ'];
 const MED_STATUS = { active: 'กำลังกิน', paused: 'งดชั่วคราว', stopped: 'หยุดแล้ว' };
-const PRESET_COLORS = ['#3FA796', '#EF5B4C', '#7C6CF2', '#F2A93B', '#3B82F6', '#D9548F', '#5BAA3C', '#8C6E5D'];
+const PRESET_COLORS = ['#4D55F5', '#CA7FFE', '#DAFF7C', '#5CC8FF', '#FF7AD9', '#FFB347', '#3DDC97', '#FFE45C']; // สีประจำตัว: สดใส สว่าง เข้าชุดกับสีหลัก (น้ำเงิน ลิลลี เขียวมะนาว + สีคู่)
+const LEGACY_COLORS = { '#3FA796': '#3DDC97', '#EF5B4C': '#FF7AD9', '#7C6CF2': '#CA7FFE', '#F2A93B': '#FFB347', '#3B82F6': '#5CC8FF', '#D9548F': '#FF7AD9', '#5BAA3C': '#DAFF7C', '#8C6E5D': '#FFE45C', '#A855F7': '#CA7FFE', '#5E9E0F': '#DAFF7C', '#1E88E5': '#5CC8FF', '#E0399B': '#FF7AD9', '#E8590C': '#FFB347', '#0F9D8A': '#3DDC97', '#8A6A4F': '#FFE45C', '#20C58D': '#3DDC97', '#FE8046': '#FFB347', '#FFCF34': '#FFE45C', '#E5675F': '#FF7AD9' }; // สีชุดเก่า → ชุดใหม่ (ย้ายให้อัตโนมัติ)
+/** สีตัวหนังสือที่อ่านออกบนพื้นสีนั้น (พื้นสว่างใช้น้ำเงินเข้ม พื้นเข้มใช้ขาว) */
+const inkOn = (hex) => { const n = parseInt(String(hex).slice(1), 16); const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; const L = .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255); return L > .4 ? '#161A4D' : '#fff'; };
 const REMIND_DAYS = [5, 2, 1];
 const LOW_STOCK_DAYS = 7;
 
@@ -34,11 +37,25 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 3) | 8).toString(16); }));
 const pad = (n) => String(n).padStart(2, '0');
-const UNITS = ['เม็ด', 'ครั้ง'];
-// เลขลำดับยาเป็นเลขกลางของครอบครัว: ยาชนิดเดียวกัน (ชื่อเดียวกัน ไม่นับความแรง/วงเล็บ) ใช้เลขเดียวกันทุกคน
-const medKey = (name) => String(name || '').toLowerCase().replace(/\(.*?\)/g, '').replace(/\d+(\.\d+)?\s*(mg|mcg|g|ml)\b/g, '').replace(/[^a-z0-9ก-๙]/g, '');
+// หน่วยยา: เลือกจากรายการ หรือพิมพ์เอง · นับจำนวนคงเหลือ/วันยาหมดเฉพาะหน่วยที่นับเป็นชิ้น
+const UNITS = ['เม็ด', 'แคปซูล', 'หยด', 'ครั้ง', 'ช้อนชา', 'มล.', 'ซอง', 'แผ่น'];
+const STOCK_UNITS = ['เม็ด', 'แคปซูล', 'ซอง', 'แผ่น'];
+const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 นัดหมอ
 const unitOf = (m) => m.unit || 'เม็ด';
-const tracksStock = (m) => unitOf(m) === 'เม็ด';
+const tracksStock = (m) => STOCK_UNITS.includes(unitOf(m));
+// อักษรนำเลขลำดับยาเริ่มต้น = พยัญชนะตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ) เช่น ปู่หวาน → ป, แม่ → ม
+const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
+const defaultPrefix =(name) => String(name || '').trim().replace(/^[เแโใไ]+/, '').charAt(0);
+const PDPA_VERSION = '2026-10';
+const MOODS = [
+  { k: 'happy', icon: '😊', label: 'มีความสุข', color: '#F7B731' },
+  { k: 'calm', icon: '😌', label: 'สบายใจ', color: '#3FA796' },
+  { k: 'meh', icon: '😐', label: 'เฉยๆ', color: '#9AA5AB' },
+  { k: 'tired', icon: '😴', label: 'เหนื่อย', color: '#7C6CF2' },
+  { k: 'sad', icon: '😢', label: 'เศร้า', color: '#3B82F6' },
+  { k: 'worried', icon: '😟', label: 'กังวล', color: '#EF5B4C' },
+];
+const moodOf = (k) => MOODS.find((x) => x.k === k);
 const doseLabel =(d) => { d = Number(d); if (Number.isInteger(d)) return String(d); const fr = { 0.25: '¼', 0.5: '½', 0.75: '¾' }[+(d % 1).toFixed(2)]; return fr ? `${Math.floor(d) || ''}${fr}` : String(d); };
 const dk = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseDk = (s) => { const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };

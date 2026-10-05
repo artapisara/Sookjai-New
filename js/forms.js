@@ -91,20 +91,23 @@ function allergyNote(pid) {
 function medForm(m) {
   if (!S.profiles.length) { toast('เพิ่มคนในครอบครัวก่อนนะ'); return go('family'); }
   const e = m || { profile_id: ui.tab === 'meds' ? ui.medsPerson : (ui.filter !== 'all' ? ui.filter : null), slots: ['after_breakfast'], slot_reminders: {}, dose: 1, stock: 30, status: 'active' };
+  if (!m && e.profile_id && !canEditProfile(e.profile_id)) e.profile_id = null;
+  const pid0 = e.profile_id || (S.profiles.find((p) => canEditProfile(p.id)) || S.profiles[0]).id;
+  e.profile_id = pid0;
   const sheet = openSheet(`<h3>${m ? 'แก้ไขยา' : 'เพิ่มยา'}</h3>
     <form id="f">
       <label class="f"><span>ยาของใคร</span>${profileRadio(e.profile_id)}</label>
-      <div id="allergyBox">${allergyNote(e.profile_id || S.profiles[0].id)}</div>
+      <div id="allergyBox">${allergyNote(pid0)}</div>
       <label class="f"><span>ชื่อยา</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น Amlodipine 5 mg"></label>
       <label class="f"><span>รักษาโรคอะไร</span><input type="text" name="purpose" value="${esc(e.purpose)}" placeholder="เช่น ความดันโลหิตสูง"></label>
-      <label class="f"><span>เลขลำดับยา <small>(ยาชนิดเดียวกันใช้เลขเดียวกันทั้งครอบครัว)</small></span>
-        <input type="number" name="sort_order" min="1" step="1" inputmode="numeric" required value="${e.sort_order || nextMasterNo()}" ${e.profile_id && !ownsProfile(e.profile_id) ? 'readonly' : ''}>
-        <small class="small muted" id="noHint">${m ? '' : 'ยาใหม่ — ได้เลขถัดไปที่ว่าง'}</small></label>
+      <label class="f"><span>เลขลำดับยา <small>(เรียงต่อเนื่องของคนนี้ · อักษรนำ "<b id="noPrefix">${esc(medPrefix(pid0))}</b>")</small></span>
+        <input type="number" name="sort_order" min="1" step="1" inputmode="numeric" required value="${e.sort_order || nextNoFor(pid0)}"></label>
       <div class="two">
-        <label class="f"><span>จำนวนต่อครั้ง</span><div class="dose-unit"><input type="number" name="dose" min="0" step="0.25" inputmode="decimal" value="${num(e.dose, 1)}">
-          <select name="unit" aria-label="หน่วย">${UNITS.map((u) => `<option ${u === unitOf(e) ? 'selected' : ''}>${u}</option>`).join('')}</select></div></label>
-        <label class="f"><span>จำนวนเม็ดคงเหลือ</span><input type="number" name="stock" min="0" step="0.25" inputmode="decimal" value="${num(e.stock)}"></label>
+        <label class="f"><span>จำนวนต่อครั้ง</span><input type="number" name="dose" min="0" step="0.25" inputmode="decimal" value="${num(e.dose, 1)}"></label>
+        <div class="f"><span class="lbl">หน่วย</span>${selectOther('unit', UNITS, unitOf(e), 'เลือกหน่วย')}</div>
       </div>
+      <label class="f"><span>จำนวนคงเหลือ <small>(นับวันยาหมดให้อัตโนมัติ)</small></span><input type="number" name="stock" min="0" step="0.25" inputmode="decimal" value="${num(e.stock)}">
+        <small class="small muted" id="runout"></small></label>
       <div class="f"><span class="lbl">ช่วงเวลาทานยา <small>(เลือกได้หลายช่วง · 🔔 = เตือนช่วงนั้น)</small></span>
         <div class="slot-pick">${SLOTS.map((s) => {
           const on = e.slots.includes(s.key);
@@ -132,19 +135,26 @@ function medForm(m) {
       </div>
     </form>`);
   const f = $('#f', sheet);
-  const noIn = $('input[name=sort_order]', f), noHint = $('#noHint', f); let noTouched = !!m;
+  bindSelectOther(f);
+  const noIn = $('input[name=sort_order]', f); let noTouched = !!m;
   noIn.addEventListener('input', () => { noTouched = true; });
-  $('input[name=name]', f).addEventListener('input', (ev) => {
-    const hit = masterOf(ev.target.value, m?.id);
-    if (hit) { noIn.value = hit.sort_order; noHint.textContent = `ยานี้มีในครอบครัวแล้ว (${profileById(hit.profile_id)?.name || ''}) — ใช้เลข ${hit.sort_order} เหมือนกัน`; }
-    else if (!noTouched) { noIn.value = e.sort_order || nextMasterNo(); noHint.textContent = m ? '' : 'ยาใหม่ — ได้เลขถัดไปที่ว่าง'; }
-  });
-  const syncNoLock = (pid) => {
-    const locked = !ownsProfile(pid); noIn.readOnly = locked;
-    if (locked) noHint.textContent = (m && !m.no_pending ? '' : 'เลขลำดับยาจะรอเจ้าของโปรไฟล์ยืนยันอีกครั้ง') || noHint.textContent;
+  $$('input[name=profile_id]', f).forEach((r) => r.addEventListener('change', () => {
+    $('#allergyBox', f).innerHTML = allergyNote(r.value);
+    $('#noPrefix', f).textContent = medPrefix(r.value);
+    if (!noTouched) noIn.value = m && m.profile_id === r.value ? m.sort_order : nextNoFor(r.value);
+  }));
+  // คำนวณวันยาหมดจากจำนวนคงเหลือ ÷ (จำนวนต่อครั้ง × จำนวนช่วงที่กิน)
+  const syncRunout = () => {
+    const fd = new FormData(f); const unit = readSelectOther(fd, 'unit') || 'เม็ด';
+    const perDay = fd.getAll('slots').length * num(fd.get('dose'), 1); const stock = num(fd.get('stock'));
+    const el = $('#runout', f);
+    if (!STOCK_UNITS.includes(unit)) { el.textContent = `หน่วย "${unit}" ไม่นับวันยาหมด`; return; }
+    if (fd.get('as_needed') || !perDay) { el.textContent = 'ไม่ได้กินประจำวัน จึงไม่คำนวณวันยาหมด'; return; }
+    const d = Math.floor(stock / perDay);
+    el.textContent = `กินวันละ ${num(perDay)} ${unit} → พอใช้อีก ${d} วัน (หมดประมาณ ${thDate(dk(addDays(new Date(), d)))})`;
+    el.classList.toggle('red-t', d <= LOW_STOCK_DAYS);
   };
-  syncNoLock($('input[name=profile_id]:checked', f)?.value || e.profile_id);
-  $$('input[name=profile_id]', f).forEach((r) => r.addEventListener('change', () => { $('#allergyBox', f).innerHTML = allergyNote(r.value); syncNoLock(r.value); }));
+  f.addEventListener('input', syncRunout); f.addEventListener('change', syncRunout); syncRunout();
   $$('input[name=slots]', f).forEach((c) => c.addEventListener('change', () => {
     const sw = $(`input[name=remind_${c.value}]`, f); sw.disabled = !c.checked; sw.checked = c.checked; c.closest('.slot-row').classList.toggle('on', c.checked);
   }));
@@ -155,13 +165,13 @@ function medForm(m) {
     const slots = fd.getAll('slots');
     if (!slots.length) return toast('เลือกช่วงเวลาทานยาอย่างน้อย 1 ช่วง');
     const pid = fd.get('profile_id');
-    const isOwner = ownsProfile(pid);
-    const sortNo = isOwner || !m ? Math.max(1, Math.round(num(fd.get('sort_order'), 1))) : m.sort_order;
-    const clash = S.medications.find((x) => x.id !== m?.id && x.sort_order === sortNo && medKey(x.name) !== medKey(fd.get('name')));
-    if (clash) return toast(`เลข ${sortNo} เป็นของยา ${clash.name} แล้ว ใช้เลขอื่นนะ`);
+    const sortNo = Math.max(1, Math.round(num(fd.get('sort_order'), 1)));
+    const clash = S.medications.find((x) => x.id !== m?.id && x.profile_id === pid && x.sort_order === sortNo);
+    if (clash) return toast(`เลข ${medPrefix(pid)}${sortNo} เป็นของยา ${clash.name} แล้ว — ใช้เลขอื่น หรือกด "จัดลำดับยา" ในหน้ายา`);
+    const unit = String(readSelectOther(fd, 'unit') || 'เม็ด').trim().slice(0, 20) || 'เม็ด';
     const data = {
-      profile_id: pid, sort_order: sortNo, no_pending: isOwner ? false : (m ? !!m.no_pending : !masterOf(fd.get('name'))), name: fd.get('name').trim(), purpose: fd.get('purpose').trim(),
-      dose: num(fd.get('dose'), 1), unit: UNITS.includes(fd.get('unit')) ? fd.get('unit') : 'เม็ด', stock: num(fd.get('stock')), slots: SLOTS.map((s) => s.key).filter((k) => slots.includes(k)),
+      profile_id: pid, sort_order: sortNo, no_pending: false, name: fd.get('name').trim(), purpose: fd.get('purpose').trim(),
+      dose: num(fd.get('dose'), 1), unit, stock: num(fd.get('stock')), slots: SLOTS.map((s) => s.key).filter((k) => slots.includes(k)),
       slot_reminders: Object.fromEntries(slots.map((k) => [k, !!fd.get(`remind_${k}`)])),
       note: fd.get('note').trim(), updated_at: new Date().toISOString(),
       table_hint: String(fd.get('table_hint') || '').trim(), warning: String(fd.get('warning') || '').trim(), as_needed: !!fd.get('as_needed'),
@@ -225,6 +235,7 @@ function apptForm(a, date, pid) {
       <div class="f"><span class="lbl">9. แนบรูปภาพ (ใบนัด/เอกสาร)</span>
         <div class="thumbs" id="thumbs"></div>
         <label class="btn ghost block filebtn">📎 เลือกรูป / ถ่ายรูป<input type="file" accept="image/*" multiple id="fileIn" hidden></label>
+        <p class="small muted" id="photoNote" style="margin:6px 0 0"></p>
       </div>
       <p class="small muted">🔔 ระบบจะเตือนล่วงหน้า 5, 2 และ 1 วัน พร้อมหมายเหตุ</p>
       <div class="row sticky-actions">
@@ -263,7 +274,17 @@ function apptForm(a, date, pid) {
     if (k !== undefined) { removed.push(keep[k]); keep.splice(k, 1); drawThumbs(); }
     if (n !== undefined) { URL.revokeObjectURL(pending[n].url); pending.splice(n, 1); drawThumbs(); }
   });
-  $('#fileIn', f).addEventListener('change', (ev) => { [...ev.target.files].forEach((file) => pending.push({ file, url: URL.createObjectURL(file) })); ev.target.value = ''; drawThumbs(); });
+  const photoNote = $('#photoNote', f);
+  const syncPhotoNote = () => { const n = keep.length + pending.length; photoNote.textContent = `แนบได้สูงสุด ${MAX_APPT_PHOTOS} ภาพต่อ 1 นัด (ตอนนี้ ${n}/${MAX_APPT_PHOTOS})`; photoNote.classList.toggle('red-t', n >= MAX_APPT_PHOTOS); };
+  $('#fileIn', f).addEventListener('change', (ev) => {
+    const room = Math.max(0, MAX_APPT_PHOTOS - keep.length - pending.length);
+    const files = [...ev.target.files];
+    files.slice(0, room).forEach((file) => pending.push({ file, url: URL.createObjectURL(file) }));
+    if (files.length > room) toast(`แนบได้สูงสุด ${MAX_APPT_PHOTOS} ภาพต่อ 1 นัด — ลบรูปเดิมก่อนถ้าอยากเปลี่ยน`);
+    ev.target.value = ''; drawThumbs(); syncPhotoNote();
+  });
+  thumbs.addEventListener('click', syncPhotoNote);
+  syncPhotoNote();
   drawThumbs();
 
   f.onsubmit = async (ev) => {
@@ -319,7 +340,7 @@ async function apptDetail(a) {
     </div>
     ${h?.phone ? `<a class="btn block call" href="${telHref(h.phone)}">📞 โทรหา${esc(h.name)} (${esc(h.phone)})</a>` : ''}
     ${a.note ? `<div class="alert sun" style="margin-top:12px"><div class="ic">📝</div><div><b>หมายเหตุ</b><span>${esc(a.note)}</span></div></div>` : ''}
-    ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>แจ้งหมอ: แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
+    ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     ${(a.attachments || []).length ? `<h4>รูปที่แนบ</h4><div class="thumbs" id="dThumbs">${a.attachments.map(() => '<div class="thumb loading"></div>').join('')}</div>` : ''}
     <h4>กำหนดการแจ้งเตือน</h4>
     <div class="card flat small">${REMIND_DAYS.map((k) => {
@@ -374,8 +395,8 @@ function avatarPicker(sel, color) {
   </div></div>`).join('');
 }
 
-function personForm(p) {
-  const e = p || { color: PRESET_COLORS[S.profiles.length % PRESET_COLORS.length], avatar: 'f-elder-smile', reminder_enabled: true, chronic_diseases: [], drug_allergies: [] };
+function personForm(p, preset = {}) {
+  const e = p || { color: PRESET_COLORS[S.profiles.length % PRESET_COLORS.length], avatar: 'f-elder-smile', reminder_enabled: true, chronic_diseases: [], drug_allergies: [], ...preset };
   const relOther = e.relation && !RELATIONS.includes(e.relation);
   let avatarTouched = !!p;
   const sheet = openSheet(`<h3>${p ? 'แก้ไขโปรไฟล์' : 'เพิ่มคนในครอบครัว'}</h3>
@@ -392,6 +413,12 @@ function personForm(p) {
         <label class="custom-color" title="เลือกสีเอง"><input type="color" name="color" value="${e.color}"><span>🎨 เลือกเอง</span></label>
       </div></div>
       <div class="f"><span class="lbl">ไอคอน</span><div id="avPick">${avatarPicker(e.avatar, e.color)}</div></div>
+      <div class="three">
+        <label class="f"><span>น้ำหนัก (กก.)</span><input type="number" name="weight_kg" min="0" max="400" step="0.1" inputmode="decimal" value="${e.weight_kg ?? ''}" placeholder="เช่น 58"></label>
+        <label class="f"><span>ส่วนสูง (ซม.)</span><input type="number" name="height_cm" min="0" max="250" step="0.1" inputmode="decimal" value="${e.height_cm ?? ''}" placeholder="เช่น 160"></label>
+        <label class="f"><span>รอบเอว (ซม.)</span><input type="number" name="waist_cm" min="0" max="250" step="0.1" inputmode="decimal" value="${e.waist_cm ?? ''}" placeholder="เช่น 80"></label>
+      </div>
+      <label class="f"><span>อักษรนำเลขลำดับยา <small>(เช่น "ป" → ป1 ป2 ป3 · เว้นว่าง = ใช้ตัวแรกของชื่อ)</small></span><input type="text" name="med_prefix" maxlength="3" value="${esc(e.med_prefix ?? '')}" placeholder="${esc(defaultPrefix(e.name) || 'ป')}"></label>
       <div class="f"><span class="lbl">โรคประจำตัว</span>${tagBox('chronic_diseases', e.chronic_diseases, 'พิมพ์แล้วกด เพิ่ม')}</div>
       <div class="f"><span class="lbl red-t">⚠️ แพ้ยา</span>${tagBox('drug_allergies', e.drug_allergies, 'เช่น Penicillin', 'allergy')}</div>
       <label class="switch-row card flat"><span>🔔 แจ้งเตือนกินยาของคนนี้</span><span class="switch"><input type="checkbox" name="reminder_enabled" ${e.reminder_enabled ? 'checked' : ''}><i></i></span></label>
@@ -427,6 +454,8 @@ function personForm(p) {
       blood_type: fd.get('blood_type') || null, color: colorIn.value, avatar: curAvatar(),
       chronic_diseases: readTagBox(f, 'chronic_diseases'), drug_allergies: readTagBox(f, 'drug_allergies'),
       reminder_enabled: !!fd.get('reminder_enabled'),
+      weight_kg: numOrNull(fd.get('weight_kg')), height_cm: numOrNull(fd.get('height_cm')), waist_cm: numOrNull(fd.get('waist_cm')),
+      med_prefix: String(fd.get('med_prefix') || '').trim() || null,
     };
     if (p) { Object.assign(p, data); closeSheet(); render(); if (await dbDo(DB.update('profiles', p.id, data))) toast('บันทึกแล้ว'); }
     else { const row = { id: uuid(), ...data }; S.profiles.push(row); closeSheet(); render(); if (await dbDo(DB.insert('profiles', row))) toast('เพิ่มแล้ว'); }
@@ -489,18 +518,37 @@ document.addEventListener('click', async (ev) => {
     case 'edit-person': if (!ownsProfile(id)) { toast('ข้อมูลส่วนตัวนี้แก้ได้เฉพาะเจ้าของ — คุณดูยา นัด และการติดตามอาการได้จากปุ่มด้านล่าง'); break; } personForm(S.profiles.find((p) => p.id === id)); break;
     case 'new-circle': circleForm(); break;
     case 'manage-circle': { const c = S.circles.find((x) => x.id === id); if (c && c.user_id === DB.user.id) circleForm(c); break; }
-    case 'del-circle': confirmSheet('ลบวงนี้?', async () => {
+    case 'del-circle': confirmSheet('ลบกลุ่มผู้ดูแลนี้?<br><small class="muted">สมาชิกทุกคนจะไม่เห็นข้อมูลที่แชร์อีก (ข้อมูลของคุณไม่ถูกลบ)</small>', async () => {
       S.circles = S.circles.filter((x) => x.id !== id);
       S.circle_members = S.circle_members.filter((m) => m.circle_id !== id);
       S.circle_care_for = S.circle_care_for.filter((ccf) => ccf.circle_id !== id);
       if (await dbDo(DB.remove('circles', id))) render();
     }, 'ลบ'); break;
-    case 'leave-circle': confirmSheet('ออกจากวงนี้?', async () => {
+    case 'leave-circle': confirmSheet('ออกจากกลุ่มนี้?<br><small class="muted">คุณจะไม่เห็นข้อมูลที่กลุ่มนี้แชร์อีก</small>', async () => {
       const m = S.circle_members.find((cm) => cm.circle_id === id && cm.user_id === DB.user.id);
-      if (m && await dbDo(DB.remove('circle_members', m.id))) render();
-    }, 'ออก'); break;
+      if (m && await dbDo(DB.remove('circle_members', m.id))) await reload();
+    }, 'ออกจากกลุ่ม'); break;
+    case 'rm-member': {
+      const m = S.circle_members.find((x) => x.id === id); if (!m) break;
+      const c = S.circles.find((x) => x.id === m.circle_id);
+      confirmSheet(`ลบ ${esc(m.email || 'สมาชิกคนนี้')} ออกจากกลุ่ม?<br><small class="muted">เขาจะไม่เห็นข้อมูลที่กลุ่มนี้แชร์อีก · เชิญกลับได้ภายหลัง</small>`, async () => {
+        S.circle_members = S.circle_members.filter((x) => x.id !== id);
+        if (await dbDo(DB.remove('circle_members', id))) { toast('ลบสมาชิกแล้ว'); if (c) setTimeout(() => circleForm(c), 0); }
+      }, 'ลบสมาชิก');
+      break;
+    }
+    case 'locked-tick': toast('ช่วงนี้กินครบแล้ว ล็อกไว้กันกดพลาด — แตะ 🔒 ที่หัวตารางเพื่อปลดล็อก'); break;
+    case 'unlock-slot': {
+      const p = profileById(id); const s = slotOf(el.dataset.slot);
+      confirmSheet(`ปลดล็อกช่วง "${esc(s.label)}" ของ${esc(p.name)}?<br><small class="muted">ใช้เมื่อติ๊กผิดและต้องการแก้ไข</small>`, async () => { ui.unlocked[`${id}:${s.key}:${todayKey()}`] = true; }, 'ปลดล็อก');
+      break;
+    }
+    case 'reorder-meds': reorderMedsSheet(id); break;
+    case 'reorder-people': reorderPeopleSheet(); break;
+    case 'mfa-settings': mfaSettingsSheet(); break;
+    case 'privacy': privacySheet(); break;
     case 'today-visibility': openSheet(`<h3>แสดงตารางของใครบ้าง</h3>
-      <p class="small muted">เลือกเฉพาะคนที่อยากเห็นในหน้า "วันนี้" ตั้งได้เฉพาะบัญชีของคุณ ไม่กระทบคนอื่นในวง</p>
+      <p class="small muted">เลือกเฉพาะคนที่อยากเห็นในหน้า "วันนี้" ตั้งได้เฉพาะบัญชีของคุณ ไม่กระทบคนอื่นในกลุ่ม</p>
       ${S.profiles.map((p) => `<label class="switch-row card"><span class="vis-who">${avatarHtml(p, 'xs')}<b>${esc(p.name)}</b></span>
         <span class="switch"><input type="checkbox" data-today-toggle="${p.id}" ${todayHidden().includes(p.id) ? '' : 'checked'}><i></i></span></label>`).join('')}
       <div class="row"><button class="btn" data-act="close">เสร็จแล้ว</button></div>`); break;
@@ -524,40 +572,10 @@ document.addEventListener('click', async (ev) => {
     }
     case 'accept-invite': {
       const inv = S.circle_invites.find((i) => i.id === id); if (!inv) break;
-      const ok = await dbDo(DB.insert('circle_members', { id: uuid(), circle_id: inv.circle_id, user_id: DB.user.id, role: inv.role }));
-      if (ok) { await dbDo(DB.remove('circle_invites', id)); S = await DB.loadAll(); toast('เข้าร่วมวงแล้ว'); render(); }
+      const ok = await dbDo(DB.insert('circle_members', { id: uuid(), circle_id: inv.circle_id, user_id: DB.user.id, role: inv.role, email: DB.user.email || inv.email }));
+      if (ok) { await dbDo(DB.remove('circle_invites', id)); toast('เข้าร่วมกลุ่มแล้ว'); await reload(); }
       break;
     }
-    case 'rm-care-for': {
-      const circleId = ev.target.closest('[data-circle]')?.dataset.circle;
-      if (circleId) {
-        const ccf = S.circle_care_for.find((cf) => cf.circle_id === circleId && cf.profile_id === id);
-        if (ccf && await dbDo(DB.remove('circle_care_for', ccf.id))) {
-          const c = S.circles.find((x) => x.id === circleId);
-          if (c) viewCircle(c);
-        }
-      }
-    } break;
-    case 'add-care-for': {
-      openSheet(`<h3>เพิ่มผู้ดูแล</h3><div class="pick">${S.profiles.map((p) => `<label>
-        <input type="radio" name="profile_id" value="${p.id}"><span class="opt"><span class="av">${avatarSVG(p.avatar, p.color)}</span>${esc(p.name)}</span></label>`).join('')}</div>
-        <div class="row"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" data-act="confirm-add-care-for">เพิ่ม</button></div>`);
-    } break;
-    case 'confirm-add-care-for': {
-      const pid = document.querySelector('input[name="profile_id"]:checked')?.value;
-      if (pid) {
-        const circleId = ev.target.closest('.sheet')?.dataset.circleId;
-        if (circleId && !S.circle_care_for.some((cf) => cf.circle_id === circleId && cf.profile_id === pid)) {
-          if (await dbDo(DB.insert('circle_care_for', { id: uuid(), circle_id: circleId, profile_id: pid, added_at: new Date().toISOString() }))) {
-            const c = S.circles.find((x) => x.id === circleId);
-            closeSheet();
-            if (c) viewCircle(c);
-          }
-        }
-      }
-    } break;
-    case 'slips': slipsSheet(id); break;
-    case 'care-of': viewCare(id); break;
     case 'del-person': confirmSheet('ลบคนนี้ พร้อมยา นัด และการติดตามอาการทั้งหมด?', async () => {
       const planIds = S.care_plans.filter((c) => c.profile_id === id).map((c) => c.id);
       const files = [...S.appointments.filter((a) => a.profile_id === id).flatMap((a) => a.attachments || []),
@@ -655,34 +673,45 @@ function contactForm() {
   };
 }
 
-// ---------- ฟอร์มวงดูแล (Circles) ----------
+// ---------- ฟอร์มกลุ่มผู้ดูแล (Circles) ----------
+const roleLabel = (r) => (r === 'owner' ? 'เจ้าของกลุ่ม' : r === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้');
 function circleForm(c) {
   const e = c || { name: '', description: '' };
   const isNew = !c;
   const careFor = S.circle_care_for?.filter((cf) => cf.circle_id === c?.id) || [];
-  const sheet = openSheet(`<h3>${isNew ? 'สร้างวงดูแลใหม่' : 'แก้ไขวงดูแล'}</h3>
+  const members = isNew ? [] : S.circle_members.filter((m) => m.circle_id === c.id)
+    .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : String(a.joined_at).localeCompare(String(b.joined_at))));
+  const mine = S.profiles.filter((p) => ownsProfile(p.id));
+  const sheet = openSheet(`<h3>${isNew ? 'สร้างกลุ่มผู้ดูแล' : 'จัดการกลุ่มผู้ดูแล'}</h3>
     <form id="f">
-      <label class="f"><span>ชื่อวง</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น วงดูแลปู่เค็ม"></label>
-      <label class="f"><span>คำอธิบาย (เพิ่มเติม)</span><textarea name="description" placeholder="คนที่จะอยู่ในวงนี้ เช่น ลูกหลานปู่เค็มทั้งหมด">${esc(e.description)}</textarea></label>
+      <label class="f"><span>ชื่อกลุ่ม</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น กลุ่มดูแลปู่ย่า"></label>
+      <label class="f"><span>คำอธิบาย (เพิ่มเติม)</span><textarea name="description" placeholder="เช่น ลูกหลานที่ช่วยกันดูแลปู่ย่า">${esc(e.description)}</textarea></label>
 
-      <div class="sep"><b>เลือกผู้ดูแล (ข้อมูลที่จะแชร์)</b></div>
+      <div class="sep"><b>คนที่จะแชร์ข้อมูลในกลุ่มนี้</b></div>
       <div class="care-for-select">
-        ${S.profiles.map((p) => {
+        ${mine.map((p) => {
           const isSelected = careFor.some((cf) => cf.profile_id === p.id);
           return `<label class="care-for-item"><input type="checkbox" name="care_for" value="${p.id}" ${isSelected ? 'checked' : ''}><span class="av">${avatarSVG(p.avatar, p.color)}</span><span>${esc(p.name)}</span></label>`;
-        }).join('')}
+        }).join('') || '<p class="small muted">ยังไม่มีคนในครอบครัวที่เป็นของคุณ</p>'}
       </div>
 
-      <div class="sep"><b>เชิญสมาชิกเข้าวง</b></div>
+      <div class="sep"><b>เชิญสมาชิกเข้ากลุ่ม</b></div>
       <label class="f"><span>อีเมลของคนที่จะเชิญ</span><input type="email" name="member_email" placeholder="yourname@example.com" autocomplete="off"></label>
       <label class="f"><span>สิทธิ์</span><select name="member_role"><option value="member">แก้ไขข้อมูลได้</option><option value="viewer">ดูอย่างเดียว</option></select></label>
       <p class="small muted">คนที่ถูกเชิญต้องสมัครและเข้าสู่ระบบด้วยอีเมลนี้ แล้วกด "รับคำเชิญ" ในหน้าครอบครัว</p>
       ${isNew ? '' : `<div class="sep"><b>คำเชิญที่รอตอบรับ</b></div>
-        ${(S.circle_invites || []).filter((i) => i.circle_id === c.id).map((i) => `<div class="member-item"><span class="inv-mail">${esc(i.email)}</span><span class="inv-right"><span class="role">${i.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้'}</span><button type="button" class="inv-cancel" data-act="rm-invite" data-id="${i.id}">ยกเลิก</button></span></div>`).join('') || '<p class="small muted">ไม่มีคำเชิญที่ค้างอยู่</p>'}
-        <div class="sep"><b>สมาชิกในวง (${S.circle_members.filter((m) => m.circle_id === c.id).length} คน)</b></div>
-        <div class="members-list">${S.circle_members.filter((m) => m.circle_id === c.id).map((m) => `<div class="member-item"><span>${m.user_id === DB.user.id ? 'ฉัน' : 'สมาชิก'}</span><span class="role">${m.role === 'owner' ? 'เจ้าของ' : m.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้'}</span></div>`).join('')}</div>`}
+        ${(S.circle_invites || []).filter((i) => i.circle_id === c.id).map((i) => `<div class="member-item"><span class="inv-mail">${esc(i.email)}</span><span class="inv-right"><span class="role">${roleLabel(i.role)}</span><button type="button" class="inv-cancel" data-act="rm-invite" data-id="${i.id}">ยกเลิก</button></span></div>`).join('') || '<p class="small muted">ไม่มีคำเชิญที่ค้างอยู่</p>'}
+        <div class="sep"><b>สมาชิกในกลุ่ม (${members.length} คน)</b></div>
+        <div class="members-list">${members.map((m) => {
+          const who = m.user_id === DB.user.id ? 'ฉัน' : (m.email || 'สมาชิก (ไม่ทราบอีเมล)');
+          if (m.role === 'owner') return `<div class="member-item"><span class="inv-mail">${esc(who)}</span><span class="role">${roleLabel(m.role)}</span></div>`;
+          return `<div class="member-item"><span class="inv-mail">${esc(who)}</span><span class="inv-right">
+            <select data-member-role="${m.id}" aria-label="สิทธิ์ของ ${esc(who)}"><option value="member" ${m.role === 'member' ? 'selected' : ''}>แก้ไขได้</option><option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>ดูอย่างเดียว</option></select>
+            <button type="button" class="inv-cancel" data-act="rm-member" data-id="${m.id}">ลบ</button></span></div>`;
+        }).join('')}</div>
+        <p class="small muted">เปลี่ยนสิทธิ์ได้ทันที เช่น จาก "แก้ไขได้" เป็น "ดูอย่างเดียว" — มีผลครั้งถัดไปที่สมาชิกคนนั้นเปิดแอพ</p>`}
 
-      <div class="row">${isNew ? '' : `<button type="button" class="btn danger" data-act="del-circle" data-id="${c.id}">ลบวง</button>`}<button type="button" class="btn ghost" data-act="close">ยกเลิก</button><button type="submit" class="btn">${isNew ? 'สร้าง' : 'บันทึก'}</button></div>
+      <div class="row">${isNew ? '' : `<button type="button" class="btn danger" data-act="del-circle" data-id="${c.id}">ลบกลุ่ม</button>`}<button type="button" class="btn ghost" data-act="close">ยกเลิก</button><button type="submit" class="btn">${isNew ? 'สร้าง' : 'บันทึก'}</button></div>
     </form>
   `);
   sheet.querySelector('form').onsubmit = async (ev) => {
@@ -696,7 +725,7 @@ function circleForm(c) {
     if (isNew) {
       const row = { id: circleId, user_id: DB.user.id, ...data, created_at: now };
       S.circles.push(row);
-      S.circle_members.push({ id: uuid(), circle_id: circleId, user_id: DB.user.id, role: 'owner', joined_at: now });
+      S.circle_members.push({ id: uuid(), circle_id: circleId, user_id: DB.user.id, role: 'owner', email: DB.user.email || null, joined_at: now });
       if (await dbDo(DB.insert('circles', row))) await dbDo(DB.insert('circle_members', S.circle_members.at(-1)));
     } else {
       Object.assign(c, data);
@@ -718,6 +747,7 @@ function circleForm(c) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) toast('อีเมลไม่ถูกต้อง เชิญไม่สำเร็จ');
       else if (email === String(DB.user.email || '').toLowerCase()) toast('นี่คืออีเมลของคุณเอง');
       else if (S.circle_invites.some((i) => i.circle_id === circleId && i.email === email)) toast('เชิญอีเมลนี้ไปแล้ว');
+      else if (S.circle_members.some((m) => m.circle_id === circleId && String(m.email || '').toLowerCase() === email)) toast('อีเมลนี้เป็นสมาชิกในกลุ่มแล้ว');
       else {
         const inv = { id: uuid(), circle_id: circleId, circle_name: data.name, email, role: fd.get('member_role') === 'viewer' ? 'viewer' : 'member', created_at: now };
         S.circle_invites.push(inv);
@@ -729,67 +759,16 @@ function circleForm(c) {
   };
 }
 
-function viewCircle(c) {
-  const members = S.circle_members.filter((m) => m.circle_id === c.id);
-  const careFor = S.circle_care_for.filter((cf) => cf.circle_id === c.id);
-  const isOwner = members.some((m) => m.user_id === DB.user.id && m.role === 'owner');
-  const isMember = members.some((m) => m.user_id === DB.user.id);
-  if (!isMember) { toast('ไม่มีสิทธิ์เข้าวงนี้'); return; }
-
-  const sheet = openSheet(`<h3>${esc(c.name)}</h3>
-    <p class="mute">${esc(c.description)}</p>
-
-    <div class="sep"><b>ผู้ดูแล (${careFor.length} คน)</b> ${isOwner ? '<button class="btn sm" data-act="add-care-for">➕ เพิ่ม</button>' : ''}</div>
-    <div class="care-for-list" data-circle="${c.id}">
-      ${careFor.map((cf) => {
-        const p = S.profiles.find((x) => x.id === cf.profile_id);
-        return p ? `<div class="care-for-item" draggable="${isOwner ? 'true' : 'false'}" data-profile="${p.id}">
-          <span class="av">${avatarSVG(p.avatar, p.color)}</span>
-          <span>${esc(p.name)}</span>
-          ${isOwner ? '<button type="button" data-act="rm-care-for" data-pid="' + p.id + '">×</button>' : ''}
-        </div>` : '';
-      }).join('')}
-    </div>
-
-    <div class="sep"><b>สมาชิก (${members.length} คน)</b></div>
-    <div class="members-list">
-      ${members.map((m) => `<div class="member-item"><span>${m.user_id}</span><span class="role">${m.role}</span></div>`).join('')}
-    </div>
-
-    <div class="row"><button class="btn ghost" data-act="close">ปิด</button>${isOwner ? `<button class="btn danger" data-act="del-circle" data-id="${c.id}">ลบวง</button>` : ''}</div>
-  `);
-
-  // Drag-and-drop care_for
-  if (isOwner) {
-    const list = sheet.querySelector('.care-for-list');
-    let draggedEl = null;
-    $$('[draggable="true"]', list).forEach((el) => {
-      el.addEventListener('dragstart', (e) => { draggedEl = el; e.dataTransfer.effectAllowed = 'move'; });
-      el.addEventListener('dragend', () => { draggedEl = null; });
-    });
-    sheet.addEventListener('dragover', (e) => {
-      if (!draggedEl) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    });
-    sheet.addEventListener('drop', async (e) => {
-      if (!draggedEl) return;
-      e.preventDefault();
-      const pid = draggedEl.dataset.profile;
-      if (confirm(`ลบ ${draggedEl.querySelector('span:last-child').textContent} ออกจากผู้ดูแล?`)) {
-        const ccf = S.circle_care_for.find((cf) => cf.circle_id === c.id && cf.profile_id === pid);
-        if (ccf && await dbDo(DB.remove('circle_care_for', ccf.id))) {
-          render();
-          viewCircle(c);
-        }
-      }
-    });
-  }
-}
-
 document.addEventListener('change', async (ev) => {
   const t = ev.target; if (!S) return;
   if (t.dataset.import !== undefined) { const file = t.files[0]; t.value = ''; if (file) await importFile(file); return; }
+  if (t.dataset.memberRole) {
+    const m = S.circle_members.find((x) => x.id === t.dataset.memberRole); if (!m) return;
+    const role = t.value === 'viewer' ? 'viewer' : 'member';
+    m.role = role;
+    if (await dbDo(DB.update('circle_members', m.id, { role }))) toast(`เปลี่ยนสิทธิ์ของ ${m.email || 'สมาชิก'} เป็น "${roleLabel(role)}" แล้ว`);
+    return;
+  }
   if (t.dataset.todayToggle) {
     const id = t.dataset.todayToggle;
     const hidden = new Set(todayHidden()); if (t.checked) hidden.delete(id); else hidden.add(id);

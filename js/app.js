@@ -9,10 +9,16 @@ const ui = {
   tab: 'today',
   filter: 'all',            // หน้าวันนี้: เลือกดูทีละคน
   medsPerson: null,         // หน้ายา: คนที่กำลังดู
-  calPeople: null,          // หน้าปฏิทิน: Set ของคนที่เลือก (null = ทุกคน)
+  calPeople: null,          // หน้าหมอนัด: Set ของคนที่เลือก (null = ทุกคน)
   calMonth: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
   calSel: todayKey(),
   careFilter: 'all',        // หน้าติดตามอาการ: เลือกดูทีละคน
+  unlocked: {},             // ช่วงเวลาที่กินครบแล้วแต่ผู้ใช้ปลดล็อกเพื่อแก้ (key = profileId:slot:วันที่)
+  medsPage: 'hub',          // แท็บยา: hub (เมนู 3 ไอคอน) | list (ยาที่ต้องทาน) | care (ติดตามอาการ) | summary (สรุปการกินยา)
+  todayPage: 'home',        // แท็บวันนี้: home (ภาพรวม) | mood (สรุปอารมณ์รายเดือน)
+  memberPage: null,         // แท็บสมาชิก: id ของคนที่เปิดดูข้อมูลส่วนตัว
+  adPid: null, adYm: null,  // หน้าสรุปการกินยา: คน + เดือน (YYYY-MM)
+  moodYm: null,             // หน้าสรุปอารมณ์: เดือน
 };
 
 // ---------- ตัวช่วยอ่านข้อมูล ----------
@@ -20,7 +26,7 @@ const profileById = (id) => S.profiles.find((p) => p.id === id) || { id, name: '
 const hospitalById = (id) => S.hospitals.find((h) => h.id === id);
 const doctorById = (id) => S.doctors.find((d) => d.id === id);
 const profileIndex = (id) => S.profiles.findIndex((p) => p.id === id);
-// สิทธิ์ฝั่งแอพ (ฐานข้อมูลบังคับใช้จริงอีกชั้นด้วย RLS): เจ้าของโปรไฟล์ / สมาชิกวงที่แก้ไขได้ / ดูอย่างเดียว
+// สิทธิ์ฝั่งแอพ (ฐานข้อมูลบังคับใช้จริงอีกชั้นด้วย RLS): เจ้าของโปรไฟล์ / สมาชิกกลุ่มที่แก้ไขได้ / ดูอย่างเดียว
 const ownsProfile = (pid) => { const p = profileById(pid); return !!p && (DB.mode !== 'supabase' || !p.user_id || p.user_id === DB.user.id); };
 const canEditProfile = (pid) => {
   if (ownsProfile(pid)) return true;
@@ -36,22 +42,31 @@ const circleNamesOf = (pid) => {
 const shareTag = (pid) => {
   if (ownsProfile(pid)) return '';
   const names = circleNamesOf(pid);
-  return `<span class="tag share-tag">👥 แชร์จากวง ${names.length ? esc(names.join(', ')) : 'ดูแล'} · ${canEditProfile(pid) ? 'แก้ไขได้' : 'ดูอย่างเดียว'}</span>`;
+  return `<span class="tag share-tag">👥 แชร์จากกลุ่ม${names.length ? ' ' + esc(names.join(', ')) : 'ผู้ดูแล'} · ${canEditProfile(pid) ? 'แก้ไขได้' : 'ดูอย่างเดียว'}</span>`;
 };
-/** ยาใหม่ที่สมาชิกเพิ่ม — เจ้าของโปรไฟล์ต้องตรวจ/ยืนยันเลขลำดับ */
-const pendingNoAlerts = (ids) => S.medications.filter((m) => m.no_pending && ids.includes(m.profile_id) && ownsProfile(m.profile_id))
-  .map((m) => `<button class="alert sun" data-act="edit-med" data-id="${m.id}"><div class="ic">🔢</div><div><b>ยาใหม่รอยืนยันเลขลำดับ</b>
-    <span class="small">${esc(profileById(m.profile_id).name)}: ${esc(m.name)} (เลขชั่วคราว ${m.sort_order}) — แตะเพื่อตรวจเลขแล้วกดบันทึก</span></div></button>`).join('');
-const masterOf = (name, exceptId) => S.medications.find((m) => m.id !== exceptId && medKey(m.name) && medKey(m.name) === medKey(name));
-const nextMasterNo = () => Math.max(0, ...S.medications.map((m) => num(m.sort_order))) + 1;
+// เลขลำดับยา: เรียงต่อเนื่องรายคน + อักษรนำของคนนั้น เช่น ป1 ป2 ป3
+const medPrefix = (pid) => { const p = profileById(pid); return p.med_prefix != null ? p.med_prefix : defaultPrefix(p.name); };
+const medNo = (m) => `${medPrefix(m.profile_id)}${m.sort_order}`;
+const nextNoFor = (pid) => Math.max(0, ...S.medications.filter((m) => m.profile_id === pid).map((m) => num(m.sort_order))) + 1;
 const medsOf = (pid, status = 'active') => S.medications.filter((m) => m.profile_id === pid && (status === 'any' || m.status === status)).sort((a, b) => a.sort_order - b.sort_order);
 const dailyUse = (m) => (m.slots?.length || 0) * num(m.dose, 1);
-const daysLeft = (m) => (tracksStock(m) && dailyUse(m) ? Math.floor(num(m.stock) / dailyUse(m)) : Infinity);
+const daysLeft = (m) => (tracksStock(m) && dailyUse(m) && !m.as_needed ? Math.floor(num(m.stock) / dailyUse(m)) : Infinity);
+const runoutDate = (m) => { const d = daysLeft(m); return d === Infinity ? null : dk(addDays(new Date(), d)); };
 const slotTime = (k) => S.settings.slot_times[k] || DEFAULT_SLOT_TIMES[k];
 const slotsByTime = () => [...SLOTS].sort((a, b) => slotTime(a.key).localeCompare(slotTime(b.key)));
 const takenLog = (medId, slot, day = todayKey()) => S.med_logs.find((l) => l.medication_id === medId && l.slot === slot && l.log_date === day);
 const slotReminderOn = (m, slot) => m.slot_reminders?.[slot] !== false;
 const departmentOf = (a) => a.department || '-';
+const moodLog = (pid, day = todayKey()) => (S.mood_logs || []).find((l) => l.profile_id === pid && l.log_date === day);
+/** โปรไฟล์ "ตัวฉัน" ของบัญชีนี้ (ความสัมพันธ์ = ตัวเอง และเป็นเจ้าของเอง) — อารมณ์รายวันบันทึกได้เฉพาะของตัวเอง */
+const selfProfile = () => S.profiles.find((p) => p.relation === 'ตัวเอง' && ownsProfile(p.id));
+/** เรียงคนตามลำดับที่ผู้ใช้ตั้งไว้ (ต่อบัญชี) — "ตัวฉัน" อยู่ลำดับแรกเสมอ คนที่ยังไม่อยู่ในลำดับต่อท้ายตามเดิม */
+function sortProfiles() {
+  const order = S.settings.profile_order || [];
+  const self = selfProfile()?.id;
+  const pos = (id) => { if (id === self) return -1; const i = order.indexOf(id); return i < 0 ? order.length + profileIndex(id) : i; };
+  S.profiles = [...S.profiles].sort((a, b) => pos(a.id) - pos(b.id));
+}
 
 /** ตารางทานยา 1 วัน: เรียงตามช่วงเวลา → ภายในช่วงเรียงตามคน แล้วตาม sort_order */
 function buildTimeline(profileIds) {
@@ -67,7 +82,7 @@ async function dbDo(promise) {
   try { await promise; return true; }
   catch (e) { console.error(e); toast('บันทึกไม่สำเร็จ: ' + (e.message || 'ลองใหม่อีกครั้ง')); await reload(); return false; }
 }
-async function reload() { try { S = await DB.loadAll(); render(); } catch (e) { console.error(e); toast('โหลดข้อมูลไม่สำเร็จ'); } }
+async function reload() { try { S = await DB.loadAll(); resetMonths(); sortProfiles(); render(); } catch (e) { console.error(e); toast('โหลดข้อมูลไม่สำเร็จ'); } }
 
 // รูปใน Storage ต้องขอ URL ก่อนแสดง — ใส่ <img data-path="..."> แล้วเรียก hydrateImgs (จำ URL ไว้ 50 นาที)
 const urlCache = new Map();
@@ -86,7 +101,7 @@ function personChips(sel, act, multi, withAll = act === 'filter', list = S.profi
   return `<div class="chips">
     ${withAll ?`<button class="chip ${sel === 'all' ? 'on' : ''}" data-act="${act}" data-id="all">ทุกคน</button>` : ''}
     ${multi ? `<button class="chip ${!sel ? 'on' : ''}" data-act="${act}" data-id="all">ทุกคน</button>` : ''}
-    ${list.map((p) => `<button class="chip ${isOn(p.id) && !(multi && !sel) ? 'on' : ''}" data-act="${act}" data-id="${p.id}" style="--pc:${p.color}">
+    ${list.map((p) => `<button class="chip ${isOn(p.id) && !(multi && !sel) ? 'on' : ''}" data-act="${act}" data-id="${p.id}" style="--pc:${p.color};--pt:${inkOn(p.color)}">
       <span class="av xs">${avatarSVG(p.avatar, p.color)}</span>${esc(p.name)}</button>`).join('')}
   </div>`;
 }
@@ -100,6 +115,7 @@ function ring(done, total) {
 
 const tagList = (arr, cls = '') => (arr || []).map((t) => `<span class="tag ${cls}">${cls === 'allergy' ? '⚠️ ' : ''}${esc(t)}</span>`).join('');
 const whenText = (n) => (n === 0 ? 'วันนี้' : n === 1 ? 'พรุ่งนี้' : `อีก ${n} วัน`);
+const bodyText = (p) => [p.weight_kg ? `น้ำหนัก ${num(p.weight_kg)} กก.` : '', p.height_cm ? `ส่วนสูง ${num(p.height_cm)} ซม.` : '', p.waist_cm ? `รอบเอว ${num(p.waist_cm)} ซม.` : ''].filter(Boolean).join(' · ');
 
 function apptAlerts(ids) {
   return S.appointments
@@ -122,126 +138,108 @@ function stockAlerts(ids) {
   const low = S.medications.filter((m) => m.status === 'active' && ids.includes(m.profile_id) && daysLeft(m) <= LOW_STOCK_DAYS);
   if (!low.length) return '';
   return `<div class="alert red"><div class="ic">📦</div><div><b>ยาใกล้หมด ควรเตรียมรับยาเพิ่ม</b>
-    <span class="small">${low.map((m) => `${esc(profileById(m.profile_id).name)}: ${esc(m.name)} เหลือ ${num(m.stock)} เม็ด (≈${daysLeft(m)} วัน)`).join('<br>')}</span></div></div>`;
+    <span class="small">${low.map((m) => `${esc(profileById(m.profile_id).name)}: ${esc(medNo(m))} ${esc(m.name)} เหลือ ${num(m.stock)} ${unitOf(m)} — หมดประมาณ ${thDate(runoutDate(m))}`).join('<br>')}</span></div></div>`;
 }
 
-// ตารางกินยาใน 1 วัน ของคนหนึ่งคน — แสดงเฉพาะเลขลำดับยา (แตะเลขเพื่อติ๊กว่ากินแล้ว)
+// ตารางกินยาใน 1 วัน ของคนหนึ่งคน — แสดงเฉพาะเลขลำดับยา (ติ๊กที่วงกลมเล็ก)
 function dayTable(p, nextKey) {
   const meds = medsOf(p.id); if (!meds.length) return '';
-  const cols = SLOTS.map((s) => ({ s, list: meds.filter((m) => m.slots.includes(s.key)) }));
+  const pre = medPrefix(p.id); const canTick = canEditProfile(p.id);
+  const cols = SLOTS.map((s) => {
+    const list = meds.filter((m) => m.slots.includes(s.key));
+    const regular = list.filter((m) => !m.as_needed);
+    const allDone = regular.length > 0 && regular.every((m) => takenLog(m.id, s.key));
+    return { s, list, locked: allDone && !ui.unlocked[`${p.id}:${s.key}:${todayKey()}`] };
+  });
   const nRows = Math.max(...cols.map((c) => c.list.length));
   const wOff = 0.32, total = cols.reduce((a, c) => a + (c.list.length ? 1 : wOff), 0);
   const colgroup = `<colgroup>${cols.map((c) => `<col style="width:${(((c.list.length ? 1 : wOff) / total) * 100).toFixed(2)}%">`).join('')}</colgroup>`;
-  const head = cols.map(({ s, list }) => {
+  const head = cols.map(({ s, list, locked }) => {
     if (!list.length) return `<th class="off" title="${esc(s.label)} (ไม่มียา)" aria-label="${esc(s.label)} ไม่มียา"><span class="ic">${s.icon}</span></th>`;
-    const pre = s.short.startsWith('ก่อน') ? 'ก่อน' : 'หลัง';
-    return `<th class="th-${s.key} ${list.length ? '' : 'off'} ${s.key === nextKey ? 'next' : ''}"><span class="ic">${s.icon}</span><u>${pre}</u>${esc(s.short.slice(pre.length))}<small>${slotTime(s.key)}</small>${s.key === nextKey ? '<em>ถัดไป</em>' : ''}</th>`;
+    const pr = s.short.startsWith('ก่อน') ? 'ก่อน' : 'หลัง';
+    return `<th class="th-${s.key} ${s.key === nextKey ? 'next' : ''} ${locked ? 'locked' : ''}"><span class="ic">${s.icon}</span><u>${pr}</u>${esc(s.short.slice(pr.length))}<small>${slotTime(s.key)}</small>${locked
+      ? `<button type="button" class="lock-btn" data-act="unlock-slot" data-id="${p.id}" data-slot="${s.key}" aria-label="กินครบแล้ว ล็อกไว้ — แตะเพื่อปลดล็อก">🔒 ครบ</button>`
+      : s.key === nextKey ? '<em>ถัดไป</em>' : ''}</th>`;
   }).join('');
-  const body = Array.from({ length: nRows }, (_, r) => `<tr>${cols.map(({ s, list }) => {
+  const body = Array.from({ length: nRows }, (_, r) => `<tr>${cols.map(({ s, list, locked }) => {
     if (!list.length) return '<td class="off"></td>';
     const m = list[r]; if (!m) return '<td class="blank"></td>';
     const log = takenLog(m.id, s.key);
+    const lockedTick = log && locked;
+    const tick = !canTick ? `<span class="tick ${log ? 'on' : ''} ro" aria-label="${log ? 'กินแล้ว' : 'ยังไม่ได้กิน'}">${log ? '✓' : ''}</span>`
+      : `<button type="button" class="tick ${log ? 'on' : ''} ${lockedTick ? 'locked' : ''}" data-act="${lockedTick ? 'locked-tick' : 'take'}" data-id="${m.id}" data-slot="${s.key}" aria-label="${lockedTick ? 'กินแล้ว (ล็อกไว้)' : `ติ๊กว่ากินยาลำดับที่ ${esc(medNo(m))} ${esc(m.name)} แล้ว`}">${log ? '✓' : ''}</button>`;
     return `<td class="${m.warning ? 'warn' : ''} ${m.as_needed ? 'pn' : ''} ${log ? 'done' : ''}">
       <div class="dcell">
-        <div class="dtop"><span class="wi">${m.warning ? '⚠️' : ''}</span>
-          <button type="button" class="tick ${log ? 'on' : ''}" data-act="take" data-id="${m.id}" data-slot="${s.key}" aria-label="ติ๊กว่ากินยาลำดับที่ ${m.sort_order} ${esc(m.name)} แล้ว">${log ? '✓' : ''}</button></div>
-        <div class="dmain" data-act="edit-med" data-id="${m.id}" role="button" tabindex="0" aria-label="ดูรายละเอียดยาลำดับที่ ${m.sort_order} ${esc(m.name)}">
-          <b class="onum">${m.as_needed ? '*' : ''}${m.sort_order}${m.no_pending ? '<sup class="pend">?</sup>' : ''}</b>
+        <div class="dtop"><span class="wi">${m.warning ? '⚠️' : ''}</span>${tick}</div>
+        <div class="dmain" data-act="edit-med" data-id="${m.id}" role="button" tabindex="0" aria-label="ดูรายละเอียดยาลำดับที่ ${esc(medNo(m))} ${esc(m.name)}">
+          <b class="onum">${m.as_needed ? '*' : ''}<small class="pfx">${esc(pre)}</small>${m.sort_order}</b>
           <span class="mname">${esc(m.name)}</span>
         </div>
-        ${num(m.dose, 1) !== 1 ? `<span class="dpill">${doseLabel(m.dose)} ${unitOf(m)}</span>` : ''}
+        ${num(m.dose, 1) !== 1 ? `<span class="dpill">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>` : ''}
         ${m.table_hint ? `<small class="hint">${esc(m.table_hint)}</small>` : ''}
       </div></td>`;
   }).join('')}</tr>`).join('');
-  const odd = meds.filter((m) => num(m.dose, 1) !== 1).map((m) => m.sort_order);
+  const odd = meds.filter((m) => num(m.dose, 1) !== 1).map(medNo);
   const warns = meds.filter((m) => m.warning);
   const upd = meds.map((m) => String(m.updated_at).slice(0, 10)).sort().at(-1);
   return `<section class="dtable" style="--pc:${p.color}">
     <div class="dt-head">${avatarHtml(p, 'sm')}<div><b>ตารางการกินยาใน 1 วัน (${esc(p.name)})</b>
       <div class="small muted">อัปเดต ${thDate(upd)}</div></div></div>
-    <div class="dt-note">ทานยาครั้งละ 1 เม็ด${odd.length ? ` <b>ยกเว้นลำดับที่ ${odd.join(', ')}</b> <span>(ดูจำนวนเม็ดในช่อง)</span>` : ' ทุกรายการ'}</div>
+    <div class="dt-note">ทานยาครั้งละ 1 เม็ด${odd.length ? ` <b>ยกเว้นลำดับที่ ${odd.map(esc).join(', ')}</b> <span>(ดูจำนวนในช่อง)</span>` : ' ทุกรายการ'}</div>
     <table>${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${meds.some((m) => m.as_needed) ? '<p class="small muted dt-star">* กินเฉพาะตอนมีอาการเท่านั้น (ช่องสีชมพู)</p>' : ''}
-    ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b>${warns.map((m) => `<div>${m.sort_order}. ${esc(m.name)} → ${esc(m.warning)}</div>`).join('')}</div>` : ''}
+    ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b>${warns.map((m) => `<div>${esc(medNo(m))}. ${esc(m.name)} → ${esc(m.warning)}</div>`).join('')}</div>` : ''}
     <details class="dt-legend" data-legend="${p.id}" ${ui.legendOpen?.[p.id] ? 'open' : ''}><summary>ดูชื่อยาตามเลขลำดับ</summary>
-      ${meds.map((m) => `<div class="lg-row"><div class="lg-name"><b>${m.sort_order}.</b> ${esc(m.name)}${m.purpose ? ` <span class="muted">— ${esc(m.purpose)}</span>` : ''}</div>
-        <div class="lg-right"><span class="lg-dose">${doseLabel(m.dose)} ${unitOf(m)}</span>${SLOTS.filter((s) => m.slots.includes(s.key)).map((s) => `<button type="button" class="slot-ic" data-act="slot-name" data-label="${esc(s.label)} (${slotTime(s.key)} น.)" title="${esc(s.label)}" aria-label="${esc(s.label)}">${s.icon}</button>`).join('')}</div></div>`).join('')}
+      ${meds.map((m) => `<div class="lg-row"><div class="lg-name"><b>${esc(medNo(m))}.</b> ${esc(m.name)}${m.purpose ? ` <span class="muted">— ${esc(m.purpose)}</span>` : ''}</div>
+        <div class="lg-right"><span class="lg-dose">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>${SLOTS.filter((s) => m.slots.includes(s.key)).map((s) => `<button type="button" class="slot-ic" data-act="slot-name" data-label="${esc(s.label)} (${slotTime(s.key)} น.)" title="${esc(s.label)}" aria-label="${esc(s.label)}">${s.icon}</button>`).join('')}</div></div>`).join('')}
       <p class="small muted lg-hint">แตะไอคอนเพื่อดูว่าเป็นช่วงไหน</p>
     </details>
   </section>`;
 }
 
-// ---------- หน้า: วันนี้ (ตารางทานยา) ----------
-function viewToday() {
-  const shown = todayProfiles();
-  if (ui.filter !== 'all' && !shown.some((p) => p.id === ui.filter)) ui.filter = 'all';
-  const ids = ui.filter === 'all' ? shown.map((p) => p.id) : [ui.filter];
-  const now = nowHM();
-  const h1 = new Date(Date.now() - 3600e3); const graceHM = `${pad(h1.getHours())}:${pad(h1.getMinutes())}`;
-  const all = buildTimeline(ids);
-  let total = 0, done = 0;
-  all.forEach((x) => x.items.forEach((m) => { if (m.as_needed) return; total++; if (takenLog(m.id, x.slot.key)) done++; }));
-  const nextKey = all.find((x) => x.items.some((m) => !m.as_needed && !takenLog(m.id, x.slot.key)) && (x.time >= graceHM || graceHM > now))?.slot.key;
-  const rows = ids.map((pid) => dayTable(profileById(pid), nextKey)).join('');
-
-  const hour = new Date().getHours();
-  const greet = hour < 12 ? 'สวัสดีตอนเช้า' : hour < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
-  return `
-    <header class="header"><img src="icon.svg" alt="" class="logo"><div><h1>สุขใจ</h1><p class="sub">${greet} · ${thDate(todayKey(), 'long')}</p></div></header>
-    <div class="card hero">${ring(done, total)}<div>
-      <div class="small" style="opacity:.9">ทานยาวันนี้</div>
-      <div class="big">${done} / ${total} รายการ</div>
-      <div class="small" style="opacity:.9">${total === 0 ? 'ยังไม่มียาในตาราง' : done === total ? 'ครบแล้ว เก่งมาก 🎉' : `เหลืออีก ${total - done} รายการ`}</div>
-    </div></div>
-    ${apptAlerts(ids)}${careAlerts(ids)}${stockAlerts(ids)}${pendingNoAlerts(ids)}
-    ${shown.length ? personChips(ui.filter, 'filter', false, true, shown) : ''}
-    ${S.profiles.length ? `<button class="linkbtn vis-btn" data-act="today-visibility">👁️ เลือกตารางที่จะแสดงในหน้านี้${todayHidden().length ? ` (ซ่อน ${todayHidden().filter((id) => S.profiles.some((p) => p.id === id)).length} คน)` : ''}</button>` : ''}
-    <h2>ตารางทานยาวันนี้</h2>
-    ${S.profiles.length && !shown.length ? '<div class="card empty"><div class="e">👁️</div>ซ่อนตารางของทุกคนอยู่<br>กด "เลือกตารางที่จะแสดงในหน้านี้" ด้านบนเพื่อเลือกใหม่</div>' : all.length ? rows : `<div class="card empty"><div class="e">💊</div>${S.profiles.length ? 'ยังไม่มียาที่ต้องทาน' : 'เริ่มจากเพิ่มคนในครอบครัวก่อนนะ'}<br>
-      <button class="btn sm" data-act="${S.profiles.length ? 'add-med' : 'add-person'}" style="margin-top:12px">+ ${S.profiles.length ? 'เพิ่มยา' : 'เพิ่มคนในครอบครัว'}</button></div>`}
-  `;
-}
-
 // ---------- หน้า: ยา ----------
-function medCard(m, showNo) {
-  const dl = daysLeft(m); const p = profileById(m.profile_id);
+function medCard(m) {
+  const dl = daysLeft(m); const p = profileById(m.profile_id); const out = runoutDate(m);
   return `<div class="card med" data-id="${m.id}">
-    <div class="ordnum" style="background:${p.color}" aria-label="ยาลำดับที่ ${m.sort_order}">${m.sort_order}${m.no_pending ? '?' : ''}</div>
+    <div class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="ยาลำดับที่ ${esc(medNo(m))}">${esc(medNo(m))}</div>
     <div class="info" data-act="edit-med" data-id="${m.id}">
       <div class="name">${esc(m.name)}</div>
       ${m.purpose ? `<div class="small muted">รักษา: ${esc(m.purpose)}</div>` : ''}
       <div class="tags">${m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && p.reminder_enabled ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน · ดูหมายเหตุ</span>'}</div>
       ${m.note ? `<div class="small med-note">📝 ${esc(m.note)}</div>` : ''}
       ${m.status === 'active'
-        ? `<div class="small"><span class="${dl <= LOW_STOCK_DAYS ? 'red-t' : 'muted'}">ครั้งละ ${doseLabel(m.dose)} ${unitOf(m)}${tracksStock(m) ? ` · เหลือ ${num(m.stock)} เม็ด${dl !== Infinity ? ` (≈${dl} วัน)` : ''}` : ''}</span></div>`
+        ? `<div class="small"><span class="${dl <= LOW_STOCK_DAYS ? 'red-t' : 'muted'}">ครั้งละ ${doseLabel(m.dose)} ${esc(unitOf(m))}${tracksStock(m) ? ` · เหลือ ${num(m.stock)} ${esc(unitOf(m))}${out ? ` · หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)` : ''}` : ''}</span></div>`
         : `<div class="small"><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</div>`}
       <div class="small muted">อัปเดต ${thDate(String(m.updated_at).slice(0, 10))}</div>
     </div>
   </div>`;
 }
 
-function viewMeds() {
-  if (!S.profiles.length) return `<h1>รายการยา</h1><div class="card empty"><div class="e">👨‍👩‍👧</div>เพิ่มคนในครอบครัวก่อน<br><button class="btn sm" data-act="add-person" style="margin-top:12px">+ เพิ่มคน</button></div>`;
+function viewMedList() {
+  if (!S.profiles.length) return `${backBar('ยาและการดูแล', 'meds-go', 'hub')}<h1>ยาที่ต้องทาน</h1><div class="card empty"><div class="e">👨‍👩‍👧</div>เพิ่มคนในครอบครัวก่อน<br><button class="btn sm" data-act="add-person" style="margin-top:12px">+ เพิ่มคน</button></div>`;
   if (!S.profiles.some((p) => p.id === ui.medsPerson)) ui.medsPerson = S.profiles[0].id;
   const p = profileById(ui.medsPerson);
   const act = medsOf(p.id);
-  const off = S.medications.filter((m) => m.profile_id === p.id && m.status !== 'active');
+  const off = S.medications.filter((m) => m.profile_id === p.id && m.status !== 'active').sort((a, b) => a.sort_order - b.sort_order);
   return `
-    <h1>รายการยา</h1><p class="sub">เลขหน้ายาคือเลขประจำยาของทั้งครอบครัว — ยาชนิดเดียวกันใช้เลขเดียวกันทุกคน แก้เลขได้ในฟอร์มแก้ไขยา</p>
+    ${backBar('ยาและการดูแล', 'meds-go', 'hub')}
+    <h1>ยาที่ต้องทาน</h1>
     ${personChips(ui.medsPerson, 'meds-person')}
+    <div class="two-btn" style="margin:4px 0 10px;grid-template-columns:.8fr 1.4fr">${canEditProfile(p.id) ? '<button class="btn" data-act="add-med">+ เพิ่มยา</button>' : '<span></span>'}<button class="btn ghost" data-act="print-meds" data-id="${p.id}">📄 ดาวน์โหลด PDF</button></div>
+    ${dayTable(p, null) || ''}
+    <p class="sub" style="margin-top:14px">เลขหน้ายา เช่น ${esc(medPrefix(p.id))}1 ${esc(medPrefix(p.id))}2 เรียงต่อเนื่องของแต่ละคน — ตั้งอักษรนำได้ในข้อมูลของคนนั้น ${canEditProfile(p.id) && ownsProfile(p.id) ? `<button class="linkbtn" data-act="edit-person" data-id="${p.id}">✏️ ตั้งอักษรนำ "${esc(medPrefix(p.id)) || '-'}"</button>` : ''}</p>
     ${shareTag(p.id) ? `<div class="tags">${shareTag(p.id)}</div>` : ''}
-    ${pendingNoAlerts([p.id])}
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>${esc(p.name)} แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <h2>กำลังกิน <span class="small muted">${act.length} รายการ</span></h2>
-    <div id="medList">${act.map((m) => medCard(m, true)).join('')}</div>
+    ${act.length > 1 && canEditProfile(p.id) ? `<button class="btn ghost block" data-act="reorder-meds" data-id="${p.id}">↕️ จัดลำดับยาของ${esc(p.name)}</button>` : ''}
+    <div id="medList">${act.map(medCard).join('')}</div>
     ${act.length ? '' : `<div class="card empty"><div class="e">💊</div>ยังไม่มียา กดปุ่ม + เพื่อเพิ่ม</div>`}
     <h2>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} รายการ</span></h2>
-    ${off.map((m) => medCard(m, false)).join('') || `<div class="card empty small">ไม่มี</div>`}
-    <button class="fab" data-act="add-med" aria-label="เพิ่มยา">+</button>
+    ${off.map(medCard).join('') || `<div class="card empty small">ไม่มี</div>`}
   `;
 }
 
-// ---------- หน้า: ปฏิทิน ----------
+// ---------- หน้า: หมอนัด ----------
 function viewCalendar() {
   const m = ui.calMonth;
   const first = new Date(m.getFullYear(), m.getMonth(), 1);
@@ -249,7 +247,7 @@ function viewCalendar() {
   const visible = S.appointments.filter((a) => !ui.calPeople || ui.calPeople.has(a.profile_id));
   const byDay = {};
   visible.forEach((a) => (byDay[a.appt_date] = byDay[a.appt_date] || []).push(a));
-  Object.values(byDay).forEach((l) => l.sort((a, b) => hhmm(a.appt_time).localeCompare(hhmm(b.appt_time))));
+  Object.values(byDay).forEach((l) => l.sort((a, b) => profileIndex(a.profile_id) - profileIndex(b.profile_id) || hhmm(a.appt_time).localeCompare(hhmm(b.appt_time))));
   let cells = DOW.map((d) => `<div class="dow">${d}</div>`).join('');
   for (let i = 0; i < 42; i++) {
     const d = addDays(start, i); const key = dk(d); const list = byDay[key] || [];
@@ -263,6 +261,7 @@ function viewCalendar() {
   return `
     <h1>ปฏิทินนัดหมอ</h1><p class="sub">จุดสีตามสีประจำตัวแต่ละคน · แตะวันที่เพื่อดูนัด</p>
     ${personChips(ui.calPeople, 'cal-person', true)}
+    ${S.profiles.length > 1 ? '<button class="linkbtn vis-btn" data-act="reorder-people">↕️ จัดลำดับคน</button>' : ''}
     <div class="card cal-card">
       <div class="cal-nav"><button class="iconbtn" data-act="cal-prev" aria-label="เดือนก่อน">‹</button>
         <b>${MONTHS[m.getMonth()]} ${m.getFullYear() + 543}</b>
@@ -281,7 +280,7 @@ function viewCalendar() {
 function apptBrief(a) {
   const p = profileById(a.profile_id); const d = doctorById(a.doctor_id); const dt = parseDk(a.appt_date); const n = daysUntil(a.appt_date);
   return `<button class="card appt" data-act="appt-detail" data-id="${a.id}" style="${n < 0 ? 'opacity:.6' : ''}">
-    <div class="date" style="background:${p.color}"><b>${dt.getDate()}</b><span>${MONTHS_S[dt.getMonth()]}</span></div>
+    <div class="date" style="background:${p.color};color:${inkOn(p.color)}"><b>${dt.getDate()}</b><span>${MONTHS_S[dt.getMonth()]}</span></div>
     <div class="info">
       <div class="line"><b>${esc(p.name)}</b>${n >= 0 && n <= 5 ? `<span class="countdown ${n <= 1 ? 'hot' : ''}">${whenText(n)}</span>` : ''}</div>
       <div class="small">🕘 ${hhmm(a.appt_time)} น. · ${esc(departmentOf(a))}${a.attachments?.length ? ` · 📎 ${a.attachments.length}` : ''}</div>
@@ -289,114 +288,47 @@ function apptBrief(a) {
     </div><span class="muted">›</span></button>`;
 }
 
-// ---------- หน้า: ครอบครัว + ตั้งค่า ----------
-function initCirclesUI() {
-  $$('[data-act=new-circle]').forEach((b) => b.addEventListener('click', () => circleForm()));
-  $$('[data-act=leave-circle]').forEach((b) => b.addEventListener('click', async () => {
-    const cid = b.dataset.id;
-    const c = S.circle_members.find((m) => m.circle_id === cid && m.user_id === DB.user.id);
-    if (!c) return;
-    if (await dbDo(DB.remove('circle_members', c.id))) { S.circle_members = S.circle_members.filter((x) => x.id !== c.id); render(); }
-  }));
-}
-
-function viewFamily() {
-  const pushOk = 'serviceWorker' in navigator && 'PushManager' in window;
-  const myCircles = S.circles.filter((c) => c.user_id === DB.user.id);
-  const myCircleIds = new Set(myCircles.map((c) => c.id));
-  const myEmail = String(DB.user?.email || '').toLowerCase();
-  const myInvites = DB.mode === 'supabase' ? (S.circle_invites || []).filter((i) => i.email.toLowerCase() === myEmail && !S.circle_members.some((m) => m.circle_id === i.circle_id && m.user_id === DB.user.id)) : [];
-  const sharedCircles = S.circle_members.filter((m) => m.user_id === DB.user.id && !myCircleIds.has(m.circle_id)).map((m) => S.circles.find((c) => c.id === m.circle_id)).filter(Boolean);
-  return `
-    <h1>ครอบครัว</h1><p class="sub">คนที่เราดูแล — แตะเพื่อแก้ไขข้อมูล</p>
-    ${myCircles.length ? `<h2>วงดูแลของฉัน <span class="small muted">${myCircles.length} วง</span></h2>${myCircles.map((c) => { const shared = (S.circle_care_for || []).filter((cf) => cf.circle_id === c.id).map((cf) => S.profiles.find((p) => p.id === cf.profile_id)).filter(Boolean); return `<div class="card circle"><b>${esc(c.name)}</b><p class="small muted">${esc(c.description || '')}</p><div class="shared-row">${shared.length ? `${shared.map((p) => `<span class="shared-av" title="${esc(p.name)}">${avatarHtml(p, 'xs')}<small>${esc(p.name)}</small></span>`).join('')}` : '<span class="small muted">ยังไม่ได้เลือกข้อมูลที่แชร์</span>'}</div><button class="btn ghost sm" data-act="manage-circle" data-id="${c.id}">⚙️ จัดการ</button></div>`; }).join('')}` : ''}
-    ${myInvites.length ? `<h2>คำเชิญเข้าวง <span class="small muted">${myInvites.length} คำเชิญ</span></h2>${myInvites.map((i) => `<div class="card circle"><b>${esc(i.circle_name || 'วงดูแล')}</b><p class="small muted">สิทธิ์: ${i.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขข้อมูลได้'}</p><div class="row"><button class="btn sm" data-act="accept-invite" data-id="${i.id}">✓ รับคำเชิญ</button><button class="btn ghost sm" data-act="decline-invite" data-id="${i.id}">ปฏิเสธ</button></div></div>`).join('')}` : ''}
-    ${sharedCircles.length ?`<h2>วงที่แชร์มา <span class="small muted">${sharedCircles.length} วง</span></h2>${sharedCircles.map((c) => `<div class="card circle shared"><b>${esc(c.name)}</b><p class="small muted">เจ้าของ: ${esc(S.circles.find((x) => x.id === c.id)?.user_id === DB.user.id ? 'ฉัน' : 'คนอื่น')}</p><button class="btn ghost sm danger" data-act="leave-circle" data-id="${c.id}">👋 ออกจากวง</button></div>`).join('')}` : ''}
-    <button class="btn block" data-act="new-circle">⚙️ สร้างวงดูแลใหม่</button>
-    <h2>คนในครอบครัว</h2>
-    ${S.profiles.map((p) => {
-      const n = medsOf(p.id).length;
-      const next = S.appointments.filter((a) => a.profile_id === p.id && daysUntil(a.appt_date) >= 0).sort((a, b) => a.appt_date.localeCompare(b.appt_date))[0];
-      const age = ageOf(p.birth_year);
-      const slips = S.appointments.filter((a) => a.profile_id === p.id).reduce((s, a) => s + (a.attachments?.length || 0), 0);
-      const cares = S.care_plans.filter((c) => c.profile_id === p.id && c.status === 'active').length;
-      return `<div class="card person" style="--pc:${p.color}">
-        <div class="person-top" data-act="edit-person" data-id="${p.id}">
-          ${avatarHtml(p, 'lg')}
-          <div class="info"><b class="pname">${esc(p.name)}</b>
-            <div class="small muted">${esc(p.relation || '')}${age ? ` · อายุ ${age} ปี` : ''}${p.blood_type ? ` · กรุ๊ปเลือด ${esc(p.blood_type)}` : ''}</div>
-            <div class="small muted">💊 ยา ${n} รายการ${next ? ` · 📅 นัดถัดไป ${thDate(next.appt_date)}` : ''}</div>
-          </div>
-        </div>
-        ${ownsProfile(p.id) ? '' : `<div class="tags">${shareTag(p.id)}</div>`}
-        ${p.drug_allergies?.length ? `<div class="tags"><span class="small red-t"><b>แพ้ยา:</b></span> ${tagList(p.drug_allergies, 'allergy')}</div>` : ''}
-        ${p.chronic_diseases?.length ? `<div class="tags"><span class="small muted">โรคประจำตัว:</span> ${tagList(p.chronic_diseases)}</div>` : ''}
-        <div class="row person-actions">
-          <button class="btn ghost sm" data-act="slips" data-id="${p.id}">📄 ใบนัด${slips ? ` (${slips})` : ''}</button>
-          <button class="btn ghost sm" data-act="care-of" data-id="${p.id}">🩹 ติดตามอาการ${cares ? ` (${cares})` : ''}</button>
-        </div>
-        <label class="switch-row"><span>🔔 แจ้งเตือนกินยา</span>
-          <span class="switch"><input type="checkbox" data-toggle-reminder="${p.id}" ${p.reminder_enabled ? 'checked' : ''} ${ownsProfile(p.id) ? '' : 'disabled'}><i></i></span></label>
-      </div>`;
-    }).join('')}
-    <button class="btn block" data-act="add-person">+ เพิ่มคนในครอบครัว</button>
-
-    <h2>📞 เบอร์ฉุกเฉิน</h2>
-    <div class="card sos-card">
-      <a class="sos-btn" href="tel:1669"><span>🚑</span><b>โทร 1669</b><small>เหตุฉุกเฉิน รถพยาบาล</small></a>
-      ${(S.emergency_contacts || []).map((h) => `<div class="hos-row"><a class="hos-call" href="tel:${esc(h.phone.replace(/[^\d+]/g, ''))}"><span>🏥</span><b>${esc(h.name)}</b><small>${esc(h.phone)}</small></a><button type="button" class="hos-rm" data-act="del-contact" data-id="${h.id}" aria-label="ลบ ${esc(h.name)}">×</button></div>`).join('')}
-      <button class="btn ghost block" data-act="add-contact">+ เพิ่มเบอร์โรงพยาบาล</button>
-    </div>
-
-    <h2>ตั้งค่าเวลาแต่ละช่วง (24 ชั่วโมง)</h2>
-    <div class="card"><div class="two">
-      ${SLOTS.map((s) => { const [hh, mm] = slotTime(s.key).split(':'); const mmOpts = [...new Set(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', mm])].sort();
-      return `<div class="f"><span>${s.icon} ${s.label}</span><div class="t24">
-        <select data-slot-hh="${s.key}" aria-label="ชั่วโมง">${Array.from({ length: 24 }, (_, h) => pad(h)).map((h) => `<option ${h === hh ? 'selected' : ''}>${h}</option>`).join('')}</select><b>:</b>
-        <select data-slot-mm="${s.key}" aria-label="นาที">${mmOpts.map((m) => `<option ${m === mm ? 'selected' : ''}>${m}</option>`).join('')}</select><small>น.</small></div></div>`; }).join('')}
-    </div></div>
-
-    <h2>การแจ้งเตือน</h2>
-    <div class="card">
-      <p class="small" style="margin-top:0">• นัดหมอ: เตือนล่วงหน้า 5, 2 และ 1 วันเสมอ (รวมหมายเหตุ)<br>• กินยา: เตือนเฉพาะคนและช่วงเวลาที่เปิด 🔔 ไว้</p>
-      <button class="btn block" data-act="enable-push" ${pushOk ? '' : 'disabled'}>🔔 เปิดการแจ้งเตือนบนเครื่องนี้</button>
-      <button class="btn ghost block" data-act="test-push" style="margin-top:8px">ทดลองส่งแจ้งเตือน</button>
-      <p class="small muted" style="margin-bottom:0">${pushOk ? (DB.mode === 'supabase' && CFG.VAPID_PUBLIC_KEY ? 'ใช้ Web Push — เตือนได้แม้ปิดแอพ' : (DB.mode === 'supabase' ? 'ยังไม่ได้ใส่ VAPID key — เตือนได้เฉพาะตอนเปิดแอพค้างไว้' : 'โหมดทดลอง: เตือนได้เฉพาะตอนเปิดแอพค้างไว้')) : 'เบราว์เซอร์นี้ไม่รองรับ Web Push'}
-        ${/iPhone|iPad/.test(navigator.userAgent) ? '<br>iPhone: ต้อง "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดจากไอคอนก่อน จึงจะเปิดแจ้งเตือนได้' : ''}</p>
-    </div>
-
-    <h2>บัญชี</h2>
-    <div class="card">
-      <div class="small muted">เข้าสู่ระบบเป็น</div><b>${esc(DB.user?.email || '')}</b>
-      ${DB.mode === 'supabase'
-        ? `<button class="btn ghost block" data-act="change-password" style="margin-top:12px">🔑 เปลี่ยนรหัสผ่าน</button>
-           <label class="btn ghost block filebtn" style="margin-top:8px">📥 นำเข้าข้อมูลจากไฟล์<input type="file" accept=".json,application/json" data-import hidden></label>
-           <button class="btn ghost block" data-act="logout" style="margin-top:8px">ออกจากระบบ</button>`
-        : `<p class="small muted">ยังไม่ได้เชื่อม Supabase — ข้อมูลอยู่ในเครื่องนี้เท่านั้น</p>
-           <div class="row"><button class="btn ghost" data-act="demo">ข้อมูลตัวอย่าง</button><button class="btn danger" data-act="wipe">ล้างข้อมูล</button></div>`}
-    </div>
-    <p class="small muted center">สุขใจ v0.3 · ใช้ประกอบการดูแล ไม่แทนคำแนะนำของแพทย์/เภสัชกร</p>
-  `;
-}
-
-// ---------- หน้าเข้าสู่ระบบ ----------
+// ---------- หน้าต้อนรับ + เข้าสู่ระบบ ----------
 function viewLogin(mode = 'in', msg = '') {
   document.body.classList.add('auth');
+  if (mode === 'welcome') {
+    const hour = new Date().getHours();
+    const greet = hour < 12 ? 'สวัสดีตอนเช้า' : hour < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
+    $('#app').innerHTML = `
+      <div class="login welcome">
+        <div class="welcome-top">
+          <img src="icon.svg" alt="" class="login-logo">
+          <p class="welcome-greet">${greet} 🙏</p>
+          <h1>สุขใจ</h1>
+          <p class="sub">จัดตารางยา จัดใบนัดหมอ<br>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน<br>ในแอพเดียว</p>
+        </div>
+        <div class="welcome-bottom">
+          <button class="btn block" type="button" data-login-mode="in">เริ่มใช้งาน</button>
+          <button class="btn ghost block" type="button" data-login-mode="in">มีบัญชีแล้ว เข้าสู่ระบบ</button>
+          <p class="small muted center welcome-note">แอพช่วยจัดการตารางยาใน 1 วัน<br>ไม่สามารถทดแทนคำแนะนำของแพทย์/เภสัชกรได้</p>
+        </div>
+      </div>`;
+    $$('[data-login-mode]').forEach((b) => (b.onclick = () => viewLogin(b.dataset.loginMode)));
+    return;
+  }
   $('#app').innerHTML = `
     <div class="login">
-      <img src="icon.svg" alt="" class="login-logo"><h1>สุขใจ</h1><p class="sub">เตือนกินยา & นัดหมอ สำหรับคนที่เรารัก</p>
+      <img src="icon.svg" alt="" class="login-logo"><h1>สุขใจ</h1><p class="sub">${mode === 'in' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิกใหม่'}</p>
       <form id="loginForm" class="card">
         <label class="f"><span>อีเมล</span><input type="email" name="email" required autocomplete="email" inputmode="email"></label>
         <label class="f"><span>รหัสผ่าน</span><input type="password" name="password" required minlength="6" autocomplete="${mode === 'in' ? 'current-password' : 'new-password'}"></label>
+        ${mode === 'up' ? '<label class="f"><span>ยืนยันรหัสผ่าน</span><input type="password" name="password2" required minlength="6" autocomplete="new-password"></label>' : ''}
         ${msg ? `<p class="small ${msg.startsWith('✓') ? '' : 'red-t'}">${esc(msg)}</p>` : ''}
         <button class="btn block" type="submit">${mode === 'in' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}</button>
         <button class="btn ghost block" type="button" data-login-mode="${mode === 'in' ? 'up' : 'in'}" style="margin-top:8px">${mode === 'in' ? 'ยังไม่มีบัญชี? สมัครสมาชิก' : 'มีบัญชีแล้ว? เข้าสู่ระบบ'}</button>
         ${mode === 'in' ? '<button class="linkbtn" type="button" data-login-mode="reset">ลืมรหัสผ่าน</button>' : ''}
+        <button class="linkbtn" type="button" data-login-mode="welcome">‹ กลับหน้าแรก</button>
       </form>
     </div>`;
   $('#loginForm').onsubmit = async (ev) => {
     ev.preventDefault();
     const fd = new FormData(ev.target); const email = fd.get('email').trim(); const pw = fd.get('password');
+    if (mode === 'up' && pw !== fd.get('password2')) return viewLogin(mode, 'รหัสผ่านสองช่องไม่ตรงกัน');
     const btn = $('button[type=submit]', ev.target); btn.disabled = true; btn.textContent = 'กำลังดำเนินการ…';
     try {
       if (mode === 'in') await DB.signIn(email, pw);
@@ -415,15 +347,39 @@ function viewLogin(mode = 'in', msg = '') {
 }
 
 // ---------- แสดงผล ----------
-function go(tab) { ui.tab = tab; render(); window.scrollTo(0, 0); }
+function go(tab) {
+  // แตะแท็บที่เปิดอยู่ซ้ำ = กลับหน้าแรกของแท็บนั้น
+  if (tab === ui.tab) { if (tab === 'meds') ui.medsPage = 'hub'; if (tab === 'today') ui.todayPage = 'home'; if (tab === 'family') ui.memberPage = null; }
+  if (tab === 'care') { ui.medsPage = 'care'; tab = 'meds'; } // ทางเข้าเดิมของติดตามอาการ
+  ui.tab = tab; render(); window.scrollTo(0, 0);
+}
 function render() {
   if (!S) return;
   document.body.classList.remove('auth');
-  const views = { today: viewToday, meds: viewMeds, calendar: viewCalendar, care: viewCare, family: viewFamily };
+  const views = { today: viewToday, meds: viewMeds, calendar: viewCalendar, family: viewMembers, settings: viewSettings };
   $('#app').innerHTML = views[ui.tab]();
   hydrateImgs($('#app'));
   $$('#tabbar button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
-  if (ui.tab === 'family') initCirclesUI();
+}
+
+// ---------- โลโก้เคลื่อนไหว ----------
+// ใช้ assets/logo.gif (ยาเม็ด+แคปซูลขยับ) แทนโลโก้ภาพนิ่ง ในหน้าต้อนรับ/เข้าสู่ระบบ/วันนี้
+// ผู้ใช้ที่ตั้งเครื่องให้ "ลดการเคลื่อนไหว" หรือโหลดไฟล์ไม่ได้ จะเห็น icon.svg ตามเดิม
+
+function animateLogos() {
+  $$('#app img.logo, #app img.login-logo').forEach((img) => {
+    const box = document.createElement('span');
+    box.className = 'app-ic ' + (img.classList.contains('logo') ? 'ic-sm' : 'ic-lg');
+    box.innerHTML = logoSvg();
+    img.replaceWith(box);
+  });
+}new MutationObserver(() => animateLogos()).observe(document.getElementById('app'), { childList: true });
+
+/** ย้ายสีประจำตัวชุดเก่าของโปรไฟล์ที่เราเป็นเจ้าของ ไปเป็นชุดใหม่ที่เข้ากับสีหลัก */
+async function migrateColors() {
+  const jobs = [];
+  S.profiles.forEach((p) => { const n = LEGACY_COLORS[String(p.color).toUpperCase()]; if (n && ownsProfile(p.id)) { p.color = n; jobs.push(DB.update('profiles', p.id, { color: n })); } });
+  if (jobs.length) await Promise.allSettled(jobs);
 }
 
 // ---------- เริ่มทำงาน ----------
@@ -431,16 +387,28 @@ async function boot() {
   const useSupa = CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase;
   if (CFG.SUPABASE_URL && !window.supabase) toast('โหลดระบบ Supabase ไม่สำเร็จ — ใช้โหมดทดลองแทน');
   DB = useSupa ? new SupaDB(CFG) : new LocalDB();
-  let lastUser = null;
+  let lastUser = null; let loading = null;
   const start = async (user) => {
-    if (!user) { S = null; lastUser = null; return viewLogin('in'); }
+    if (!user) { S = null; lastUser = null; return viewLogin('welcome'); }
     if (lastUser === user.id && S) return;
-    lastUser = user.id;
-    $('#app').innerHTML = '<div class="empty" style="padding-top:30vh">กำลังโหลด…</div>';
-    try { S = await DB.loadAll(); } catch (e) { console.error(e); $('#app').innerHTML = `<div class="card empty">โหลดข้อมูลไม่สำเร็จ<br><span class="small">${esc(e.message)}</span><br><button class="btn sm" onclick="location.reload()">ลองใหม่</button></div>`; return; }
-    ui.tab = 'today'; // รีเซ็ตแท็บ
-    render();
-    Notifier.start();
+    if (loading === user.id) return;
+    loading = user.id;
+    try {
+      // บัญชีที่เปิดยืนยันตัวตน 2 ขั้นตอน ต้องใส่รหัส 6 หลักก่อนโหลดข้อมูล
+      if (await DB.needsMfa().catch(() => false)) { loading = null; return mfaChallengeView(() => start(user)); }
+      $('#app').innerHTML = '<div class="empty" style="padding-top:30vh">กำลังโหลด…</div>';
+      try { S = await DB.loadAll(); } catch (e) { console.error(e); $('#app').innerHTML = `<div class="card empty">โหลดข้อมูลไม่สำเร็จ<br><span class="small">${esc(e.message)}</span><br><button class="btn sm" onclick="location.reload()">ลองใหม่</button></div>`; return; }
+      lastUser = user.id;
+      await migrateColors();
+      sortProfiles();
+      ui.tab = 'today'; // รีเซ็ตแท็บ
+      showSplash(); // หน้า intro แสดงก่อนเสมอ (ทับหน้าที่โหลดอยู่ด้านล่าง แล้วจางหายไป)
+      // PDPA: ต้องยินยอมการเก็บข้อมูลสุขภาพก่อนใช้งานครั้งแรก (และเมื่อเนื้อหาความยินยอมเปลี่ยน)
+      if (DB.mode === 'supabase' && S.settings.pdpa_version !== PDPA_VERSION) return consentView(() => { render(); Notifier.start(); showSplash(); });
+      render();
+      Notifier.start();
+      showSplash();
+    } finally { loading = null; }
   };
   // กดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → เข้าแอพแล้วเด้งหน้าตั้งรหัสผ่านใหม่ทันที
   DB.onAuth(async (u, ev) => { await start(u); if (ev === 'PASSWORD_RECOVERY' && u) passwordForm(true); });
