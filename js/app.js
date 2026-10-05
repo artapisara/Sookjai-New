@@ -1,3 +1,4 @@
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — สถานะแอพ หน้าจอหลัก และการเริ่มทำงาน */
 'use strict';
 
@@ -44,7 +45,7 @@ const shareTag = (pid) => {
   const names = circleNamesOf(pid);
   return `<span class="tag share-tag">👥 แชร์จากกลุ่ม${names.length ? ' ' + esc(names.join(', ')) : 'ผู้ดูแล'} · ${canEditProfile(pid) ? 'แก้ไขได้' : 'ดูอย่างเดียว'}</span>`;
 };
-// เลขลำดับยา: เรียงต่อเนื่องรายคน + อักษรนำของคนนั้น เช่น ป1 ป2 ป3
+// เลขลำดับยา: เรียงต่อเนื่องรายคน + รหัสของคนนั้น เช่น ป1 ป2 ป3
 const medPrefix = (pid) => { const p = profileById(pid); return p.med_prefix != null ? p.med_prefix : defaultPrefix(p.name); };
 const medNo = (m) => `${medPrefix(m.profile_id)}${m.sort_order}`;
 const nextNoFor = (pid) => Math.max(0, ...S.medications.filter((m) => m.profile_id === pid).map((m) => num(m.sort_order))) + 1;
@@ -72,7 +73,7 @@ function sortProfiles() {
 function buildTimeline(profileIds) {
   return slotsByTime().map((slot) => {
     const items = S.medications
-      .filter((m) => m.status === 'active' && profileIds.includes(m.profile_id) && m.slots.includes(slot.key))
+      .filter((m) => m.status === 'active' && profileIds.includes(m.profile_id) && m.slots.includes(slot.key) && dueToday(m))
       .sort((a, b) => profileIndex(a.profile_id) - profileIndex(b.profile_id) || a.sort_order - b.sort_order);
     return { slot, time: slotTime(slot.key), items };
   }).filter((x) => x.items.length);
@@ -143,7 +144,7 @@ function stockAlerts(ids) {
 
 // ตารางกินยาใน 1 วัน ของคนหนึ่งคน — แสดงเฉพาะเลขลำดับยา (ติ๊กที่วงกลมเล็ก)
 function dayTable(p, nextKey) {
-  const meds = medsOf(p.id); if (!meds.length) return '';
+  const meds = medsOf(p.id).filter(dueToday); if (!meds.length) return '';
   const pre = medPrefix(p.id); const canTick = canEditProfile(p.id);
   const cols = SLOTS.map((s) => {
     const list = meds.filter((m) => m.slots.includes(s.key));
@@ -181,10 +182,10 @@ function dayTable(p, nextKey) {
   }).join('')}</tr>`).join('');
   const odd = meds.filter((m) => num(m.dose, 1) !== 1).map(medNo);
   const warns = meds.filter((m) => m.warning);
-  const upd = meds.map((m) => String(m.updated_at).slice(0, 10)).sort().at(-1);
+  const upd = latestUpdate(meds);
   return `<section class="dtable" style="--pc:${p.color}">
     <div class="dt-head">${avatarHtml(p, 'sm')}<div><b>ตารางการกินยาใน 1 วัน (${esc(p.name)})</b>
-      <div class="small muted">อัปเดต ${thDate(upd)}</div></div></div>
+      <div class="small muted">อัปเดต ${upd ? thDateTime(upd) : '-'}</div></div></div>
     <div class="dt-note">ทานยาครั้งละ 1 เม็ด${odd.length ? ` <b>ยกเว้นลำดับที่ ${odd.map(esc).join(', ')}</b> <span>(ดูจำนวนในช่อง)</span>` : ' ทุกรายการ'}</div>
     <table>${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${meds.some((m) => m.as_needed) ? '<p class="small muted dt-star">* กินเฉพาะตอนมีอาการเท่านั้น (ช่องสีชมพู)</p>' : ''}
@@ -205,12 +206,12 @@ function medCard(m) {
     <div class="info" data-act="edit-med" data-id="${m.id}">
       <div class="name">${esc(m.name)}</div>
       ${m.purpose ? `<div class="small muted">รักษา: ${esc(m.purpose)}</div>` : ''}
-      <div class="tags">${m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && p.reminder_enabled ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน · ดูหมายเหตุ</span>'}</div>
+      <div class="tags">${weekdaysText(m) ? `<span class="tag sun">📅 ${weekdaysText(m)}</span>` : ''}${m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && p.reminder_enabled ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน · ดูหมายเหตุ</span>'}</div>
       ${m.note ? `<div class="small med-note">📝 ${esc(m.note)}</div>` : ''}
       ${m.status === 'active'
         ? `<div class="small"><span class="${dl <= LOW_STOCK_DAYS ? 'red-t' : 'muted'}">ครั้งละ ${doseLabel(m.dose)} ${esc(unitOf(m))}${tracksStock(m) ? ` · เหลือ ${num(m.stock)} ${esc(unitOf(m))}${out ? ` · หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)` : ''}` : ''}</span></div>`
         : `<div class="small"><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</div>`}
-      <div class="small muted">อัปเดต ${thDate(String(m.updated_at).slice(0, 10))}</div>
+      <div class="small muted">อัปเดต ${thDateTime(m.updated_at)}</div>
     </div>
   </div>`;
 }
@@ -225,9 +226,10 @@ function viewMedList() {
     ${backBar('ยาและการดูแล', 'meds-go', 'hub')}
     <h1>ยาที่ต้องทาน</h1>
     ${personChips(ui.medsPerson, 'meds-person')}
-    <div class="two-btn" style="margin:4px 0 10px;grid-template-columns:.8fr 1.4fr">${canEditProfile(p.id) ? '<button class="btn" data-act="add-med">+ เพิ่มยา</button>' : '<span></span>'}<button class="btn ghost" data-act="print-meds" data-id="${p.id}">📄 ดาวน์โหลด PDF</button></div>
+    <div class="two-btn" style="margin:4px 0 10px;grid-template-columns:1fr 1.15fr"><button class="btn ghost" style="white-space:nowrap;padding-inline:8px" data-act="print-meds" data-id="${p.id}">📄 ดาวน์โหลด PDF</button>${canEditProfile(p.id) ? '<button class="btn" data-act="add-med">+ เพิ่มยา</button>' : '<span></span>'}</div>
+    ${canEditProfile(p.id) ? lockToggle() : ''}
     ${dayTable(p, null) || ''}
-    <p class="sub" style="margin-top:14px">เลขหน้ายา เช่น ${esc(medPrefix(p.id))}1 ${esc(medPrefix(p.id))}2 เรียงต่อเนื่องของแต่ละคน — ตั้งอักษรนำได้ในข้อมูลของคนนั้น ${canEditProfile(p.id) && ownsProfile(p.id) ? `<button class="linkbtn" data-act="edit-person" data-id="${p.id}">✏️ ตั้งอักษรนำ "${esc(medPrefix(p.id)) || '-'}"</button>` : ''}</p>
+    <p class="sub" style="margin-top:14px">เลขหน้ายา เช่น ${esc(medPrefix(p.id))}1 ${esc(medPrefix(p.id))}2 เรียงต่อเนื่องของแต่ละคน — ตั้งรหัสได้ในข้อมูลของคนนั้น ${canEditProfile(p.id) && ownsProfile(p.id) ? `<button class="linkbtn" data-act="edit-person" data-id="${p.id}">✏️ ตั้งรหัส "${esc(medPrefix(p.id)) || '-'}"</button>` : ''}</p>
     ${shareTag(p.id) ? `<div class="tags">${shareTag(p.id)}</div>` : ''}
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>${esc(p.name)} แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <h2>กำลังกิน <span class="small muted">${act.length} รายการ</span></h2>
@@ -253,7 +255,7 @@ function viewCalendar() {
     const d = addDays(start, i); const key = dk(d); const list = byDay[key] || [];
     if (i === 35 && d.getMonth() !== m.getMonth()) break; // ไม่แสดงแถวที่ 6 ถ้าไม่จำเป็น
     cells += `<button class="d ${d.getMonth() !== m.getMonth() ? 'out' : ''} ${key === todayKey() ? 'today' : ''} ${key === ui.calSel ? 'sel' : ''}" data-act="sel-day" data-id="${key}">
-      <span class="dn">${d.getDate()}</span>
+      ${list.length ? '<svg class="appt-flag" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.8l3 6.2 6.8.9-5 4.7 1.3 6.7L12 17l-6.1 3.3 1.3-6.7-5-4.7L9 8z" fill="#DAFF3A"/></svg>' : ''}<span class="dn">${d.getDate()}</span>
       <span class="bars">${list.slice(0, 3).map((a) => `<i style="background:${profileById(a.profile_id).color}"></i>`).join('')}${list.length > 3 ? `<em>+${list.length - 3}</em>` : ''}</span></button>`;
   }
   const sel = byDay[ui.calSel] || [];
@@ -298,7 +300,7 @@ function viewLogin(mode = 'in', msg = '') {
       <div class="login welcome">
         <div class="welcome-top">
           <img src="icon.svg" alt="" class="login-logo">
-          <p class="welcome-greet">${greet} 🙏</p>
+          <p class="welcome-greet">วันนี้ทานยาแล้วหรือยัง?</p>
           <h1>สุขใจ</h1>
           <p class="sub">จัดตารางยา จัดใบนัดหมอ<br>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน<br>ในแอพเดียว</p>
         </div>
@@ -360,7 +362,32 @@ function render() {
   $('#app').innerHTML = views[ui.tab]();
   hydrateImgs($('#app'));
   $$('#tabbar button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  navSync();
 }
+
+// ---------- ปุ่มย้อนกลับของมือถือ/เบราว์เซอร์ ใช้ถอยทีละหน้าในแอพ (ไม่ออกจากแอพทันที) ----------
+// เก็บเฉพาะ "หน้า" (ไม่รวมคนที่เลือก/เดือนที่ดู) เพื่อไม่ให้การกดเปลี่ยนคนหรือเลื่อนเดือนกลายเป็นหน้าใหม่ในประวัติ
+const navSnap = () => ({ tab: ui.tab, medsPage: ui.medsPage, todayPage: ui.todayPage, memberPage: ui.memberPage });
+let navKey = null, navDepth = 0, navPopping = false, navIgnore = 0; const navHist = [];
+function navSync() {
+  if (navPopping) return;
+  const s = navSnap(); const k = JSON.stringify(s); if (k === navKey) return;
+  const first = navKey === null; navKey = k;
+  if (first) navDepth = 0; else navDepth++;
+  navHist[navDepth] = s; navHist.length = navDepth + 1;
+  try { if (first) history.replaceState({ n: 0, s }, '', location.href); else history.pushState({ n: navDepth, s }, '', location.href); }
+  catch { /* ไม่รองรับ history — ใช้ปุ่มย้อนกลับในแอพแทน */ }
+}
+/** หน้าที่เพิ่งมาจาก (ใช้บอกบนปุ่มย้อนกลับว่ากลับไปหน้าไหน) */
+function navPrevSnap() { const synced = JSON.stringify(navSnap()) === navKey; return navHist[synced ? navDepth - 1 : navDepth] || null; }
+window.addEventListener('popstate', (e) => {
+  if (navIgnore > 0) { navIgnore--; return; }
+  if (!S || !e.state || !e.state.s) return;
+  const modal = document.getElementById('modal');
+  if (modal && !modal.classList.contains('hidden')) { closeSheet(); navIgnore++; history.go(1); return; } // มีหน้าต่างเด้งเปิดอยู่ → ปิดหน้าต่างก่อน
+  navPopping = true; Object.assign(ui, e.state.s); navDepth = e.state.n; navKey = JSON.stringify(e.state.s);
+  render(); window.scrollTo(0, 0); navPopping = false;
+});
 
 // ---------- โลโก้เคลื่อนไหว ----------
 // ใช้ assets/logo.gif (ยาเม็ด+แคปซูลขยับ) แทนโลโก้ภาพนิ่ง ในหน้าต้อนรับ/เข้าสู่ระบบ/วันนี้
@@ -375,6 +402,23 @@ function animateLogos() {
   });
 }new MutationObserver(() => animateLogos()).observe(document.getElementById('app'), { childList: true });
 
+/** รูปใบนัดเก็บ 1 ปีนับจากวันนัด แล้วลบอัตโนมัติ (รูปอื่นๆ เช่นรูปติดตามอาการ เก็บไว้ตลอด) — ลบเฉพาะไฟล์ที่เราอัปโหลดเอง */
+const SLIP_KEEP_DAYS = 365;
+async function purgeOldSlips() {
+  const cutoff = dk(addDays(new Date(), -SLIP_KEEP_DAYS)); let changed = 0;
+  for (const a of S.appointments) {
+    if (!a.attachments?.length || a.appt_date >= cutoff) continue;
+    const mine = a.attachments.filter((x) => DB.mode !== 'supabase' || String(x).startsWith(`${DB.user.id}/`));
+    if (!mine.length) continue;
+    const keep = a.attachments.filter((x) => !mine.includes(x));
+    try {
+      await DB.update('appointments', a.id, { attachments: keep }); // แก้ข้อมูลก่อน แล้วค่อยลบไฟล์ (กันลิงก์ค้าง)
+      a.attachments = keep; changed++;
+      if (DB.mode === 'supabase') await DB.removeFiles(mine).catch(() => {});
+    } catch (e) { console.warn('ลบรูปใบนัดเก่าไม่สำเร็จ', e); }
+  }
+  if (changed) { console.info(`ลบรูปใบนัดที่เก็บครบ 1 ปีแล้ว ${changed} นัด`); render(); }
+}
 /** ย้ายสีประจำตัวชุดเก่าของโปรไฟล์ที่เราเป็นเจ้าของ ไปเป็นชุดใหม่ที่เข้ากับสีหลัก */
 async function migrateColors() {
   const jobs = [];
@@ -394,13 +438,12 @@ async function boot() {
     if (loading === user.id) return;
     loading = user.id;
     try {
-      // บัญชีที่เปิดยืนยันตัวตน 2 ขั้นตอน ต้องใส่รหัส 6 หลักก่อนโหลดข้อมูล
-      if (await DB.needsMfa().catch(() => false)) { loading = null; return mfaChallengeView(() => start(user)); }
       $('#app').innerHTML = '<div class="empty" style="padding-top:30vh">กำลังโหลด…</div>';
       try { S = await DB.loadAll(); } catch (e) { console.error(e); $('#app').innerHTML = `<div class="card empty">โหลดข้อมูลไม่สำเร็จ<br><span class="small">${esc(e.message)}</span><br><button class="btn sm" onclick="location.reload()">ลองใหม่</button></div>`; return; }
       lastUser = user.id;
       await migrateColors();
       sortProfiles();
+      setTimeout(() => purgeOldSlips(), 3000); // ทำเบื้องหลังหลังเปิดแอพ ไม่รบกวนการใช้งาน
       ui.tab = 'today'; // รีเซ็ตแท็บ
       showSplash(); // หน้า intro แสดงก่อนเสมอ (ทับหน้าที่โหลดอยู่ด้านล่าง แล้วจางหายไป)
       // PDPA: ต้องยินยอมการเก็บข้อมูลสุขภาพก่อนใช้งานครั้งแรก (และเมื่อเนื้อหาความยินยอมเปลี่ยน)

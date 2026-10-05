@@ -1,3 +1,4 @@
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — ติดตามอาการ (เช่น แผล ผื่น อาการบวม)
  * care_plans : เรื่องที่ติดตาม ต่อคน — รอบการติดตาม (ทุกกี่วัน) + แนวทางการดูแล
  * care_logs  : บันทึกแต่ละครั้ง — รูปถ่าย, อาการเทียบครั้งก่อน, บันทึกเพิ่มเติม
@@ -158,6 +159,7 @@ function careForm(c) {
   ivIn.addEventListener('input', () => $$('input[name=iv]', f).forEach((r) => (r.checked = r.value === ivIn.value)));
   f.onsubmit = async (ev) => {
     ev.preventDefault();
+    if (c && !(await askConfirm(`ต้องการ <b>แก้ไขเรื่องที่ติดตามนี้</b> ใช่หรือไม่?<br><small class="muted">กด "ใช่ แก้ไข" เพื่อบันทึกการเปลี่ยนแปลง</small>`, 'ใช่ แก้ไข'))) return;
     const fd = new FormData(f);
     const data = {
       profile_id: fd.get('profile_id'), title: fd.get('title').trim(), started_on: fd.get('started_on'),
@@ -220,6 +222,7 @@ function careLogForm(c, log) {
           <label class="btn ghost filebtn">📷 ถ่ายรูป<input type="file" accept="image/*" capture="environment" hidden></label>
           <label class="btn ghost filebtn">🖼️ เลือกรูป<input type="file" accept="image/*" multiple hidden></label>
         </div>
+        <p class="small muted" style="margin:6px 0 0">เพิ่มได้หลายรูป · รูปติดตามอาการเก็บไว้ตลอด จนกว่าคุณจะลบเอง</p>
       </div>
       <div class="f"><span class="lbl">อาการเทียบกับครั้งก่อน</span>
         <div class="trend-pick">${Object.entries(CARE_TRENDS).map(([k, v]) => `<label class="trend-opt t-${k}"><input type="radio" name="trend" value="${k}" ${e.trend === k ? 'checked' : ''}><span class="t-card"><i class="t-ic">${v.icon}</i><b>${v.label}</b></span></label>`).join('')}</div>
@@ -241,6 +244,7 @@ function careLogForm(c, log) {
     const fd = new FormData(f);
     const note = fd.get('note').trim(); const trend = fd.get('trend') || null;
     if (!photos.count() && !note && !trend) return toast('ใส่รูป อาการ หรือบันทึก อย่างน้อย 1 อย่าง');
+    if (log && !(await askConfirm(`ต้องการ <b>แก้ไขบันทึกอาการนี้</b> ใช่หรือไม่?<br><small class="muted">กด "ใช่ แก้ไข" เพื่อบันทึกการเปลี่ยนแปลง</small>`, 'ใช่ แก้ไข'))) return;
     const btn = $('button[type=submit]', f); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try {
       const data = { log_date: fd.get('log_date'), trend, note, photos: await photos.save(c.id) };

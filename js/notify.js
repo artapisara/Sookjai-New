@@ -1,3 +1,4 @@
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — การแจ้งเตือน
  * - เมื่อเชื่อม Supabase + ตั้ง VAPID key: สมัคร Web Push แล้วให้ Edge Function "send-reminders" ส่งตามเวลา (เตือนได้แม้ปิดแอพ)
  * - โหมดทดลอง: ตรวจทุก 1 นาทีขณะเปิดแอพ แล้วแสดงแจ้งเตือนผ่าน Service Worker
@@ -29,7 +30,7 @@ const Notifier = (() => {
       if (now < t || minutesBetween(t, now) > 120) continue; // เตือนภายใน 2 ชม.หลังถึงเวลา
       for (const p of S.profiles) {
         if (!p.reminder_enabled) continue;
-        const meds = medsOf(p.id).filter((m) => m.slots.includes(s.key) && slotReminderOn(m, s.key) && !takenLog(m.id, s.key));
+        const meds = medsOf(p.id).filter((m) => dueToday(m) && m.slots.includes(s.key) && slotReminderOn(m, s.key) && !takenLog(m.id, s.key));
         if (meds.length) out.push({ key: `med:${today}:${p.id}:${s.key}`, title: `${s.icon} ${p.name} ถึงเวลาทานยา${s.label}`, body: meds.map((m, i) => `${i + 1}. ${m.name} (${num(m.dose)} ${unitOf(m)})`).join('\n') });
       }
     }

@@ -1,0 +1,13 @@
+﻿สุขใจ (Sookjai) — ซอฟต์แวร์และงานออกแบบ
+Copyright (c) 2026 สุขใจ (Sookjai). สงวนลิขสิทธิ์ / All rights reserved.
+
+ซอร์สโค้ด หน้าตาแอพ โลโก้ ไอคอนที่วาดเอง ข้อความ และงานออกแบบทั้งหมดในโฟลเดอร์นี้
+เป็นผลงานของเจ้าของโครงการ ห้ามคัดลอก ดัดแปลง เผยแพร่ ขาย หรือนำไปใช้เชิงพาณิชย์
+ไม่ว่าทั้งหมดหรือบางส่วน โดยไม่ได้รับอนุญาตเป็นลายลักษณ์อักษรจากเจ้าของโครงการ
+
+This software and its design (source code, UI, logo, hand-drawn icons, copy)
+is proprietary. No part may be copied, modified, redistributed, sold or used
+commercially without prior written permission from the owner.
+
+ส่วนประกอบของบุคคลอื่นที่ใช้ภายใต้ใบอนุญาตของเขาเอง ดู THIRD-PARTY-NOTICES.md
+(Third-party components remain under their own licenses — see THIRD-PARTY-NOTICES.md)

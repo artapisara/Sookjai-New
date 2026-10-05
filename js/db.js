@@ -1,3 +1,4 @@
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — ชั้นข้อมูล
  * SupaDB  : ใช้ Supabase (Auth + Postgres + Storage) เมื่อกรอก config.js แล้ว
  * LocalDB : โหมดทดลอง เก็บในเครื่อง (localStorage) เมื่อยังไม่ได้ตั้งค่า Supabase
@@ -28,22 +29,6 @@ class SupaDB {
   }
   async resetPassword(email) { const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; }
   async signOut() { await this.sb.auth.signOut(); }
-
-  // ---- ยืนยันตัวตน 2 ขั้นตอน (TOTP) ----
-  async needsMfa() {
-    const { data, error } = await this.sb.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (error) throw error;
-    return data.nextLevel === 'aal2' && data.currentLevel !== 'aal2';
-  }
-  async mfaFactors() { const { data, error } = await this.sb.auth.mfa.listFactors(); if (error) throw error; return { verified: data.totp || [], all: data.all || [] }; }
-  async mfaEnroll() {
-    const { all } = await this.mfaFactors(); // ล้างรายการที่สมัครค้างไว้แต่ยังไม่ยืนยัน
-    for (const f of all.filter((x) => x.factor_type === 'totp' && x.status !== 'verified')) await this.sb.auth.mfa.unenroll({ factorId: f.id });
-    const { data, error } = await this.sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: `สุขใจ ${new Date().toISOString().slice(0, 16)}` });
-    if (error) throw error; return data; // { id, totp: { qr_code, secret } }
-  }
-  async mfaVerify(factorId, code) { const { error } = await this.sb.auth.mfa.challengeAndVerify({ factorId, code }); if (error) throw error; }
-  async mfaUnenroll(factorId) { const { error } = await this.sb.auth.mfa.unenroll({ factorId }); if (error) throw error; }
 
   /** ดึงบันทึกกินยา/อารมณ์ของช่วงวันที่ (แบ่งหน้าละ 1000 แถว เพราะ Supabase จำกัดต่อคำขอ) */
   async logsBetween(table, from, to) {
@@ -133,7 +118,6 @@ class LocalDB {
   async getUser() { return this.user; }
   onAuth() {}
   async signOut() {}
-  async needsMfa() { return false; }
   async loadAll() { return JSON.parse(JSON.stringify(this.data)); }
   async loadMonthLogs() { return { med_logs: [], mood_logs: [] }; } // โหมดทดลองโหลดครบตั้งแต่แรกแล้ว
   async insert(t, row) { this.data[t].push(JSON.parse(JSON.stringify(row))); this.persist(); }

@@ -1,3 +1,4 @@
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — 5 สีหลัก: เขียวมิ้นต์ (หลัก) · แดงคอรัล (เตือน/แพ้ยา/ฉุกเฉิน) · เหลือง (นัดใกล้ถึง) · กรมท่า (ตัวอักษร) · เทาอ่อน (พื้น) */
 :root {
   --bg: #F6F5F1;
@@ -282,9 +283,6 @@ button.card { width: 100%; border: 0; text-align: left; }
 .ro-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .ro-btn { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 16px; }
 .ro-btn:disabled { opacity: .3; }
-.mfa-qr { display: flex; justify-content: center; margin: 8px 0; }
-.mfa-qr img { background: #fff; padding: 8px; border-radius: 12px; }
-.mfa-secret { font-size: 13px; word-break: break-all; }
 .check-row { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; font-size: 16px; }
 .check-row input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
 .login.welcome { text-align: center; }
@@ -844,3 +842,168 @@ body:not(.auth) .ring-card, body:not(.auth) .member-row { border-left: 8px solid
 .app-ic { background: #4D55F5; box-shadow: 0 6px 14px rgba(77, 85, 245, .28); }
 .sp-logo { background: #4D55F5; box-shadow: 0 0 0 8px rgba(255, 255, 255, .9), 0 18px 38px rgba(20, 24, 120, .4); }
 .sp-logo .lg-body { fill: #fff; }
+
+/* ===== v1.16 คำถามแทนคำทักทาย + PDF 2 แบบ (เลขรหัส / มีชื่อยา) ===== */
+.sub.ask { font-size: 19px; font-weight: 600; color: var(--ink); margin: 2px 0 0; }
+.pdf-opt { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; font: inherit; margin: 10px 0; cursor: pointer; }
+.pdf-opt b { font-size: 19px; } .pdf-opt span { font-size: 15px; color: var(--muted); }
+@media print {
+  body.printing #printArea { font-size: 12pt; }
+  .pr-page { break-after: page; } .pr-page:last-child { break-after: auto; }
+  .pr-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .pr-top h1 { font-size: 22pt; margin: 0; color: #000; font-weight: 800; }
+  .pr-boxes { display: flex; gap: 0; font-size: 12pt; } .pr-boxes span { border: 1px solid #888; padding: 5px 10px; } .pr-boxes span + span { border-left: 0; }
+  .pr-red { color: #E53935; }
+  .pr-grid, .pr-list { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .pr-grid th, .pr-grid td, .pr-list th, .pr-list td { border: 1px solid #222; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pr-grid th { padding: 7px 3px; font-size: 14pt; font-weight: 800; text-align: center; background: #fff; }
+  .pr-grid th small { display: block; font-size: 9pt; font-weight: 500; color: #333; }
+  .pr-grid th.off, .pr-grid td.off { background: #B7BDBA; } .pr-grid th.aft { background: #6FC9FF; }
+  .pr-grid td { height: 14mm; text-align: center; vertical-align: middle; position: relative; padding: 3px; }
+  .pr-grid td.wr { background: #EAF6FF; } .pr-grid tr { break-inside: avoid; }
+  .pr-no { font-size: 22pt; font-weight: 800; line-height: 1; } .pr-dz { color: #E53935; font-size: 11pt; margin-left: 6px; font-weight: 600; }
+  .pr-grid em { display: block; font-style: normal; color: #E53935; font-size: 8pt; line-height: 1.1; }
+  .pr-wn { position: absolute; left: 4px; top: 3px; font-size: 7pt; color: #888; text-align: left; line-height: 1.15; max-width: 42%; } .pr-wn i, .pr-wn2 i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #E53935; margin-right: 3px; }
+  .pr-list th { background: #6FC9FF; padding: 7px 6px; font-size: 13pt; font-weight: 800; color: #000; }
+  .pr-list td { padding: 6px 8px; font-size: 12.5pt; vertical-align: top; } .pr-list td.no { background: #CDEBFF; font-weight: 800; text-align: center; }
+  .pr-list tr { break-inside: avoid; } .pr-list tr.wr td:not(.no) { background: #EAF6FF; }
+  .pr-list td span { display: block; } .pr-list .pr-red { font-weight: 600; }
+  .pr-foot { margin-top: 8px; font-size: 10pt; color: #444; }
+}
+
+/* จัดลำดับคน: ปุ่มลูกศรใหญ่ขึ้น กดง่าย + แถว "ตัวฉัน" ที่ปักหมุดไว้บนสุด */
+.ro-btn { width: 52px; height: 52px; font-size: 22px; }
+.ro-row.pinned { background: var(--brand-soft); border-radius: 14px; }
+.ro-pin { margin-left: auto; font-size: 14px; color: var(--muted); white-space: nowrap; }
+
+/* ปุ่มย้อนกลับ: ชัดเจน กดง่าย บอกว่ากลับไปหน้าไหน */
+.back-bar { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 100%; background: #E7E9FF; border: 1.5px solid #D5D9FF; border-radius: 16px; padding: 8px 14px 8px 8px; margin: 0 0 12px; min-height: 56px; color: #3F48EE; text-align: left; font: inherit; }
+.back-bar .bb-arrow { width: 40px; height: 40px; border-radius: 50%; background: #4D55F5; color: #fff; display: grid; place-items: center; font-size: 24px; font-weight: 700; flex: none; }
+.back-bar .bb-txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.back-bar .bb-txt b { font-size: 18px; color: #1B1F4D; }
+.back-bar .bb-txt small { font-size: 14px; color: #555A86; }
+
+/* ===== ล็อกการลบ (กันมือลั่น) ===== */
+.lock-toggle { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; border-radius: 16px; padding: 10px 14px; margin: 4px 0 12px; min-height: 58px; cursor: pointer; }
+.lock-toggle.on { background: #E7E9FF; border: 1.5px solid #D5D9FF; color: #1B1F4D; }
+.lock-toggle.off { background: #FFEDEB; border: 1.5px solid #F4B2AC; color: #7A1812; }
+.lock-toggle .lt-ic { font-size: 28px; flex: none; }
+.lock-toggle .lt-tx { display: flex; flex-direction: column; line-height: 1.25; }
+.lock-toggle .lt-tx b { font-size: 17px; } .lock-toggle .lt-tx small { font-size: 13.5px; opacity: .8; }
+.btn.danger.locked { background: #B9BCD6; color: #fff; box-shadow: none; }
+
+/* กล่องถามยืนยัน */
+.ask-ov { position: fixed; inset: 0; z-index: 500; background: rgba(20, 24, 100, .55); display: grid; place-items: center; padding: 20px; }
+.ask-box { background: #fff; border-radius: 24px; padding: 22px 20px 18px; width: 100%; max-width: 360px; text-align: center; box-shadow: 0 20px 50px rgba(20, 24, 120, .4); }
+.ask-ic { font-size: 40px; line-height: 1; }
+.ask-msg { font-size: 20px; line-height: 1.5; margin: 8px 0 16px; color: var(--ink); }
+.ask-msg small { font-size: 15px; }
+.ask-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ask-btns .btn { min-height: 54px; font-size: 18px; }
+
+/* คำถามหน้า intro */
+.sp-ask { margin: 22px 0 0; padding: 12px 22px; border-radius: 999px; background: #DAFF3A; color: #1B1F4D; font-size: clamp(20px, 5.6vw, 24px); font-weight: 800; box-shadow: 0 8px 20px rgba(20, 24, 120, .3); animation: sp-up .6s 1.3s ease both; }
+.sp-skip { margin-top: 22px; }
+@media (prefers-reduced-motion: reduce) { .sp-ask { animation: none; } }
+
+/* สถานะล็อก: ล็อกอยู่ = แดงอ่อน · ปลดล็อก = เทา */
+.lock-toggle.on { background: #FFEDEB; border: 1.5px solid #F4B2AC; color: #7A1812; }
+.lock-toggle.off { background: #ECEDF2; border: 1.5px solid #D3D5DE; color: #4A4D5E; }
+
+/* ===== ตารางกินยาใช้สีตามสีโปรไฟล์ (เข้มขึ้นตามช่วงเวลาของวัน) ===== */
+.dtable th { background: color-mix(in srgb, var(--pc, var(--brand)) 20%, #fff); color: var(--ink); }
+.dtable th.th-before_breakfast, .dtable th.th-before_lunch, .dtable th.th-before_dinner { background: color-mix(in srgb, var(--pc, var(--brand)) 22%, #fff); }
+.dtable th.th-after_breakfast, .dtable th.th-after_lunch, .dtable th.th-after_dinner { background: color-mix(in srgb, var(--pc, var(--brand)) 44%, #fff); }
+.dtable th.th-bedtime { background: color-mix(in srgb, var(--pc, var(--brand)) 62%, #fff); }
+.dtable th.off, .dtable th.off[class*="th-"] { background: #EEF0F2; color: #A4ADB3; }
+.dtable th.next { box-shadow: 0 0 0 3px var(--pc, var(--brand)); }
+.dtable th em { background: var(--pc, var(--brand)); color: var(--pt, #1B1F4D); }
+.dtable td { box-shadow: 0 1px 0 rgba(38, 52, 60, .06), inset 0 0 0 1.5px color-mix(in srgb, var(--pc, var(--brand)) 28%, #fff); }
+.dtable td.off { box-shadow: none; }
+.dtable td.warn { box-shadow: inset 0 0 0 1.5px #F6E3A0; } .dtable td.pn { box-shadow: inset 0 0 0 1.5px #F7C9DD; } .dtable td.done { box-shadow: inset 0 0 0 1.5px #BFE86A; }
+.dt-note { border-color: color-mix(in srgb, var(--pc, var(--brand)) 70%, #fff); }
+.dt-legend summary { color: var(--ink); }
+@media print {
+  .pr-top { border-bottom: 4px solid var(--pcd, #4D55F5); padding-bottom: 6px; }
+  .pr-grid th.aft { background: var(--pcl, #6FC9FF); } .pr-grid th.bef { background: var(--pcs, #fff); }
+  .pr-grid td.wr { background: var(--pcs, #EAF6FF); }
+  .pr-list th { background: var(--pcl, #6FC9FF); } .pr-list td.no { background: var(--pcs, #CDEBFF); } .pr-list tr.wr td:not(.no) { background: var(--pcs, #EAF6FF); }
+}
+
+/* ===== PDF v2: จัดเรียงในช่องแบบไม่ซ้อนทับ (ป้ายข้อควรระวังอยู่เหนือเลข ไม่ลอยทับ) ===== */
+@media print {
+  .pr-grid td { height: auto; min-height: 14mm; padding: 4px 3px; vertical-align: middle; text-align: center; overflow: hidden; }
+  .pr-grid tr { height: 14mm; }
+  .pr-wn { position: static !important; display: block; max-width: 100%; margin: 0 auto 2px; font-size: 7.5pt; line-height: 1.2; color: #555; text-align: center; overflow-wrap: anywhere; }
+  .pr-wn i, .pr-r i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #E53935; margin-right: 3px; vertical-align: middle; }
+  .pr-main { display: flex; justify-content: center; align-items: baseline; gap: 6px; flex-wrap: wrap; line-height: 1.1; }
+  .pr-fr { font-size: 12pt; line-height: 1; }
+  .pr-grid em { display: block; margin-top: 2px; font-style: normal; color: #E53935; font-size: 8pt; line-height: 1.2; overflow-wrap: anywhere; }
+  .pr-list td { overflow-wrap: anywhere; line-height: 1.35; }
+  .pr-r { display: block; margin: 0 0 3px; line-height: 1.3; overflow-wrap: anywhere; }
+  .pr-r:last-child { margin-bottom: 0; }
+  .pr-r.pr-hint { color: #E53935; font-weight: 600; }
+  .pr-r.pr-warn { color: #B3261E; font-weight: 600; }
+}
+
+/* PDF: ชื่อยาตัวเล็กใต้รหัส · ช่วงที่ไม่มียาแคบ */
+@media print {
+  .pr-nm { margin-top: 2px; font-size: 8.5pt; line-height: 1.2; color: #333; font-weight: 500; overflow-wrap: anywhere; }
+  .pr-grid th.off { padding: 6px 0; font-size: 11pt; font-weight: 400; background: #B7BDBA; }
+  .pr-grid th.off small { display: none; }
+  .pr-grid td.off { padding: 0; }
+}
+
+/* ===== PDF v3: แบบฟอร์มเดียวกันทุกไฟล์ (หัว · เนื้อหา · หมายเหตุ · ท้ายกระดาษพร้อมเลขหน้า) ===== */
+@media print {
+  .pr-page { display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+  .pr-note { margin: 6px 0 0; font-size: 10.5pt; color: #333; }
+  .pr-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin-top: auto; padding-top: 6px; border-top: 1px solid #999; font-size: 8.5pt; line-height: 1.3; color: #444; }
+  .pr-pg { flex: none; font-weight: 700; font-size: 10pt; color: #000; white-space: nowrap; }
+  .pr-cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: start; }
+  .pr-h2 { font-size: 13pt; font-weight: 800; margin: 8px 0 4px; color: #000; }
+  .pr-sum th { padding: 4px 6px; font-size: 11pt; } .pr-sum td { padding: 3px 8px; font-size: 11pt; } .pr-sum td.c, .pr-sum th { text-align: center; }
+  .pr-kpi { display: flex; align-items: center; gap: 14px; border: 2px solid var(--pcd, #4D55F5); border-radius: 10px; padding: 10px 14px; background: var(--pcs, #F3F4FF); font-size: 13pt; line-height: 1.35; }
+  .pr-kpi-pct { font-size: 34pt; font-weight: 800; line-height: 1; color: var(--pcd, #4D55F5); }
+  .pr-praise { margin: 8px 0; font-size: 12pt; line-height: 1.4; }
+}
+
+/* ปฏิทินนัดหมอ: วันที่มีนัดมีกรอบรูปดาวสีเขียวอยู่หลังตัวเลข (จุดสีใต้เลขเหมือนเดิม) */
+.cal .d { position: relative; }
+.cal .d .appt-flag { position: absolute; top: 0; left: 50%; width: 38px; height: 38px; transform: translateX(-50%); pointer-events: none; }
+.cal .d .dn { position: relative; z-index: 1; }
+.cal .d:has(.appt-flag) .dn { font-weight: 800; }
+.cal .d:has(.appt-flag) .bars { margin-top: 8px; }
+/* ฟอร์มยา: ตั้งช่วงเวลาอัตโนมัติจาก "ทุก X ชั่วโมง" */
+.every-box { background: var(--brand-soft, #E7E9FF); border-radius: 16px; padding: 12px; }
+.every-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 17px; margin: 6px 0; }
+.every-row select, .every-row input[type=time] { width: auto; min-width: 84px; min-height: 48px; }
+.every-row select { min-width: 72px; }
+
+/* ฟอร์มยา: เลือกวันในสัปดาห์ (ปกติปิด = ทานทุกวัน) */
+.wd-pick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.wd-pick label { flex: 1 1 0; min-width: 40px; position: relative; }
+.wd-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.wd-pick span { display: grid; place-items: center; min-height: 52px; border-radius: 14px; border: 2px solid #D5D9FF; background: #fff; font-size: 17px; font-weight: 600; color: #1B1F4D; cursor: pointer; }
+.wd-pick input:checked + span { background: #4D55F5; border-color: #4D55F5; color: #fff; }
+/* อารมณ์รายวัน: ไอคอน+ข้อความอยู่กึ่งกลางกรอบ ไม่ชิดขอบ */
+.mood-opt { justify-content: center; gap: 6px; padding: 14px 6px; min-height: 104px; }
+
+.ad-title { font-size: 21px; margin: 4px 0 10px; color: var(--ink); }
+
+/* หน้า intro: สโลแกนเล็กลงและบางลง */
+.sp-slogan { font-size: clamp(16px, 4.5vw, 19px); font-weight: 300; line-height: 1.55; }
+.sp-slogan span:nth-child(3) { font-weight: 400; }
+
+/* สโลแกน 2 บรรทัด: บรรทัดที่ 2 ต่อด้วย "ในแอพเดียว" สีมะนาว */
+.sp-slogan span:nth-child(2) { white-space: nowrap; }
+.sp-slogan span b { color: #DAFF7C; font-weight: 400; margin-left: .3em; }
+
+/* ===== แถบเมนูล่างแบบเดียวกันทุกปุ่ม: ไอคอนอยู่ในวงกลม แท็บที่เลือกมีวงกลมเขียวมะนาวครอบ ===== */
+.tabbar { align-items: center; padding-top: 8px; }
+.tabbar button, .tabbar button.home-tab, .tabbar button.on, .tabbar button.home-tab.on, .tabbar button:active, .tabbar button.on:active, .tabbar button.home-tab:active { background: transparent; box-shadow: none; color: rgba(255, 255, 255, .92); font-size: 14px; font-weight: 500; gap: 2px; padding: 0 0 2px; }
+.tabbar button.on, .tabbar button.home-tab.on { color: #fff; font-weight: 700; }
+.tabbar button .ti, .tabbar button.home-tab .ti { width: 48px; height: 48px; margin: 0; border-radius: 50%; background: transparent; border: 0; box-shadow: none; color: inherit; transition: background .15s, transform .15s; }
+.tabbar button .ti::after, .tabbar button.home-tab .ti::after { width: 27px; height: 27px; opacity: 1; }
+.tabbar button.on .ti, .tabbar button.home-tab.on .ti { background: #DAFF7C; color: #161A4D; box-shadow: 0 4px 12px rgba(20, 24, 120, .35); }
+.tabbar button:active .ti, .tabbar button.home-tab:active .ti { transform: scale(.92); box-shadow: 0 0 0 3px rgba(218, 255, 124, .7); }

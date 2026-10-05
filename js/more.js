@@ -1,4 +1,5 @@
-/* สุขใจ — หน้าจอเสริม: จัดลำดับยา/คน · สรุปการกินยารายเดือน · อารมณ์ · ยืนยันตัวตน 2 ขั้นตอน · PDPA */
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* สุขใจ — หน้าจอเสริม: จัดลำดับยา/คน · สรุปการกินยารายเดือน · อารมณ์ · PDPA */
 'use strict';
 
 // ---------- จัดลำดับยา (เลขต่อเนื่องรายคน 1..n) ----------
@@ -21,10 +22,11 @@ function reorderMedsSheet(pid) {
       [order[i], order[j]] = [order[j], order[i]]; const y = $('.reorder', sheet).scrollTop; draw(); $('#modal .reorder').scrollTop = y;
     }));
     $('#roSave', sheet).onclick = async () => {
-      const changes = [];
-      order.forEach((id, i) => { const m = S.medications.find((x) => x.id === id); if (m && m.sort_order !== i + 1) { m.sort_order = i + 1; changes.push(m); } });
+      if (!(await askConfirm('ต้องการ <b>เปลี่ยนลำดับ/รหัสยา</b> ใช่หรือไม่?<br><small class="muted">เลขรหัสยาของคนนี้จะถูกเรียงใหม่</small>', 'ใช่ เปลี่ยนลำดับ'))) return;
+      const changes = []; const nowIso = new Date().toISOString();
+      order.forEach((id, i) => { const m = S.medications.find((x) => x.id === id); if (m && m.sort_order !== i + 1) { m.sort_order = i + 1; m.updated_at = nowIso; changes.push(m); } });
       closeSheet(); render();
-      if (changes.length && await dbDo(Promise.all(changes.map((m) => DB.update('medications', m.id, { sort_order: m.sort_order }))))) toast('บันทึกลำดับยาแล้ว');
+      if (changes.length && await dbDo(Promise.all(changes.map((m) => DB.update('medications', m.id, { sort_order: m.sort_order, updated_at: m.updated_at }))))) toast('บันทึกลำดับยาแล้ว');
     };
   };
   draw();
@@ -32,23 +34,25 @@ function reorderMedsSheet(pid) {
 
 // ---------- จัดลำดับคน (ต่อบัญชี ใช้ทุกหน้า) ----------
 function reorderPeopleSheet() {
-  const order = S.profiles.map((p) => p.id);
+  const selfId = selfProfile()?.id; // "ตัวฉัน" อยู่บนสุดเสมอ ย้ายไม่ได้
+  const order = S.profiles.map((p) => p.id).filter((id) => id !== selfId);
   const draw = () => {
-    const sheet = openSheet(`<h3>จัดลำดับคน</h3><p class="small muted">ลำดับนี้ใช้ในทุกหน้า (ปฏิทิน ตารางกินยา ครอบครัว) และตั้งได้เฉพาะบัญชีของคุณ</p>
-      <div class="reorder">${order.map((id, i) => { const p = profileById(id); return `<div class="ro-row">
+    const pinned = selfId ? profileById(selfId) : null;
+    const sheet = openSheet(`<h3>จัดลำดับคน</h3><p class="small muted">กดลูกศร ▲ ▼ เพื่อเลื่อน แล้วกด "บันทึกลำดับ" · ใช้ในทุกหน้า (ภาพรวมวันนี้ ปฏิทิน สมาชิก) และตั้งได้เฉพาะบัญชีของคุณ</p>
+      <div class="reorder">${pinned ? `<div class="ro-row pinned">${avatarHtml(pinned, 'xs')}<span class="ro-name">${esc(pinned.name)} <small class="muted">(ตัวฉัน)</small></span><span class="ro-pin">📌 อยู่บนสุดเสมอ</span></div>` : ''}
+      ${order.map((id, i) => { const p = profileById(id); return `<div class="ro-row">
         ${avatarHtml(p, 'xs')}<span class="ro-name">${esc(p.name)}</span>
-        <button type="button" class="ro-btn" data-ro="up" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="เลื่อนขึ้น">▲</button>
-        <button type="button" class="ro-btn" data-ro="down" data-i="${i}" ${i === order.length - 1 ? 'disabled' : ''} aria-label="เลื่อนลง">▼</button></div>`; }).join('')}</div>
+        <button type="button" class="ro-btn" data-ro="up" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="เลื่อน ${esc(p.name)} ขึ้น">▲</button>
+        <button type="button" class="ro-btn" data-ro="down" data-i="${i}" ${i === order.length - 1 ? 'disabled' : ''} aria-label="เลื่อน ${esc(p.name)} ลง">▼</button></div>`; }).join('')}</div>
       <div class="row sticky-actions"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" id="roSave">บันทึกลำดับ</button></div>`);
-    $$('[data-ro]', sheet).forEach((b) => (b.onclick = () => { const i = +b.dataset.i; const j = b.dataset.ro === 'up' ? i - 1 : i + 1; [order[i], order[j]] = [order[j], order[i]]; draw(); }));
+    $$('[data-ro]', sheet).forEach((b) => (b.onclick = () => { const i = +b.dataset.i; const j = b.dataset.ro === 'up' ? i - 1 : i + 1; if (j < 0 || j >= order.length) return; [order[i], order[j]] = [order[j], order[i]]; draw(); }));
     $('#roSave', sheet).onclick = async () => {
-      S.settings.profile_order = [...order]; sortProfiles(); closeSheet(); render();
+      S.settings.profile_order = selfId ? [selfId, ...order] : [...order]; sortProfiles(); closeSheet(); render();
       if (await dbDo(DB.saveSettings(S.settings))) toast('บันทึกลำดับคนแล้ว');
     };
   };
   draw();
 }
-
 // ---------- สรุปผลการกินยาใน 1 เดือน ----------
 const ymOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 const monthLabel = (ym) => { const [y, m] = ym.split('-').map(Number); return `${MONTHS[m - 1]} ${y + 543}`; };
@@ -66,7 +70,7 @@ function adherenceData(pid, ym) {
     if (key > today) { days.push({ d, key, future: true }); continue; }
     let exp = 0, got = 0;
     for (const m of meds) {
-      const st = medStart(m); if (st && st > key) continue;
+      const st = medStart(m); if ((st && st > key) || !dueOn(m, key)) continue;
       for (const s of m.slots) {
         exp++; const ok = !!takenLog(m.id, s, key); if (ok) got++;
         perMed[m.id] = perMed[m.id] || { m, exp: 0, got: 0 }; perMed[m.id].exp++; if (ok) perMed[m.id].got++;
@@ -80,71 +84,13 @@ function adherenceData(pid, ym) {
 }
 
 
-// ---------- ยืนยันตัวตน 2 ขั้นตอน (TOTP) ----------
-async function mfaSettingsSheet() {
-  if (DB.mode !== 'supabase') return toast('ใช้ได้เมื่อเชื่อมต่อ Supabase แล้ว');
-  let f; try { f = await DB.mfaFactors(); } catch (e) { return toast('โหลดการตั้งค่าไม่สำเร็จ: ' + e.message); }
-  if (f.verified.length) {
-    openSheet(`<h3>ยืนยันตัวตน 2 ขั้นตอน</h3>
-      <div class="alert sun"><div class="ic">✅</div><div><b>เปิดใช้อยู่</b><span class="small">ทุกครั้งที่เข้าสู่ระบบ ต้องใส่รหัส 6 หลักจากแอพ Authenticator</span></div></div>
-      <div class="row sticky-actions"><button class="btn ghost" data-act="close">ปิด</button><button class="btn danger" id="mfaOff">ปิดการยืนยัน 2 ขั้นตอน</button></div>`);
-    $('#mfaOff').onclick = () => confirmSheet('ปิดการยืนยันตัวตน 2 ขั้นตอน?<br><small class="muted">บัญชีจะเหลือแค่รหัสผ่านอย่างเดียว</small>', async () => {
-      try { for (const x of f.verified) await DB.mfaUnenroll(x.id); toast('ปิดการยืนยัน 2 ขั้นตอนแล้ว'); } catch (e) { toast('ปิดไม่สำเร็จ: ' + e.message); }
-    }, 'ปิดใช้');
-    return;
-  }
-  const sheet = openSheet(`<h3>ยืนยันตัวตน 2 ขั้นตอน</h3>
-    <p class="small">เพิ่มความปลอดภัยให้ข้อมูลสุขภาพ: หลังใส่รหัสผ่าน ต้องใส่รหัส 6 หลักที่เปลี่ยนทุก 30 วินาทีจากแอพในมือถือ เช่น Google Authenticator หรือ Microsoft Authenticator</p>
-    <ol class="small"><li>ติดตั้งแอพ Authenticator ในมือถือ</li><li>กด "เริ่มตั้งค่า" แล้วสแกน QR ด้วยแอพนั้น</li><li>ใส่รหัส 6 หลักที่แอพแสดง เพื่อยืนยัน</li></ol>
-    <div id="mfaBox"></div>
-    <div class="row sticky-actions"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" id="mfaStart">เริ่มตั้งค่า</button></div>`);
-  $('#mfaStart', sheet).onclick = async (ev) => {
-    const btn = ev.currentTarget; btn.disabled = true; btn.textContent = 'กำลังสร้าง QR…';
-    let en; try { en = await DB.mfaEnroll(); } catch (e) { btn.disabled = false; btn.textContent = 'เริ่มตั้งค่า'; return toast('ตั้งค่าไม่สำเร็จ: ' + e.message); }
-    btn.remove();
-    $('#mfaBox', sheet).innerHTML = `<div class="mfa-qr"><img src="${esc(en.totp.qr_code)}" alt="QR สำหรับแอพ Authenticator" width="200" height="200"></div>
-      <p class="small muted center">สแกนไม่ได้? ใส่รหัสนี้ในแอพแทน<br><code class="mfa-secret">${esc(en.totp.secret)}</code></p>
-      <label class="f"><span>รหัส 6 หลักจากแอพ</span><input type="text" id="mfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456"></label>
-      <p class="small red-t hidden" id="mfaErr"></p>
-      <button class="btn block" id="mfaVerify">ยืนยันและเปิดใช้</button>`;
-    $('#mfaVerify', sheet).onclick = async (e2) => {
-      const code = $('#mfaCode', sheet).value.replace(/\D/g, ''); const err = $('#mfaErr', sheet);
-      if (code.length !== 6) { err.textContent = 'ใส่รหัสให้ครบ 6 หลัก'; err.classList.remove('hidden'); return; }
-      e2.currentTarget.disabled = true;
-      try { await DB.mfaVerify(en.id, code); closeSheet(); toast('✓ เปิดการยืนยันตัวตน 2 ขั้นตอนแล้ว'); }
-      catch (e) { e2.currentTarget.disabled = false; err.textContent = 'รหัสไม่ถูกต้องหรือหมดเวลา ลองรหัสใหม่จากแอพ'; err.classList.remove('hidden'); }
-    };
-  };
-}
-
-/** หน้าใส่รหัส 6 หลักตอนเข้าสู่ระบบ (บัญชีที่เปิดยืนยัน 2 ขั้นตอน) */
-function mfaChallengeView(onDone) {
-  document.body.classList.add('auth');
-  $('#app').innerHTML = `<div class="login"><img src="icon.svg" alt="" class="login-logo"><h1>ยืนยันตัวตน</h1>
-    <p class="sub">ใส่รหัส 6 หลักจากแอพ Authenticator ในมือถือ</p>
-    <form id="mfaForm" class="card">
-      <label class="f"><span>รหัส 6 หลัก</span><input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required autofocus placeholder="123456"></label>
-      <p class="small red-t hidden" id="mfaErr"></p>
-      <button class="btn block" type="submit">ยืนยัน</button>
-      <button class="linkbtn" type="button" id="mfaLogout">ออกจากระบบ</button>
-    </form></div>`;
-  $('#mfaLogout').onclick = async () => { await DB.signOut(); location.reload(); };
-  $('#mfaForm').onsubmit = async (ev) => {
-    ev.preventDefault(); const err = $('#mfaErr'); const btn = $('button[type=submit]', ev.target);
-    const code = String(new FormData(ev.target).get('code')).replace(/\D/g, '');
-    if (code.length !== 6) { err.textContent = 'ใส่รหัสให้ครบ 6 หลัก'; err.classList.remove('hidden'); return; }
-    btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ…';
-    try { const { verified } = await DB.mfaFactors(); await DB.mfaVerify(verified[0].id, code); onDone(); }
-    catch (e) { btn.disabled = false; btn.textContent = 'ยืนยัน'; err.textContent = 'รหัสไม่ถูกต้องหรือหมดเวลา ลองรหัสใหม่จากแอพ'; err.classList.remove('hidden'); }
-  };
-}
-
 // ---------- PDPA: ความยินยอม + ความเป็นส่วนตัว ----------
 const PDPA_TEXT = `
   <ul class="pdpa">
     <li><p><b>เก็บอะไร:</b> ข้อมูลสุขภาพของคนที่คุณใส่ไว้ (โรคประจำตัว ยา นัดหมอ รูป อารมณ์) และอีเมลของคุณ</p></li>
     <li><p><b>ใช้ทำอะไร:</b> ทำตารางยา เตือน และแชร์ให้คนที่คุณเชิญ ไม่ขาย ไม่ส่งต่อ ไม่ใช้ทำโฆษณา</p></li>
     <li><p><b>ปลอดภัย:</b> เห็นเฉพาะคุณและกลุ่มที่คุณแชร์ · เก็บบน Supabase (สิงคโปร์) ล็อกสิทธิ์ไว้</p></li>
+    <li><p><b>เก็บนานแค่ไหน:</b> รูปใบนัดลบอัตโนมัติหลังครบ 1 ปีนับจากวันนัด รูปอื่นๆ เก็บไว้จนกว่าคุณจะลบเอง</p></li>
     <li><p><b>คุณคุมได้:</b> ดาวน์โหลด แก้ไข ถอนความยินยอม หรือลบทั้งหมดได้ทุกเมื่อ ที่ ตั้งค่า → ความเป็นส่วนตัว</p></li>
   </ul>`;
 

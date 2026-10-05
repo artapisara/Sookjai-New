@@ -1,3 +1,4 @@
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — ค่าคงที่และตัวช่วยที่ใช้ร่วมกัน */
 'use strict';
 
@@ -14,6 +15,12 @@ const SLOTS = [
 ];
 const DEFAULT_SLOT_TIMES = Object.fromEntries(SLOTS.map((s) => [s.key, s.time]));
 const slotOf = (k) => SLOTS.find((s) => s.key === k) || { key: k, label: k, short: k, icon: '💊' };
+// ยาที่ทานเฉพาะบางวันของสัปดาห์ (m.weekdays = [0..6], 0 = อาทิตย์ · ว่าง = ทุกวัน)
+const WD_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const WD_FULL = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+const dueOn = (m, key) => !m.weekdays?.length || m.weekdays.includes(new Date(`${key}T12:00:00`).getDay());
+const dueToday = (m) => dueOn(m, todayKey());
+const weekdaysText = (m) => (m.weekdays?.length && m.weekdays.length < 7 ? 'เฉพาะวัน' + [...m.weekdays].sort((a, b) => a - b).map((i) => WD_FULL[i]).join(' · ') : '');
 
 const RELATIONS = ['ปู่', 'ย่า', 'ตา', 'ยาย', 'พ่อ', 'แม่', 'ตัวเอง', 'พี่สาว', 'พี่ชาย', 'น้องสาว', 'น้องชาย'];
 const BLOOD_TYPES = ['A', 'B', 'AB', 'O'];
@@ -43,10 +50,12 @@ const STOCK_UNITS = ['เม็ด', 'แคปซูล', 'ซอง', 'แผ�
 const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 นัดหมอ
 const unitOf = (m) => m.unit || 'เม็ด';
 const tracksStock = (m) => STOCK_UNITS.includes(unitOf(m));
-// อักษรนำเลขลำดับยาเริ่มต้น = พยัญชนะตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ) เช่น ปู่หวาน → ป, แม่ → ม
+// ยาที่ "ทาน" (กินเข้าปาก): ไม่นับยาหยอดตา/ป้ายตา/ครีม/แผ่นแปะ ฯลฯ — ดูจากหน่วยของยา
+const isOralMed = (m) => { const u = String(m.unit || ''); return !(['หยด', 'ครั้ง', 'แผ่น'].includes(u) || /หยอด|ป้าย|ทา|ครีม|พ่น|สูด|ตา/.test(u)); };
+// รหัสเลขลำดับยาเริ่มต้น = พยัญชนะตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ) เช่น ปู่หวาน → ป, แม่ → ม
 const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
 const defaultPrefix =(name) => String(name || '').trim().replace(/^[เแโใไ]+/, '').charAt(0);
-const PDPA_VERSION = '2026-10';
+const PDPA_VERSION = '2026-10b';
 const MOODS = [
   { k: 'happy', icon: '😊', label: 'มีความสุข', color: '#F7B731' },
   { k: 'calm', icon: '😌', label: 'สบายใจ', color: '#3FA796' },
@@ -69,6 +78,10 @@ const thDate = (key, style) => {
   if (style === 'long') return `${DOW_L[d.getDay()]}ที่ ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
   return `${d.getDate()} ${MONTHS_S[d.getMonth()]} ${String(d.getFullYear() + 543).slice(2)}`;
 };
+/** วันที่ + เวลา จากเวลาที่บันทึก (ISO) เช่น 6 ต.ค. 69 เวลา 14:32 น. */
+const thDateTime = (iso) => { const d = new Date(iso); if (Number.isNaN(d.getTime())) return ''; return `${thDate(dk(d))} เวลา ${pad(d.getHours())}:${pad(d.getMinutes())} น.`; };
+/** เวลาอัปเดตล่าสุดของรายการยา (ISO ของยาที่แก้ไขล่าสุด) */
+const latestUpdate = (meds) => { let best = null; for (const m of meds) { const t = new Date(m.updated_at).getTime(); if (Number.isFinite(t) && (best === null || t > best)) best = t; } return best === null ? null : new Date(best).toISOString(); };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const num = (v, def = 0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : def; };
 const norm = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -99,3 +112,6 @@ function compressImage(file, max = 1400, quality = 0.75) {
   });
 }
 const blobToDataUrl = (b) => new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
+
+/** ผสมสีกับสีขาว (a = 0..1 ยิ่งมากยิ่งเข้ม) — ใช้ทำสีตารางตามสีโปรไฟล์ */
+const tint = (hex, a) => { const n = parseInt(String(hex).replace('#', '').padEnd(6, '0').slice(0, 6), 16); const m = (v) => Math.round(255 - (255 - v) * a).toString(16).padStart(2, '0'); return '#' + m(n >> 16) + m((n >> 8) & 255) + m(n & 255); };
