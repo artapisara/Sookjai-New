@@ -101,6 +101,8 @@ function medForm(m) {
       <div id="allergyBox">${allergyNote(pid0)}</div>
       <label class="f"><span>ชื่อยา</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น Amlodipine 5 mg"></label>
       <label class="f"><span>รักษาโรคอะไร</span><input type="text" name="purpose" value="${esc(e.purpose)}" placeholder="เช่น ความดันโลหิตสูง"></label>
+      <label class="f"><span>แพทย์ที่จ่ายยา <small>(ไม่บังคับ)</small></span><input type="text" name="prescriber" list="docList" maxlength="120" value="${esc(e.prescriber)}" placeholder="ชื่อแพทย์"><datalist id="docList">${S.doctors.map((d) => `<option value="${esc(d.name)}">`).join('')}</datalist></label>
+      <div class="f"><span class="lbl">แผนกที่จ่ายยา <small>(ไม่บังคับ)</small></span>${selectOther('prescribed_dept', DEPARTMENTS, e.prescribed_dept, 'เลือกแผนก')}</div>
       <label class="f"><span>เลขลำดับยา <small>(เรียงต่อเนื่องของคนนี้ · รหัส "<b id="noPrefix">${esc(medPrefix(pid0))}</b>")</small></span>
         <input type="number" name="sort_order" min="1" step="1" inputmode="numeric" required value="${e.sort_order || nextNoFor(pid0)}"></label>
       <div class="two">
@@ -111,11 +113,12 @@ function medForm(m) {
         <small class="small muted" id="runout"></small></label>
       <div class="f every-box"><span class="lbl">⏱️ ยาที่ทานทุกกี่ชั่วโมง? <small>(ไม่บังคับ · ให้แอพเลือกช่วงเวลาที่ใกล้ที่สุดให้)</small></span>
         <div class="every-row"><span>ทุก</span><select id="evHours"><option>4</option><option>6</option><option selected>8</option><option>12</option></select><span>ชม. เริ่มเวลา</span><select id="evHH">${Array.from({ length: 24 }, (_, i) => `<option ${i === 6 ? 'selected' : ''}>${pad(i)}</option>`).join('')}</select><b>:</b><select id="evMM"><option>00</option><option>15</option><option>30</option><option>45</option></select><button type="button" class="btn sm" id="evGo">ตั้งให้</button></div>
-        <small class="small muted" id="evNote"></small></div>      <div class="f"><span class="lbl">ช่วงเวลาทานยา <small>(เลือกได้หลายช่วง · 🔔 = เตือนช่วงนั้น)</small></span>
+        <small class="small muted" id="evNote"></small></div>      <div class="f"><span class="lbl">ช่วงเวลาทานยา <small>(เลือกได้หลายช่วง)</small></span>
+        <p class="small muted" style="margin:0 0 6px">ต้องการตั้งเวลาใหม่ ไปที่ <b>ตั้งค่า › ช่วงเวลาทานยา</b></p>
         <div class="slot-pick">${SLOTS.map((s) => {
           const on = e.slots.includes(s.key);
           return `<div class="slot-row ${on ? 'on' : ''}">
-            <label class="slot-main"><input type="checkbox" name="slots" value="${s.key}" ${on ? 'checked' : ''}><span class="si">${s.icon}</span><span>${s.label}<small>${slotTime(s.key)} น.</small></span></label>
+            <label class="slot-main"><input type="checkbox" name="slots" value="${s.key}" ${on ? 'checked' : ''}><span class="si">${s.icon}</span><span>${s.label}</span></label>
             <label class="switch sm" title="แจ้งเตือน"><input type="checkbox" name="remind_${s.key}" ${on && e.slot_reminders?.[s.key] !== false ? 'checked' : ''} ${on ? '' : 'disabled'}><i></i></label>
           </div>`;
         }).join('')}</div>
@@ -171,10 +174,10 @@ function medForm(m) {
     for (let i = 0; i < 24 / h; i++) {
       const t = (sh * 60 + sm + i * h * 60) % 1440;
       const best = SLOTS.filter((s) => !used.has(s.key)).sort((a, b) => dist(toMin(slotTime(a.key)), t) - dist(toMin(slotTime(b.key)), t))[0];
-      if (best) { used.add(best.key); rows.push(`${pad(Math.floor(t / 60))}:${pad(t % 60)} → ${best.short} (${slotTime(best.key)})`); }
+      if (best) { used.add(best.key); rows.push(`${pad(Math.floor(t / 60))}:${pad(t % 60)} → ${best.short}`); }
     }
     $$('input[name=slots]', f).forEach((c) => { const on = used.has(c.value); if (c.checked !== on) { c.checked = on; c.dispatchEvent(new Event('change', { bubbles: true })); } });
-    $('#evNote', f).textContent = `เลือกให้แล้ว: ${rows.join(' · ')} — แก้ช่วงเวลาเองได้ด้านล่าง และปรับเวลาของแต่ละช่วงได้ที่ตั้งค่า`;
+    $('#evNote', f).textContent = `เลือกให้แล้ว: ${rows.join(' · ')} — แก้ช่วงเวลาเองได้ด้านล่าง`;
   });  $('#wdOn', f).addEventListener('change', (ev) => { $('#wdBox', f).classList.toggle('hidden', !ev.target.checked); if (!ev.target.checked) $$('input[name=wd]', f).forEach((c) => (c.checked = false)); });
   $$('input[name=status]', f).forEach((r) => r.addEventListener('change', () => $('input[name=status_reason]', f).classList.toggle('hidden', r.value === 'active')));
   f.onsubmit = async (ev) => {
@@ -186,13 +189,15 @@ function medForm(m) {
     const pid = fd.get('profile_id');
     const sortNo = Math.max(1, Math.round(num(fd.get('sort_order'), 1)));
     const clash = S.medications.find((x) => x.id !== m?.id && x.profile_id === pid && x.sort_order === sortNo);
-    if (clash) return toast(`เลข ${medPrefix(pid)}${sortNo} เป็นของยา ${clash.name} แล้ว — ใช้เลขอื่น หรือกด "จัดลำดับยา" ในหน้ายา`);
+    if (clash) return toast(`เลข ${medPrefix(pid)}${sortNo} เป็นของยา ${clash.name} แล้ว — ใช้เลขอื่น`);
     const wd = $('#wdOn', f).checked ? fd.getAll('wd').map(Number).filter((n) => n >= 0 && n <= 6) : [];
     if ($('#wdOn', f).checked && !wd.length) return toast('เลือกวันที่ต้องทานอย่างน้อย 1 วัน หรือปิดสวิตช์');
     const unit = String(readSelectOther(fd, 'unit') || 'เม็ด').trim().slice(0, 20) || 'เม็ด';
     const data = {
       profile_id: pid, sort_order: sortNo, no_pending: false, name: fd.get('name').trim(), purpose: fd.get('purpose').trim(),
-      dose: num(fd.get('dose'), 1), unit, stock: num(fd.get('stock')), slots: SLOTS.map((s) => s.key).filter((k) => slots.includes(k)),
+      ...(String(fd.get('prescriber') || '').trim() || m?.prescriber ? { prescriber: String(fd.get('prescriber') || '').trim() } : {}),
+      ...(String(readSelectOther(fd, 'prescribed_dept') || '').trim() || m?.prescribed_dept ? { prescribed_dept: String(readSelectOther(fd, 'prescribed_dept') || '').trim() } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
+      dose: num(fd.get('dose'), 1), unit, stock: num(fd.get('stock')), ...(m && num(fd.get('stock')) !== num(m.stock) ? { stock_at: todayKey() } : {}), // เริ่มนับจำนวนคงเหลือใหม่จากวันที่แก้ตัวเลข slots: SLOTS.map((s) => s.key).filter((k) => slots.includes(k)),
       slot_reminders: Object.fromEntries(slots.map((k) => [k, !!fd.get(`remind_${k}`)])),
       note: fd.get('note').trim(), updated_at: new Date().toISOString(),
       ...(wd.length || m?.weekdays?.length ? { weekdays: wd.length === 7 ? [] : wd } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
@@ -299,6 +304,7 @@ function apptForm(a, date, pid) {
   const photoNote = $('#photoNote', f);
   const syncPhotoNote = () => { const n = keep.length + pending.length; photoNote.textContent = `แนบได้สูงสุด ${MAX_APPT_PHOTOS} ภาพต่อ 1 นัด (ตอนนี้ ${n}/${MAX_APPT_PHOTOS}) · เก็บไว้ 1 ปีนับจากวันนัด แล้วลบอัตโนมัติ`; photoNote.classList.toggle('red-t', n >= MAX_APPT_PHOTOS); };
   $('#fileIn', f).addEventListener('change', (ev) => {
+    if (!canUse('slips', { id: a?.id, has: keep.length + pending.length > 0 })) { ev.target.value = ''; return premiumSheet('slips'); }
     const room = Math.max(0, MAX_APPT_PHOTOS - keep.length - pending.length);
     const files = [...ev.target.files];
     files.slice(0, room).forEach((file) => pending.push({ file, url: URL.createObjectURL(file) }));
@@ -421,6 +427,7 @@ function avatarPicker(sel, color) {
 }
 
 function personForm(p, preset = {}) {
+  if (!p && !canUse('profiles')) return premiumSheet('profiles');
   const e = p || { color: PRESET_COLORS[S.profiles.length % PRESET_COLORS.length], avatar: 'f-elder-smile', reminder_enabled: true, chronic_diseases: [], drug_allergies: [], ...preset };
   const relOther = e.relation && !RELATIONS.includes(e.relation);
   let avatarTouched = !!p;
@@ -433,7 +440,7 @@ function personForm(p, preset = {}) {
         <label class="f"><span>ปีเกิด (พ.ศ. หรือ ค.ศ.)</span><input type="number" name="birth_year" inputmode="numeric" min="1900" max="2700" value="${e.birth_year ? e.birth_year + 543 : ''}" placeholder="เช่น 2490"></label>
         <div class="f"><span class="lbl">กรุ๊ปเลือด</span><div class="pick">${BLOOD_TYPES.map((b) => `<label><input type="radio" name="blood_type" value="${b}" ${e.blood_type === b ? 'checked' : ''}><span class="opt blood">${b}</span></label>`).join('')}</div></div>
       </div>
-      <div class="f"><span class="lbl">สีประจำตัว (ใช้ในหน้าหมอนัด)</span><div class="pick colors">
+      <div class="f"><span class="lbl">สีประจำตัว (ใช้ในหน้านัดพบแพทย์)</span><div class="pick colors">
         ${PRESET_COLORS.map((c) => `<label><input type="radio" name="color_p" value="${c}" ${c === e.color ? 'checked' : ''}><span class="opt sw" style="background:${c}"></span></label>`).join('')}
         <label class="custom-color" title="เลือกสีเอง"><input type="color" name="color" value="${e.color}"><span>🎨 เลือกเอง</span></label>
       </div></div>
@@ -702,13 +709,14 @@ function contactForm() {
 // ---------- ฟอร์มกลุ่มผู้ดูแล (Circles) ----------
 const roleLabel = (r) => (r === 'owner' ? 'เจ้าของกลุ่ม' : r === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้');
 function circleForm(c) {
+  if (!c && !canUse('circles')) return premiumSheet('circles');
   const e = c || { name: '', description: '' };
   const isNew = !c;
   const careFor = S.circle_care_for?.filter((cf) => cf.circle_id === c?.id) || [];
   const members = isNew ? [] : S.circle_members.filter((m) => m.circle_id === c.id)
     .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : String(a.joined_at).localeCompare(String(b.joined_at))));
   const mine = S.profiles.filter((p) => ownsProfile(p.id));
-  const sheet = openSheet(`<h3>${isNew ? 'สร้างกลุ่มผู้ดูแล' : 'จัดการกลุ่มผู้ดูแล'}</h3>
+  const sheet = openSheet(`<h3>${isNew ? 'สร้างกลุ่มผู้ดูแล' : 'แก้ไขกลุ่มผู้ดูแล'}</h3>
     <form id="f">
       <label class="f"><span>ชื่อกลุ่ม</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น กลุ่มดูแลปู่ย่า"></label>
       <label class="f"><span>คำอธิบาย (เพิ่มเติม)</span><textarea name="description" placeholder="เช่น ลูกหลานที่ช่วยกันดูแลปู่ย่า">${esc(e.description)}</textarea></label>
@@ -775,6 +783,7 @@ function circleForm(c) {
       else if (email === String(DB.user.email || '').toLowerCase()) toast('นี่คืออีเมลของคุณเอง');
       else if (S.circle_invites.some((i) => i.circle_id === circleId && i.email === email)) toast('เชิญอีเมลนี้ไปแล้ว');
       else if (S.circle_members.some((m) => m.circle_id === circleId && String(m.email || '').toLowerCase() === email)) toast('อีเมลนี้เป็นสมาชิกในกลุ่มแล้ว');
+      else if (!canUse('invites')) setTimeout(() => premiumSheet('invites'), 400); // หน้านี้ปิดต่อด้านล่าง แล้วค่อยเปิดหน้าสมาชิก Premium
       else {
         const inv = { id: uuid(), circle_id: circleId, circle_name: data.name, email, role: fd.get('member_role') === 'viewer' ? 'viewer' : 'member', created_at: now };
         S.circle_invites.push(inv);

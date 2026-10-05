@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#4D55F5">
+<meta name="copyright" content="© 2026 สุขใจ (Sookjai)">
+<title>วิธีลบบัญชี — สุขใจ</title>
+<link rel="icon" href="icon.svg?v=2" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --brand:#4D55F5; --ink:#1B1F4D; --muted:#555A86; --line:#DCDFF5; --soft:#EEF0FF; --lime:#DAFF7C; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Sarabun,'Leelawadee UI',Tahoma,sans-serif; color:var(--ink); background:#fff; font-size:17px; line-height:1.65; }
+header { background:var(--brand); color:#fff; padding:22px 20px; } header .in, main { max-width:820px; margin:0 auto; }
+header h1 { margin:0; font-size:26px; color:var(--lime); } header p { margin:4px 0 0; color:#E7E9FF; font-size:15px; }
+main { padding:20px; } h2 { font-size:21px; margin:28px 0 6px; border-left:6px solid var(--lime); padding-left:10px; } h3 { font-size:18px; margin:18px 0 4px; }
+p, li { margin:6px 0; } ul, ol { padding-left:22px; } a { color:var(--brand); }
+.draft { background:#FFF7DB; border:1px solid #F1D98A; border-radius:12px; padding:12px 14px; margin:0 0 14px; font-size:15px; }
+.box { background:var(--soft); border-radius:14px; padding:12px 16px; margin:12px 0; }
+table { width:100%; border-collapse:collapse; margin:10px 0; font-size:15.5px; } th, td { border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top; } th { background:var(--soft); }
+.todo { background:#FFE9E6; color:#8A1F14; border-radius:6px; padding:0 6px; font-weight:600; }
+footer { border-top:1px solid var(--line); margin-top:30px; padding:16px 20px 30px; text-align:center; color:var(--muted); font-size:14px; }
+nav.top a { color:#fff; margin-right:14px; font-size:15px; }
+</style>
+</head>
+<body>
+<header><div class="in"><h1>สุขใจ (Sookjai)</h1><p>วิธีลบบัญชีและข้อมูล (ฉบับร่าง)</p><nav class="top"><a href="privacy.html">นโยบายความเป็นส่วนตัว</a><a href="delete-account.html">วิธีลบบัญชี</a><a href="/">เปิดแอพ</a></nav></div></header>
+<main>
+<div class="draft"><b>เอกสารฉบับร่าง:</b> ข้อความในหน้านี้เป็นร่างที่เตรียมไว้ <b>ยังไม่ผ่านการตรวจจากผู้รู้กฎหมาย</b> โปรดให้ทนายหรือผู้เชี่ยวชาญด้านกฎหมายคุ้มครองข้อมูลส่วนบุคคล (PDPA) ตรวจก่อนเผยแพร่และก่อนยื่นขึ้นสโตร์ ข้อความที่ติดป้าย <span class="todo">ต้องกรอก/ตรวจ</span> ยังไม่สมบูรณ์</div><h2>วิธีลบบัญชีและข้อมูลของคุณ</h2>
+<p>คุณลบบัญชีสุขใจและข้อมูลทั้งหมดของคุณได้ด้วยตัวเอง 2 ทาง</p>
+
+<h3>ทางที่ 1: ลบในแอพ (เร็วที่สุด)</h3>
+<ol>
+<li>เปิดแอพสุขใจ แล้วเข้าสู่ระบบ</li>
+<li>แตะแท็บ <b>ตั้งค่า</b> (ขวาล่าง) → <b>ความเป็นส่วนตัวและข้อมูลสุขภาพ (PDPA)</b></li>
+<li>(แนะนำ) แตะ <b>ดาวน์โหลดข้อมูลของฉัน (ไฟล์ JSON)</b> เพื่อเก็บสำเนาไว้ก่อน</li>
+<li>แตะ <b>ลบบัญชีและข้อมูลทั้งหมดของฉัน</b></li>
+<li>พิมพ์คำว่า <b>ลบข้อมูล</b> เพื่อยืนยัน แล้วแตะ <b>ลบทั้งหมด</b></li>
+</ol>
+<div class="box"><b>ย้อนกลับไม่ได้:</b> เมื่อลบแล้ว เราไม่สามารถกู้ข้อมูลให้ได้</div>
+
+<h3>ทางที่ 2: ขอลบผ่านอีเมล (กรณีเข้าแอพไม่ได้)</h3>
+<p>ส่งอีเมลจาก<b>อีเมลที่ใช้สมัคร</b>มาที่ <span data-contact class="todo">ต้องกรอกอีเมล (ตั้ง CONTACT_EMAIL ใน config.js)</span> หัวข้อ "ขอลบบัญชีสุขใจ" เราจะตรวจสอบว่าเป็นเจ้าของบัญชีและดำเนินการให้ภายใน <span class="todo">ต้องกรอกกรอบเวลา เช่น 30 วัน</span></p>
+
+<h2>ข้อมูลอะไรถูกลบ</h2>
+<ul>
+<li>บัญชีผู้ใช้ (อีเมลและการเข้าสู่ระบบ)</li>
+<li>โปรไฟล์คนในครอบครัวที่คุณสร้าง รวมยา บันทึกการกินยา นัดหมอ ประวัติการรักษา บันทึกติดตามอาการ อารมณ์รายวัน</li>
+<li>รูปทั้งหมดที่คุณอัปโหลด (รูปใบนัด รูปติดตามอาการ)</li>
+<li>กลุ่มผู้ดูแลที่คุณเป็นเจ้าของ คำเชิญที่คุณส่ง และการเป็นสมาชิกของกลุ่มที่คนอื่นแชร์ให้คุณ (คุณจะถูกนำออกจากกลุ่มเหล่านั้น)</li>
+<li>เบอร์ฉุกเฉินและรายชื่อโรงพยาบาล/แพทย์ที่คุณบันทึก การตั้งค่า และข้อมูลการแจ้งเตือนของอุปกรณ์</li>
+</ul>
+
+<h2>ข้อมูลที่อาจยังเหลืออยู่</h2>
+<ul>
+<li><b>ข้อมูลสำรอง</b> ของผู้ให้บริการระบบจะหมดไปตามรอบการสำรอง <span class="todo">ต้องกรอกระยะเวลาให้ตรงกับการตั้งค่าจริง</span></li>
+<li><b>รายการที่คุณเพิ่มในโปรไฟล์ของผู้อื่น:</b> ถ้าคุณเป็นสมาชิก "แก้ไขได้" ของกลุ่มที่คนอื่นแชร์ และเคยเพิ่มหรือแก้ข้อมูล (ยา นัด ฯลฯ) ในโปรไฟล์ของเขา รายการที่คุณสร้างไว้ในโปรไฟล์นั้นจะถูกลบไปพร้อมกับบัญชีของคุณ <span class="todo">ต้องตรวจ: ตัดสินใจว่าจะลบ โอนให้เจ้าของโปรไฟล์ หรือไม่เปิดเผยตัวผู้สร้าง</span></li>
+<li><b>ข้อมูลในโปรไฟล์ที่เจ้าของอื่นสร้าง:</b> ถ้ามีคนแชร์โปรไฟล์ให้คุณดู ข้อมูลของโปรไฟล์นั้นเป็นของเจ้าของ จะไม่ถูกลบ (คุณแค่ถูกนำออกจากกลุ่ม)</li>
+<li><b>ประวัติการชำระเงิน</b> ที่สโตร์ (Google Play / Apple) เก็บไว้ตามนโยบายและกฎหมายภาษีของเขา เราลบไม่ได้ ถ้ามีสมาชิก Premium ที่ยังไม่หมดอายุ โปรดยกเลิกการสมัครในสโตร์ด้วยตัวเอง (การลบบัญชีไม่ได้ยกเลิกการสมัครในสโตร์ให้อัตโนมัติ)</li>
+<li><b>ข้อมูลที่เราต้องเก็บตามกฎหมาย</b> (ถ้ามี) <span class="todo">ต้องตรวจกับผู้รู้กฎหมาย</span></li>
+</ul>
+
+<h2>ถอนความยินยอมโดยไม่ลบบัญชี</h2>
+<p>หากต้องการเพียงถอนความยินยอมหรือจำกัดการใช้ข้อมูล โปรดติดต่อเราตามอีเมลข้างต้น หมายเหตุ: ถ้าถอนความยินยอมเรื่องข้อมูลสุขภาพ เราอาจให้บริการหลักของแอพไม่ได้</p>
+<p>อ่านรายละเอียดเพิ่มเติมที่ <a href="privacy.html">นโยบายความเป็นส่วนตัว</a></p></main>
+<footer>© 2026 สุขใจ (Sookjai) สงวนลิขสิทธิ์ · แอพช่วยจำ ไม่แทนคำแนะนำของแพทย์/เภสัชกร · ไอคอนบางส่วนจาก Flaticon (ดูเครดิตในแอพ ตั้งค่า › เกี่ยวกับแอพ)</footer>
+<script src="config.js"></script>
+<script>
+(function(){ var c=(window.SUKJAI_CONFIG||{}); var mail=c.PRIVACY_CONTACT||c.CONTACT_EMAIL||''; var dev=c.DEVELOPER_NAME||'';
+  document.querySelectorAll('[data-contact]').forEach(function(el){ if(mail){ el.innerHTML='<a href="mailto:'+mail.replace(/"/g,'')+'">'+mail.replace(/</g,'&lt;')+'</a>'; el.className=''; } });
+  document.querySelectorAll('[data-dev]').forEach(function(el){ if(dev){ el.textContent=dev; el.className=''; } });
+})();
+</script>
+</body></html>

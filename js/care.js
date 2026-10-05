@@ -229,6 +229,7 @@ function careLogForm(c, log) {
         <p class="small red-t ${e.trend === 'worse' ? '' : 'hidden'}" id="worseTip">⚠️ ถ้าบวมแดง ร้อน มีหนอง มีกลิ่น หรือมีไข้ ควรพาไปพบแพทย์</p>
       </div>
       <label class="f"><span>บันทึกเพิ่มเติม</span><textarea name="note" placeholder="เช่น แผลแห้งขึ้น ไม่มีหนอง / ขอบแผลแดงขึ้น">${esc(e.note)}</textarea></label>
+      <label class="switch-row"><span>ไปโรงพยาบาลหรือไม่<small class="small muted" style="display:block">ติ๊กถ้าครั้งนี้ไป รพ. จะขึ้นในประวัติการรักษา</small></span><span class="switch"><input type="checkbox" name="hospital_visit" ${e.hospital_visit ? 'checked' : ''}><i></i></span></label>
       <div class="row sticky-actions">
         ${log ? `<button type="button" class="btn danger" data-act="del-care-log" data-id="${log.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button>
@@ -247,7 +248,8 @@ function careLogForm(c, log) {
     if (log && !(await askConfirm(`ต้องการ <b>แก้ไขบันทึกอาการนี้</b> ใช่หรือไม่?<br><small class="muted">กด "ใช่ แก้ไข" เพื่อบันทึกการเปลี่ยนแปลง</small>`, 'ใช่ แก้ไข'))) return;
     const btn = $('button[type=submit]', f); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try {
-      const data = { log_date: fd.get('log_date'), trend, note, photos: await photos.save(c.id) };
+      const hv = !!fd.get('hospital_visit');
+      const data = { log_date: fd.get('log_date'), trend, note, photos: await photos.save(c.id), ...(hv || log?.hospital_visit ? { hospital_visit: hv } : {}) }; // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกปกติได้)
       if (log) { await DB.update('care_logs', log.id, data); Object.assign(log, data); }
       else { const row = { id: uuid(), plan_id: c.id, created_at: new Date().toISOString(), ...data }; await DB.insert('care_logs', row); S.care_logs.push(row); }
       if (photos.removed.length) DB.removeFiles(photos.removed).catch(() => {});
@@ -269,7 +271,7 @@ document.addEventListener('click', (ev) => {
   switch (act) {
     case 'care-filter': ui.careFilter = id; render(); break;
     case 'care-of': ui.careFilter = id; go('care'); break;
-    case 'add-care': careForm(); break;
+    case 'add-care': if (!canUse('care')) { premiumSheet('care'); break; } careForm(); break;
     case 'edit-care': careForm(plan()); break;
     case 'care-detail': careDetail(plan()); break;
     case 'care-log': careLogForm(plan()); break;

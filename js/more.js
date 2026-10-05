@@ -99,6 +99,7 @@ function consentView(onDone) {
   $('#app').innerHTML = `<div class="login consent"><h1>ขออนุญาตเก็บข้อมูลสุขภาพ</h1>
     <p class="sub">ตามกฎหมาย PDPA เราต้องขออนุญาตก่อน</p>
     <form id="pdpaForm" class="card">${PDPA_TEXT}
+      <p class="small"><a href="privacy.html" target="_blank" rel="noopener">อ่านนโยบายความเป็นส่วนตัวฉบับเต็ม</a></p>
       <label class="check-row"><input type="checkbox" name="c1" required><span>ฉันเข้าใจและอนุญาตให้เก็บข้อมูลตามข้างต้น</span></label>
       <label class="check-row"><input type="checkbox" name="c2" required><span>ฉันแจ้งคนในครอบครัวที่จะใส่ข้อมูลแล้ว และเขาไม่ขัดข้อง</span></label>
       <button class="btn block" type="submit">ยอมรับและเริ่มใช้งาน</button>
@@ -118,7 +119,7 @@ function privacySheet() {
     ${DB.mode === 'supabase' ? `<p class="small muted">ให้ความยินยอมเมื่อ ${at ? thDate(String(at).slice(0, 10), 'long') : '-'}</p>` : '<p class="small muted">โหมดทดลอง: ข้อมูลอยู่ในเครื่องนี้เท่านั้น ไม่ได้ส่งขึ้นเซิร์ฟเวอร์</p>'}
     ${CFG.PRIVACY_CONTACT ? `<p class="small">ติดต่อเรื่องข้อมูลส่วนบุคคล: <b>${esc(CFG.PRIVACY_CONTACT)}</b></p>` : ''}
     <button class="btn ghost block" id="pvExport">⬇️ ดาวน์โหลดข้อมูลของฉัน (ไฟล์ JSON)</button>
-    <button class="btn danger block" id="pvDelete" style="margin-top:8px">🗑️ ถอนความยินยอมและลบข้อมูลทั้งหมดของฉัน</button>
+    <button class="btn danger block" id="pvDelete" style="margin-top:8px">🗑️ ลบบัญชีและข้อมูลทั้งหมดของฉัน</button>
     <div class="row sticky-actions"><button class="btn ghost" data-act="close">ปิด</button></div>`);
   $('#pvExport').onclick = exportMyData;
   $('#pvDelete').onclick = deleteMyDataSheet;
@@ -135,6 +136,7 @@ function myData() {
     med_logs: S.med_logs.filter((l) => medIds.has(l.medication_id)), appointments: S.appointments.filter((a) => pids.has(a.profile_id)),
     care_plans: S.care_plans.filter((c) => planIds.has(c.id)), care_logs: S.care_logs.filter((l) => planIds.has(l.plan_id)),
     mood_logs: (S.mood_logs || []).filter((l) => pids.has(l.profile_id)),
+    treatment_records: (S.treatment_records || []).filter((l) => pids.has(l.profile_id)),
     circles: mine('circles'), emergency_contacts: mine('emergency_contacts'), hospitals: mine('hospitals'), doctors: mine('doctors'), settings: S.settings,
   };
 }
@@ -146,9 +148,9 @@ function exportMyData() {
 }
 
 function deleteMyDataSheet() {
-  const sheet = openSheet(`<h3>ลบข้อมูลทั้งหมดของฉัน</h3>
+  const sheet = openSheet(`<h3>ลบบัญชีและข้อมูลทั้งหมดของฉัน</h3>
     <div class="alert red"><div class="ic">⚠️</div><div><b>ย้อนกลับไม่ได้</b><span class="small">จะลบคนในครอบครัวที่คุณสร้าง ยา นัดหมอ รูป บันทึกอาการ อารมณ์ กลุ่มผู้ดูแลของคุณ และออกจากกลุ่มที่คนอื่นแชร์มา แนะนำให้ดาวน์โหลดข้อมูลเก็บไว้ก่อน</span></div></div>
-    <p class="small muted">หากต้องการลบบัญชีผู้ใช้ (อีเมล) ด้วย ${CFG.PRIVACY_CONTACT ? `ติดต่อ ${esc(CFG.PRIVACY_CONTACT)}` : 'ติดต่อผู้ดูแลระบบของแอพ'}</p>
+    <p class="small muted">รวมถึงลบ <b>บัญชีผู้ใช้ (อีเมล)</b> ของคุณถาวรด้วย</p>
     <label class="f"><span>พิมพ์คำว่า <b>ลบข้อมูล</b> เพื่อยืนยัน</span><input type="text" id="delConfirm" autocomplete="off"></label>
     <div class="row sticky-actions"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn danger" id="delGo" disabled>ลบทั้งหมด</button></div>`);
   const inp = $('#delConfirm', sheet), go = $('#delGo', sheet);
@@ -162,10 +164,12 @@ function deleteMyDataSheet() {
       await DB.removeFiles(files).catch(() => {});
       for (const c of d.circles) await DB.remove('circles', c.id);
       for (const p of d.profiles) await DB.remove('profiles', p.id);
-      for (const t of ['emergency_contacts', 'hospitals', 'doctors', 'med_logs', 'mood_logs', 'circle_members', 'circle_invites', 'care_logs', 'care_plans', 'appointments', 'medications', 'push_subscriptions', 'user_settings']) {
+      for (const t of ['emergency_contacts', 'hospitals', 'doctors', 'med_logs', 'mood_logs', 'treatment_records', 'circle_members', 'circle_invites', 'care_logs', 'care_plans', 'appointments', 'medications', 'push_subscriptions', 'user_settings']) {
         await DB.removeWhere(t, t === 'circle_invites' ? 'invited_by' : 'user_id', uid).catch((e) => console.warn(t, e));
       }
-      await DB.signOut(); alert('ลบข้อมูลของคุณเรียบร้อยแล้ว'); location.reload();
+      let acct = true;
+      try { await DB.deleteAccount(); } catch (e) { acct = false; console.warn('deleteAccount', e); } // ยังไม่ได้รัน premium.sql → ลบข้อมูลแล้วแต่บัญชีอีเมลยังอยู่
+      await DB.signOut(); alert(acct ? 'ลบบัญชีและข้อมูลของคุณเรียบร้อยแล้ว' : 'ลบข้อมูลของคุณเรียบร้อยแล้ว แต่ยังลบบัญชีอีเมลไม่ได้ กรุณาติดต่อผู้ดูแลระบบ'); location.reload();
     } catch (e) { console.error(e); go.disabled = false; go.textContent = 'ลบทั้งหมด'; toast('ลบไม่สำเร็จ: ' + e.message); }
   };
 }

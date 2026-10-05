@@ -10,7 +10,7 @@ const ui = {
   tab: 'today',
   filter: 'all',            // หน้าวันนี้: เลือกดูทีละคน
   medsPerson: null,         // หน้ายา: คนที่กำลังดู
-  calPeople: null,          // หน้าหมอนัด: Set ของคนที่เลือก (null = ทุกคน)
+  calPeople: null,          // หน้านัดพบแพทย์: Set ของคนที่เลือก (null = ทุกคน)
   calMonth: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
   calSel: todayKey(),
   careFilter: 'all',        // หน้าติดตามอาการ: เลือกดูทีละคน
@@ -30,6 +30,7 @@ const profileIndex = (id) => S.profiles.findIndex((p) => p.id === id);
 // สิทธิ์ฝั่งแอพ (ฐานข้อมูลบังคับใช้จริงอีกชั้นด้วย RLS): เจ้าของโปรไฟล์ / สมาชิกกลุ่มที่แก้ไขได้ / ดูอย่างเดียว
 const ownsProfile = (pid) => { const p = profileById(pid); return !!p && (DB.mode !== 'supabase' || !p.user_id || p.user_id === DB.user.id); };
 const canEditProfile = (pid) => {
+  if (DB.offline) return false; // ออฟไลน์ = ดูอย่างเดียว
   if (ownsProfile(pid)) return true;
   const circles = new Set((S.circle_care_for || []).filter((cf) => cf.profile_id === pid).map((cf) => cf.circle_id));
   return S.circle_members.some((m) => m.user_id === DB.user.id && circles.has(m.circle_id) && m.role !== 'viewer');
@@ -50,8 +51,8 @@ const medPrefix = (pid) => { const p = profileById(pid); return p.med_prefix != 
 const medNo = (m) => `${medPrefix(m.profile_id)}${m.sort_order}`;
 const nextNoFor = (pid) => Math.max(0, ...S.medications.filter((m) => m.profile_id === pid).map((m) => num(m.sort_order))) + 1;
 const medsOf = (pid, status = 'active') => S.medications.filter((m) => m.profile_id === pid && (status === 'any' || m.status === status)).sort((a, b) => a.sort_order - b.sort_order);
-const dailyUse = (m) => (m.slots?.length || 0) * num(m.dose, 1);
-const daysLeft = (m) => (tracksStock(m) && dailyUse(m) && !m.as_needed ? Math.floor(num(m.stock) / dailyUse(m)) : Infinity);
+const dailyUse = (m) => (m.slots?.length || 0) * num(m.dose, 1) * ((m.weekdays?.length || 7) / 7);
+const daysLeft = (m) => (tracksStock(m) && dailyUse(m) && !m.as_needed ? Math.floor(stockLeft(m) / dailyUse(m)) : Infinity);
 const runoutDate = (m) => { const d = daysLeft(m); return d === Infinity ? null : dk(addDays(new Date(), d)); };
 const slotTime = (k) => S.settings.slot_times[k] || DEFAULT_SLOT_TIMES[k];
 const slotsByTime = () => [...SLOTS].sort((a, b) => slotTime(a.key).localeCompare(slotTime(b.key)));
@@ -81,7 +82,11 @@ function buildTimeline(profileIds) {
 
 async function dbDo(promise) {
   try { await promise; return true; }
-  catch (e) { console.error(e); toast('บันทึกไม่สำเร็จ: ' + (e.message || 'ลองใหม่อีกครั้ง')); await reload(); return false; }
+  catch (e) {
+    console.error(e); const m = /PREMIUM_REQUIRED:(\w+)/.exec(e.message || '');
+    if (m) { await reload(); if (typeof premiumSheet === 'function') premiumSheet(m[1]); return false; } // ฐานข้อมูลบังคับเพดานแพ็กเกจฟรีซ้ำอีกชั้น
+    toast('บันทึกไม่สำเร็จ: ' + (e.message || 'ลองใหม่อีกครั้ง')); await reload(); return false;
+  }
 }
 async function reload() { try { S = await DB.loadAll(); resetMonths(); sortProfiles(); render(); } catch (e) { console.error(e); toast('โหลดข้อมูลไม่สำเร็จ'); } }
 
@@ -139,7 +144,7 @@ function stockAlerts(ids) {
   const low = S.medications.filter((m) => m.status === 'active' && ids.includes(m.profile_id) && daysLeft(m) <= LOW_STOCK_DAYS);
   if (!low.length) return '';
   return `<div class="alert red"><div class="ic">📦</div><div><b>ยาใกล้หมด ควรเตรียมรับยาเพิ่ม</b>
-    <span class="small">${low.map((m) => `${esc(profileById(m.profile_id).name)}: ${esc(medNo(m))} ${esc(m.name)} เหลือ ${num(m.stock)} ${unitOf(m)} — หมดประมาณ ${thDate(runoutDate(m))}`).join('<br>')}</span></div></div>`;
+    <span class="small">${low.map((m) => `${esc(profileById(m.profile_id).name)}: ${esc(medNo(m))} ${esc(m.name)} เหลือ ${qtyText(stockLeft(m))} ${unitOf(m)} — หมดประมาณ ${thDate(runoutDate(m))}`).join('<br>')}</span></div></div>`;
 }
 
 // ตารางกินยาใน 1 วัน ของคนหนึ่งคน — แสดงเฉพาะเลขลำดับยา (ติ๊กที่วงกลมเล็ก)
@@ -202,14 +207,16 @@ function dayTable(p, nextKey) {
 function medCard(m) {
   const dl = daysLeft(m); const p = profileById(m.profile_id); const out = runoutDate(m);
   return `<div class="card med" data-id="${m.id}">
-    <div class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="ยาลำดับที่ ${esc(medNo(m))}">${esc(medNo(m))}</div>
+    ${m.status === 'paused' ? '' : `<div class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="ยาลำดับที่ ${esc(medNo(m))}">${esc(medNo(m))}</div>`}
     <div class="info" data-act="edit-med" data-id="${m.id}">
       <div class="name">${esc(m.name)}</div>
       ${m.purpose ? `<div class="small muted">รักษา: ${esc(m.purpose)}</div>` : ''}
+      ${m.prescriber ? `<div class="small muted">👨‍⚕️ แพทย์ที่จ่ายยา: ${esc(m.prescriber)}</div>` : ''}
+      ${m.prescribed_dept ? `<div class="small muted">🏥 แผนกที่จ่ายยา: ${esc(m.prescribed_dept)}</div>` : ''}
       <div class="tags">${weekdaysText(m) ? `<span class="tag sun">📅 ${weekdaysText(m)}</span>` : ''}${m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && p.reminder_enabled ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน · ดูหมายเหตุ</span>'}</div>
       ${m.note ? `<div class="small med-note">📝 ${esc(m.note)}</div>` : ''}
       ${m.status === 'active'
-        ? `<div class="small"><span class="${dl <= LOW_STOCK_DAYS ? 'red-t' : 'muted'}">ครั้งละ ${doseLabel(m.dose)} ${esc(unitOf(m))}${tracksStock(m) ? ` · เหลือ ${num(m.stock)} ${esc(unitOf(m))}${out ? ` · หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)` : ''}` : ''}</span></div>`
+        ? `<div class="small"><span class="${dl <= LOW_STOCK_DAYS ? 'red-t' : 'muted'}">ครั้งละ ${doseLabel(m.dose)} ${esc(unitOf(m))}${tracksStock(m) ? ` · เหลือ ${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? ` · หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)` : ''}` : ''}</span></div>`
         : `<div class="small"><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</div>`}
       <div class="small muted">อัปเดต ${thDateTime(m.updated_at)}</div>
     </div>
@@ -232,8 +239,7 @@ function viewMedList() {
     <p class="sub" style="margin-top:14px">เลขหน้ายา เช่น ${esc(medPrefix(p.id))}1 ${esc(medPrefix(p.id))}2 เรียงต่อเนื่องของแต่ละคน — ตั้งรหัสได้ในข้อมูลของคนนั้น ${canEditProfile(p.id) && ownsProfile(p.id) ? `<button class="linkbtn" data-act="edit-person" data-id="${p.id}">✏️ ตั้งรหัส "${esc(medPrefix(p.id)) || '-'}"</button>` : ''}</p>
     ${shareTag(p.id) ? `<div class="tags">${shareTag(p.id)}</div>` : ''}
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>${esc(p.name)} แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
-    <h2>กำลังกิน <span class="small muted">${act.length} รายการ</span></h2>
-    ${act.length > 1 && canEditProfile(p.id) ? `<button class="btn ghost block" data-act="reorder-meds" data-id="${p.id}">↕️ จัดลำดับยาของ${esc(p.name)}</button>` : ''}
+    <h2>ยาที่กำลังทาน <span class="small muted">${act.length} รายการ</span></h2>
     <div id="medList">${act.map(medCard).join('')}</div>
     ${act.length ? '' : `<div class="card empty"><div class="e">💊</div>ยังไม่มียา กดปุ่ม + เพื่อเพิ่ม</div>`}
     <h2>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} รายการ</span></h2>
@@ -241,7 +247,7 @@ function viewMedList() {
   `;
 }
 
-// ---------- หน้า: หมอนัด ----------
+// ---------- หน้า: นัดพบแพทย์ ----------
 function viewCalendar() {
   const m = ui.calMonth;
   const first = new Date(m.getFullYear(), m.getMonth(), 1);
@@ -261,9 +267,8 @@ function viewCalendar() {
   const sel = byDay[ui.calSel] || [];
   const upcoming = visible.filter((a) => daysUntil(a.appt_date) >= 0).sort((a, b) => (a.appt_date + hhmm(a.appt_time)).localeCompare(b.appt_date + hhmm(b.appt_time)));
   return `
-    <h1>ปฏิทินนัดหมอ</h1><p class="sub">จุดสีตามสีประจำตัวแต่ละคน · แตะวันที่เพื่อดูนัด</p>
+    <h1>นัดพบแพทย์</h1><p class="sub">จุดสีตามสีประจำตัวแต่ละคน · แตะวันที่เพื่อดูนัด</p>
     ${personChips(ui.calPeople, 'cal-person', true)}
-    ${S.profiles.length > 1 ? '<button class="linkbtn vis-btn" data-act="reorder-people">↕️ จัดลำดับคน</button>' : ''}
     <div class="card cal-card">
       <div class="cal-nav"><button class="iconbtn" data-act="cal-prev" aria-label="เดือนก่อน">‹</button>
         <b>${MONTHS[m.getMonth()]} ${m.getFullYear() + 543}</b>
@@ -297,20 +302,21 @@ function viewLogin(mode = 'in', msg = '') {
     const hour = new Date().getHours();
     const greet = hour < 12 ? 'สวัสดีตอนเช้า' : hour < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
     $('#app').innerHTML = `
-      <div class="login welcome">
-        <div class="welcome-top">
-          <img src="icon.svg" alt="" class="login-logo">
-          <p class="welcome-greet">วันนี้ทานยาแล้วหรือยัง?</p>
-          <h1>สุขใจ</h1>
-          <p class="sub">จัดตารางยา จัดใบนัดหมอ<br>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน<br>ในแอพเดียว</p>
+      <div class="wel-screen">
+        <div class="sp-deco" aria-hidden="true"><i class="d d-ring"></i><i class="d d-blob"></i><i class="d d-cap c1"></i><i class="d d-cap c2"></i><i class="d d-cap c3"></i><b class="d d-star s1">✱</b><b class="d d-star s2">✱</b><b class="d d-star s3">✱</b></div>
+        <div class="sp-inner">
+          <span class="app-ic ic-xl sp-logo">${logoSvg()}</span>
+          <h1 class="sp-name">สุขใจ</h1>
+          <p class="sp-stars" aria-hidden="true">✱ ✱ ✱</p>
+          <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดหมอ</span><span>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน<b>ในแอพเดียว</b></span></p>
+          <p class="sp-ask">วันนี้ทานยาแล้วหรือยัง?</p>
         </div>
-        <div class="welcome-bottom">
-          <button class="btn block" type="button" data-login-mode="in">เริ่มใช้งาน</button>
-          <button class="btn ghost block" type="button" data-login-mode="in">มีบัญชีแล้ว เข้าสู่ระบบ</button>
-          <p class="small muted center welcome-note">แอพช่วยจัดการตารางยาใน 1 วัน<br>ไม่สามารถทดแทนคำแนะนำของแพทย์/เภสัชกรได้</p>
+        <div class="wel-actions">
+          <button class="btn block wel-go" type="button" data-login-mode="in">เริ่มใช้งาน</button>
+          <button class="btn ghost block wel-have" type="button" data-login-mode="in">มีบัญชีแล้ว เข้าสู่ระบบ</button>
+          <p class="wel-note">แอพช่วยจัดการตารางยาใน 1 วัน ไม่สามารถทดแทนคำแนะนำของแพทย์/เภสัชกรได้</p>
         </div>
-      </div>`;
-    $$('[data-login-mode]').forEach((b) => (b.onclick = () => viewLogin(b.dataset.loginMode)));
+      </div>`;    $$('[data-login-mode]').forEach((b) => (b.onclick = () => viewLogin(b.dataset.loginMode)));
     return;
   }
   $('#app').innerHTML = `
@@ -358,6 +364,13 @@ function go(tab) {
 function render() {
   if (!S) return;
   document.body.classList.remove('auth');
+  if (typeof relockOnPageChange === 'function') relockOnPageChange();
+  let ob = document.getElementById('offbar');
+  if (DB.offline) {
+    if (!ob) { ob = document.createElement('div'); ob.id = 'offbar'; ob.setAttribute('role', 'status'); document.body.appendChild(ob); }
+    ob.textContent = `📴 ออฟไลน์ — ข้อมูลล่าสุดเมื่อ ${DB.snapshotAt ? thDateTime(new Date(DB.snapshotAt).toISOString()) : '-'} · ดูได้อย่างเดียว`;
+    document.body.classList.add('is-offline');
+  } else { ob?.remove(); document.body.classList.remove('is-offline'); }
   const views = { today: viewToday, meds: viewMeds, calendar: viewCalendar, family: viewMembers, settings: viewSettings };
   $('#app').innerHTML = views[ui.tab]();
   hydrateImgs($('#app'));
@@ -433,6 +446,7 @@ async function boot() {
   DB = useSupa ? new SupaDB(CFG) : new LocalDB();
   let lastUser = null; let loading = null;
   const start = async (user) => {
+    if (!user && DB.offline && S) return; // ออฟไลน์: เหตุการณ์ออกจากระบบที่เกิดจากเน็ตหลุดไม่ใช่การออกจริง
     if (!user) { S = null; lastUser = null; return viewLogin('welcome'); }
     if (lastUser === user.id && S) return;
     if (loading === user.id) return;
@@ -441,9 +455,9 @@ async function boot() {
       $('#app').innerHTML = '<div class="empty" style="padding-top:30vh">กำลังโหลด…</div>';
       try { S = await DB.loadAll(); } catch (e) { console.error(e); $('#app').innerHTML = `<div class="card empty">โหลดข้อมูลไม่สำเร็จ<br><span class="small">${esc(e.message)}</span><br><button class="btn sm" onclick="location.reload()">ลองใหม่</button></div>`; return; }
       lastUser = user.id;
-      await migrateColors();
+      if (!DB.offline) await migrateColors();
       sortProfiles();
-      setTimeout(() => purgeOldSlips(), 3000); // ทำเบื้องหลังหลังเปิดแอพ ไม่รบกวนการใช้งาน
+      if (!DB.offline) setTimeout(() => purgeOldSlips(), 3000); // ทำเบื้องหลังหลังเปิดแอพ ไม่รบกวนการใช้งาน
       ui.tab = 'today'; // รีเซ็ตแท็บ
       showSplash(); // หน้า intro แสดงก่อนเสมอ (ทับหน้าที่โหลดอยู่ด้านล่าง แล้วจางหายไป)
       // PDPA: ต้องยินยอมการเก็บข้อมูลสุขภาพก่อนใช้งานครั้งแรก (และเมื่อเนื้อหาความยินยอมเปลี่ยน)
@@ -455,7 +469,13 @@ async function boot() {
   };
   // กดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → เข้าแอพแล้วเด้งหน้าตั้งรหัสผ่านใหม่ทันที
   DB.onAuth(async (u, ev) => { await start(u); if (ev === 'PASSWORD_RECOVERY' && u) passwordForm(true); });
-  start(await DB.getUser());
+  let first = null;
+  try { first = await DB.getUser(); } catch (e) { console.warn('getUser', e); }
+  if (!first && useSupa && navigator.onLine === false && DB.readSnapshot) { // ไม่มีเน็ต + เคยเข้าสู่ระบบไว้ → เปิดแบบออฟไลน์ (ดูอย่างเดียว) จากสำเนาในเครื่อง
+    const snap = DB.readSnapshot(); if (snap) { first = snap.user; DB.user = snap.user; }
+  }
+  window.addEventListener('online', () => { if (DB.offline) location.reload(); }); // กลับมาออนไลน์ → โหลดข้อมูลล่าสุดอัตโนมัติ
+  start(first);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW', e));
 }
 document.addEventListener('DOMContentLoaded', boot);

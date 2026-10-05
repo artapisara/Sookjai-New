@@ -11,7 +11,7 @@ window.SUKJAI_CONFIG = {
   SUPABASE_ANON_KEY: 'sb_publishable_yvltM9obpVYMJvzJj0tAVA_cG6ViLyi',  // publishable key (เปิดเผยได้)
   VAPID_PUBLIC_KEY: '',   // จากคำสั่ง npx web-push generate-vapid-keys
   PRIVACY_CONTACT: '',    // อีเมลติดต่อเรื่องข้อมูลส่วนบุคคล (PDPA)
-  DEVELOPER_NAME: '',     // ชื่อผู้พัฒนา (แสดงในหน้าตั้งค่า)
+  DEVELOPER_NAME: 'Apisara B.',     // ชื่อผู้พัฒนา (แสดงในหน้าตั้งค่า)
   CONTACT_EMAIL: '',      // อีเมลติดต่อ (แสดงในหน้าตั้งค่า)
   SUPPORT_URL: '',        // ลิงก์ช่องทางสนับสนุน เช่น หน้าเพจ/ไลน์ OA/Buy me a coffee
 };

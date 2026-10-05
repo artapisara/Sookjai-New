@@ -6,7 +6,7 @@
  */
 'use strict';
 
-const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors', 'med_logs', 'care_plans', 'care_logs', 'circles', 'circle_members', 'circle_care_for', 'circle_invites', 'emergency_contacts', 'mood_logs'];
+const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors', 'med_logs', 'care_plans', 'care_logs', 'circles', 'circle_members', 'circle_care_for', 'circle_invites', 'emergency_contacts', 'mood_logs', 'treatment_records'];
 const HISTORY_MONTHS = 24; // ดูสรุปย้อนหลังได้กี่เดือน (ข้อมูลเก็บในฐานข้อมูลไม่หาย — โหลดมาทีละเดือนตอนเปิดดู)
 const BUCKET = 'attachments';
 
@@ -28,7 +28,9 @@ class SupaDB {
     if (error) throw error; return data.session ? 'ok' : 'confirm';
   }
   async resetPassword(email) { const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; }
-  async signOut() { await this.sb.auth.signOut(); }
+  async signOut() { this.clearSnapshot(); await this.sb.auth.signOut(); }
+  /** ลบบัญชีผู้ใช้ (อีเมล) ถาวร — ต้องรัน supabase/premium.sql ก่อน (ฟังก์ชัน delete_my_account) */
+  async deleteAccount() { const { error } = await this.sb.rpc('delete_my_account'); if (error) throw error; }
 
   /** ดึงบันทึกกินยา/อารมณ์ของช่วงวันที่ (แบ่งหน้าละ 1000 แถว เพราะ Supabase จำกัดต่อคำขอ) */
   async logsBetween(table, from, to) {
@@ -48,10 +50,33 @@ class SupaDB {
     const [med_logs, mood_logs] = await Promise.all([this.logsBetween('med_logs', from, to), this.logsBetween('mood_logs', from, to)]);
     return { med_logs, mood_logs };
   }
+  // ---- ออฟไลน์: เก็บสำเนาข้อมูลล่าสุดไว้ในเครื่อง (ไม่เข้ารหัส — ล้างเมื่อออกจากระบบ) ใช้ดูอย่างเดียวตอนไม่มีเน็ต ----
+  saveSnapshot(data) { try { localStorage.setItem('sukjai-offline', JSON.stringify({ user: { id: this.user?.id, email: this.user?.email }, at: Date.now(), data })); } catch (e) { console.warn('snapshot', e); } }
+  readSnapshot() { try { const s = JSON.parse(localStorage.getItem('sukjai-offline')); return s && s.user?.id && s.data ? s : null; } catch { return null; } }
+  clearSnapshot() { try { localStorage.removeItem('sukjai-offline'); } catch { /* ไม่มีอะไรต้องทำ */ } }
+  guard() { if (this.offline) throw new Error('ออฟไลน์ — ดูข้อมูลได้อย่างเดียว'); }
   async loadAll() {
+    try {
+      const d = await this.loadAllOnline(); d.ent = await this.loadEntitlement(); this.offline = false; this.snapshotAt = null; this.saveSnapshot(d); return d;
+    } catch (e) {
+      const snap = this.readSnapshot();
+      const net = navigator.onLine === false || /fetch|network|load failed/i.test(String(e?.message || e));
+      if (snap && net && (!this.user || snap.user.id === this.user.id)) { this.offline = true; this.snapshotAt = snap.at; return snap.data; }
+      throw e;
+    }
+  }
+  /** สถานะสมาชิก + สวิตช์การจำกัด (ยังไม่ได้รัน premium.sql / อ่านไม่ได้ = ไม่จำกัด ทุกคนใช้ได้ครบ) */
+  async loadEntitlement() {
+    try {
+      const [f, s] = await Promise.all([this.sb.from('app_flags').select('value').eq('key', 'paywall_enabled').maybeSingle(),
+        this.sb.from('subscriptions').select('premium_until, trial_used').maybeSingle()]);
+      return { paywall: !f.error && !!f.data?.value, premium_until: s.error ? null : (s.data?.premium_until || null), trial_used: s.error ? false : !!s.data?.trial_used };
+    } catch (e) { console.warn('entitlement', e); return { paywall: false, premium_until: null, trial_used: false }; }
+  }
+  async loadAllOnline() {
     const d0 = new Date(); const since = dk(new Date(d0.getFullYear(), d0.getMonth(), 1)); // เริ่มด้วยเดือนนี้ — เดือนก่อนๆ โหลดตอนกดดูย้อนหลัง
     const q = (t) => this.sb.from(t).select('*');
-    const [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml] = await Promise.all([
+    const [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr] = await Promise.all([
       q('profiles').order('created_at'), q('medications').order('sort_order'), q('appointments').order('appt_date'),
       q('hospitals').order('name'), q('doctors').order('name'), this.logsBetween('med_logs', since).then((data) => ({ data })).catch((error) => ({ error })),
       this.sb.from('user_settings').select('*').maybeSingle(),
@@ -59,22 +84,25 @@ class SupaDB {
       q('circles').order('created_at'), q('circle_members').order('joined_at'),
       q('circle_care_for').order('added_at'), q('circle_invites').order('created_at'), q('emergency_contacts').order('created_at'),
       this.logsBetween('mood_logs', since).then((data) => ({ data })).catch((error) => ({ error })),
+      q('treatment_records').order('record_date'),
     ]);
     // ยังไม่ได้รัน schema.sql ล่าสุด (ไม่มีตาราง mood_logs) → เปิดแอพได้ตามปกติ แต่ยังบันทึกอารมณ์ไม่ได้
     if (ml.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง mood_logs — รัน supabase/schema.sql ใหม่'); ml.error = null; ml.data = []; }
-    for (const r of [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml]) if (r.error) throw r.error;
+    if (tr.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง treatment_records — รัน SQL ประวัติการรักษา'); tr.error = null; tr.data = []; }
+    for (const r of [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr]) if (r.error) throw r.error;
     return { profiles: p.data, medications: m.data, appointments: a.data, hospitals: h.data, doctors: d.data, med_logs: l.data,
       care_plans: cp.data, care_logs: cl.data, circles: c.data, circle_members: cm.data, circle_care_for: ccf.data, circle_invites: ci.data, emergency_contacts: ec.data,
-      mood_logs: ml.data,
+      mood_logs: ml.data, treatment_records: tr.data,
       settings: { slot_times: { ...DEFAULT_SLOT_TIMES, ...(s.data?.slot_times || {}) }, today_hidden: s.data?.today_hidden || [],
         profile_order: s.data?.profile_order || [], pdpa_consent_at: s.data?.pdpa_consent_at || null, pdpa_version: s.data?.pdpa_version || null } };
   }
   /** ลบทุกแถวของตารางที่ตรงเงื่อนไข (ใช้ตอนผู้ใช้สั่งลบข้อมูลของตัวเอง — RLS ยังจำกัดให้ลบได้เฉพาะของตัวเอง) */
   async removeWhere(t, col, val) { const { error } = await this.sb.from(t).delete().eq(col, val); if (error) throw error; }
-  async insert(t, row) { const { error } = await this.sb.from(t).insert(row); if (error) throw error; }
-  async update(t, id, patch) { const { error } = await this.sb.from(t).update(patch).eq('id', id); if (error) throw error; }
-  async remove(t, id) { const { error } = await this.sb.from(t).delete().eq('id', id); if (error) throw error; }
+  async insert(t, row) { this.guard(); const { error } = await this.sb.from(t).insert(row); if (error) throw error; }
+  async update(t, id, patch) { this.guard(); const { error } = await this.sb.from(t).update(patch).eq('id', id); if (error) throw error; }
+  async remove(t, id) { this.guard(); const { error } = await this.sb.from(t).delete().eq('id', id); if (error) throw error; }
   async saveSettings(settings) {
+    this.guard();
     const { error } = await this.sb.from('user_settings').upsert({ user_id: this.user.id, slot_times: settings.slot_times, today_hidden: settings.today_hidden || [],
       profile_order: settings.profile_order || [], pdpa_consent_at: settings.pdpa_consent_at || null, pdpa_version: settings.pdpa_version || null, timezone: 'Asia/Bangkok' });
     if (error) throw error;
@@ -135,6 +163,7 @@ class LocalDB {
       this.data.care_logs = this.data.care_logs.filter((l) => !plans.includes(l.plan_id));
       this.data.circle_care_for = this.data.circle_care_for.filter((ccf) => ccf.profile_id !== id);
       this.data.mood_logs = this.data.mood_logs.filter((l) => l.profile_id !== id);
+      this.data.treatment_records = (this.data.treatment_records || []).filter((l) => l.profile_id !== id);
     }
     if (t === 'medications') this.data.med_logs = this.data.med_logs.filter((l) => l.medication_id !== id);
     if (t === 'care_plans') this.data.care_logs = this.data.care_logs.filter((l) => l.plan_id !== id);

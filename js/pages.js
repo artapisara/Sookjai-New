@@ -11,7 +11,7 @@ function pageTitle(s) {
   if (!s) return '';
   if (s.tab === 'today') return s.todayPage === 'mood' ? 'สรุปอารมณ์' : 'ภาพรวมวันนี้';
   if (s.tab === 'meds') return { hub: 'ยาและการดูแล', list: 'ยาที่ต้องทาน', care: 'ติดตามอาการ', summary: 'สรุปการกินยา' }[s.medsPage] || 'ยา';
-  if (s.tab === 'calendar') return 'หมอนัด';
+  if (s.tab === 'calendar') return 'นัดพบแพทย์';
   if (s.tab === 'family') return s.memberPage && S.profiles.some((p) => p.id === s.memberPage) ? `ข้อมูลของ${profileById(s.memberPage).name}` : 'สมาชิก';
   return s.tab === 'settings' ? 'ตั้งค่า' : '';
 }
@@ -28,6 +28,13 @@ function lockToggle() {
   const lk = delLocked();
   return `<button type="button" class="lock-toggle ${lk ? 'on' : 'off'}" data-act="toggle-dellock" aria-pressed="${lk}">
     <span class="lt-ic">${lk ? '🔒' : '🔓'}</span><span class="lt-tx"><b>${lk ? 'ล็อกการลบอยู่' : 'ปลดล็อกอยู่ (ลบได้)'}</b><small>${lk ? 'กันมือลั่น · แตะเพื่อปลดล็อก 2 นาที' : 'จะล็อกกลับเองใน 2 นาที · แตะเพื่อล็อกเดี๋ยวนี้'}</small></span></button>`;
+}
+// เข้าหน้าใหม่ทุกครั้ง = ล็อกกลับเป็นค่าเริ่มต้นเสมอ (เปลี่ยนคน/เลื่อนเดือนในหน้าเดิมไม่นับ)
+let lockPageKey = null;
+function relockOnPageChange() {
+  const key = [ui.tab, ui.medsPage, ui.todayPage, ui.memberPage].join('|');
+  if (lockPageKey !== null && key !== lockPageKey && !delLocked()) { clearTimeout(delTimer); ui.delUnlockUntil = 0; }
+  lockPageKey = key;
 }
 function setDelLock(unlock) {
   clearTimeout(delTimer);
@@ -82,19 +89,29 @@ function moodCard() {
   const cur = moodLog(me.id);
   return `<div class="card mood-card"><b class="h-mood">วันนี้คุณเป็นยังไง?</b>
     <div class="mood-pick">${MOODS.map((mo) => `<button type="button" class="mood-opt ${cur?.mood === mo.k ? 'on' : ''}" data-act="mood-set" data-id="${mo.k}" style="--mc:${mo.color}" aria-pressed="${cur?.mood === mo.k}"><i>${mo.icon}</i><b>${mo.label}</b></button>`).join('')}</div>
-    <button class="btn ghost block" data-act="mood-sum">📊 ดูสรุปอารมณ์ใน 1 เดือน</button></div>`;
+    <button class="btn ghost block mood-sum-btn" data-act="mood-sum"><img class="mood-ic" src="assets/icons/mood-summary.gif" alt="" width="76" height="76" loading="lazy">สรุปอารมณ์ใน 1 เดือน</button></div>`;
 }
 
-async function setMood(k) {
+async function setMood(k, date = todayKey()) {
   const me = selfProfile(); if (!me) return;
-  const cur = moodLog(me.id); const mo = moodOf(k);
+  const cur = moodLog(me.id, date); const mo = moodOf(k);
   if (cur) { Object.assign(cur, { mood: k }); render(); await dbDo(DB.update('mood_logs', cur.id, { mood: k })); }
-  else { const row = { id: uuid(), profile_id: me.id, log_date: todayKey(), mood: k, note: '', created_at: new Date().toISOString() }; S.mood_logs = S.mood_logs || []; S.mood_logs.push(row); render(); await dbDo(DB.insert('mood_logs', row)); }
+  else { const row = { id: uuid(), profile_id: me.id, log_date: date, mood: k, note: '', created_at: new Date().toISOString() }; S.mood_logs = S.mood_logs || []; S.mood_logs.push(row); render(); await dbDo(DB.insert('mood_logs', row)); }
   toast(`บันทึกแล้ว: ${mo.icon} ${mo.label}`);
+}
+/** อารมณ์ย้อนหลัง: แตะวันที่ในปฏิทินอารมณ์ → เลือกอารมณ์ของวันนั้น (แก้ของเดิมต้องยืนยันก่อน) */
+async function moodDaySheet(date) {
+  const me = selfProfile(); if (!me || date > todayKey()) return;
+  const cur = moodLog(me.id, date);
+  if (cur && !(await askConfirm(`วันที่ ${thDate(date)} บันทึกไว้แล้วเป็น <b>${moodOf(cur.mood).icon} ${moodOf(cur.mood).label}</b><br>ต้องการ <b>แก้ไข</b> ใช่หรือไม่?`, 'ใช่ แก้ไข'))) return;
+  ui.moodDay = date;
+  openSheet(`<h3>อารมณ์ของวันที่ ${thDate(date)}</h3>
+    <div class="mood-pick">${MOODS.map((mo) => `<button type="button" class="mood-opt ${cur?.mood === mo.k ? 'on' : ''}" data-act="mood-set-day" data-id="${mo.k}" style="--mc:${mo.color}"><i>${mo.icon}</i><b>${mo.label}</b></button>`).join('')}</div>
+    <div class="row sticky-actions"><button class="btn ghost" data-act="close">ปิด</button></div>`);
 }
 
 function viewToday() {
-  if (ui.todayPage === 'mood') return viewMoodSummary();
+  if (ui.todayPage === 'mood') return canUse('mood') ? viewMoodSummary() : premiumPage('สรุปอารมณ์ 1 เดือน', 'mood', ['ภาพรวมวันนี้', 'today-go', 'home']);
   const shown = todayProfiles(); const ids = shown.map((p) => p.id);
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'สวัสดีตอนเช้า' : hour < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
@@ -121,7 +138,9 @@ function viewToday() {
 function viewMeds() {
   if (ui.medsPage === 'list') return viewMedList();
   if (ui.medsPage === 'care') return `${backBar('ยาและการดูแล', 'meds-go', 'hub')}${viewCare()}`;
-  if (ui.medsPage === 'summary') return viewAdherence();
+  if (ui.medsPage === 'summary') return canUse('summary') ? viewAdherence() : premiumPage('สรุปการกินยา 1 เดือน');
+  if (ui.medsPage === 'history') return viewHistory();
+  if (ui.medsPage === 'stock') return viewStock();
   const tile = (go, ic, bg, title, sub) => `<button type="button" class="card tile" data-act="meds-go" data-id="${go}"><span class="tile-ic" style="background:${bg}">${ic}</span>
     <span class="tile-tx"><b>${title}</b><small>${sub}</small></span><span class="muted chev">›</span></button>`;
   return `<h1>ยาและการดูแล</h1><p class="sub">เลือกสิ่งที่ต้องการดู</p>
@@ -175,7 +194,11 @@ function viewMoodSummary() {
   const head = `${back}<h1>สรุปอารมณ์</h1><p class="sub">ของ${esc(me.name)} · เห็นเฉพาะเจ้าของบัญชี</p>${monthNav(ym, 'mood-month')}`;
   if (ensureMonth(ym)) return `${head}<div class="card empty">กำลังโหลดข้อมูลย้อนหลัง…</div>`;
   const logs = (S.mood_logs || []).filter((l) => l.profile_id === me.id && l.log_date.startsWith(ym));
-  if (!logs.length) return `${head}<div class="card empty"><div class="e">🗓️</div>ยังไม่มีบันทึกอารมณ์ในเดือนนี้<br><span class="small">เลื่อนไปดูเดือนอื่นได้ ข้อมูลเก่าไม่หาย</span></div>`;
+  const [y0, m0] = ym.split('-').map(Number); const nD = new Date(y0, m0, 0).getDate(); const fDow = new Date(y0, m0 - 1, 1).getDay(); const today0 = todayKey();
+  const calCard = `<div class="card"><b>ปฏิทินอารมณ์</b><p class="small muted" style="margin:2px 0 0">แตะวันที่เพื่อบันทึกหรือแก้อารมณ์ย้อนหลัง</p>
+      <div class="ad-cal mood-cal">${DOW.map((d) => `<div class="dow">${d}</div>`).join('')}${'<div></div>'.repeat(fDow)}${Array.from({ length: nD }, (_, i) => { const k = `${ym}-${pad(i + 1)}`; const l = logs.find((x) => x.log_date === k); const mo = l && moodOf(l.mood);
+        return k > today0 ? `<div class="ad-d na future"><b>${i + 1}</b><small></small></div>` : `<button type="button" class="ad-d na day-btn ${k === today0 ? 'today' : ''}" data-act="mood-day" data-id="${k}" aria-label="อารมณ์วันที่ ${i + 1}"><b>${i + 1}</b><small>${mo ? mo.icon : ''}</small></button>`; }).join('')}</div></div>`;
+  if (!logs.length) return `${head}<div class="card empty"><div class="e">🗓️</div>ยังไม่มีบันทึกอารมณ์ในเดือนนี้<br><span class="small">แตะวันที่ในปฏิทินด้านล่างเพื่อบันทึกย้อนหลังได้</span></div>${calCard}`;
   const counts = MOODS.map((mo) => ({ ...mo, n: logs.filter((l) => l.mood === mo.k).length }));
   const top = [...counts].sort((a, b) => b.n - a.n)[0]; const max = Math.max(1, ...counts.map((c) => c.n));
   const [y, m] = ym.split('-').map(Number); const nDays = new Date(y, m, 0).getDate(); const firstDow = new Date(y, m - 1, 1).getDay();
@@ -184,9 +207,7 @@ function viewMoodSummary() {
       <p class="small">บันทึกแล้ว ${logs.length} วัน ในเดือนนี้ — ขอบคุณที่ดูแลใจตัวเองนะ 💛</p></div>
     <div class="card"><b>จำนวนวันของแต่ละอารมณ์</b>
       ${counts.map((c) => `<div class="ad-bar"><span>${c.icon} ${c.label}</span><div><i style="width:${(c.n / max) * 100}%;background:${c.color}"></i></div><b>${c.n} วัน</b></div>`).join('')}</div>
-    <div class="card"><b>ปฏิทินอารมณ์</b>
-      <div class="ad-cal mood-cal">${DOW.map((d) => `<div class="dow">${d}</div>`).join('')}${'<div></div>'.repeat(firstDow)}${Array.from({ length: nDays }, (_, i) => { const k = `${ym}-${pad(i + 1)}`; const l = logs.find((x) => x.log_date === k); const mo = l && moodOf(l.mood);
-        return `<div class="ad-d na" title="${mo ? esc(mo.label) : ''}"><b>${i + 1}</b><small>${mo ? mo.icon : ''}</small></div>`; }).join('')}</div></div>`;
+    ${calCard}`;
 }
 
 // ---------- แท็บสมาชิก ----------
@@ -214,7 +235,7 @@ function viewMembers() {
     }).join('') || '<div class="card empty"><div class="e">👨‍👩‍👧</div>ยังไม่มีสมาชิก</div>'}
 
     <h2>กลุ่มผู้ดูแล</h2>
-    ${myCircles.map((c) => { const shared = (S.circle_care_for || []).filter((cf) => cf.circle_id === c.id).map((cf) => S.profiles.find((p) => p.id === cf.profile_id)).filter(Boolean); const nm = S.circle_members.filter((m) => m.circle_id === c.id).length; return `<div class="card circle"><b>${esc(c.name)}</b><p class="small muted">${esc(c.description || '')}${nm ? ` · สมาชิก ${nm} คน` : ''}</p><div class="shared-row">${shared.length ? `${shared.map((p) => `<span class="shared-av" title="${esc(p.name)}">${avatarHtml(p, 'xs')}<small>${esc(p.name)}</small></span>`).join('')}` : '<span class="small muted">ยังไม่ได้เลือกข้อมูลที่แชร์</span>'}</div><button class="btn ghost sm" data-act="manage-circle" data-id="${c.id}">⚙️ จัดการ</button></div>`; }).join('')}
+    ${myCircles.map((c) => { const shared = (S.circle_care_for || []).filter((cf) => cf.circle_id === c.id).map((cf) => S.profiles.find((p) => p.id === cf.profile_id)).filter(Boolean); const nm = S.circle_members.filter((m) => m.circle_id === c.id).length; return `<div class="card circle"><b>${esc(c.name)}</b><p class="small muted">${esc(c.description || '')}${nm ? ` · สมาชิก ${nm} คน` : ''}</p><div class="shared-row">${shared.length ? `${shared.map((p) => `<span class="shared-av" title="${esc(p.name)}">${avatarHtml(p, 'xs')}<small>${esc(p.name)}</small></span>`).join('')}` : '<span class="small muted">ยังไม่ได้เลือกข้อมูลที่แชร์</span>'}</div><button class="btn ghost sm" data-act="manage-circle" data-id="${c.id}">✏️ แก้ไข</button></div>`; }).join('')}
     ${myInvites.map((i) => `<div class="card circle"><b>คำเชิญ: ${esc(i.circle_name || 'กลุ่มผู้ดูแล')}</b><p class="small muted">สิทธิ์: ${i.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขข้อมูลได้'}</p><div class="row"><button class="btn sm" data-act="accept-invite" data-id="${i.id}">✓ รับคำเชิญ</button><button class="btn ghost sm" data-act="decline-invite" data-id="${i.id}">ปฏิเสธ</button></div></div>`).join('')}
     ${sharedCircles.map((c) => { const mm = S.circle_members.find((m) => m.circle_id === c.id && m.user_id === DB.user.id); return `<div class="card circle shared"><b>${esc(c.name)}</b><p class="small muted">แชร์มาให้ · สิทธิ์ของฉัน: ${mm?.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้'}</p><button class="btn ghost sm danger" data-act="leave-circle" data-id="${c.id}">👋 ออกจากกลุ่ม</button></div>`; }).join('')}
     <button class="btn ghost block" data-act="new-circle">+ สร้างกลุ่มผู้ดูแล</button>
@@ -242,18 +263,22 @@ function memberDetail(p) {
       ${kv('กรุ๊ปเลือด', esc(p.blood_type || ''))}
       ${kv('น้ำหนัก', p.weight_kg ? `${num(p.weight_kg)} กก.` : '')}${kv('ส่วนสูง', p.height_cm ? `${num(p.height_cm)} ซม.` : '')}${kv('รอบเอว', p.waist_cm ? `${num(p.waist_cm)} ซม.` : '')}
       ${kv('จำนวนยาที่ทาน', `${n} รายการ (รหัส "${esc(medPrefix(p.id)) || '-'}")`)}
-      ${kv('ยาอื่นๆ (ไม่ใช่ยาทาน)', ` รายการ`)}
+      ${kv('ยาอื่นๆ (ไม่ใช่ยาทาน)', `${other} รายการ`)}
       ${kv('นัดถัดไป', next ? thDate(next.appt_date) : '')}
       ${kv('ใบนัด', `${slips} ใบ`)}
     </div>
     <div class="two-btn">
-      <button class="btn ghost" data-act="care-of" data-id="${p.id}">🩹 ติดตามอาการ${cares ? ` (${cares})` : ''}</button>
-      <button class="btn ghost" data-act="adherence" data-id="${p.id}">📊 สรุปการกินยา</button>
+      <button type="button" class="card mb-btn" data-act="member-history" data-id="${p.id}"><span class="tile-ic" style="background:var(--pink-soft)"><span class="mi" style="--ic:url(assets/icons/history.png)"></span></span><b>ประวัติการรักษา</b></button>
+      <button type="button" class="card mb-btn" data-act="member-stock" data-id="${p.id}"><span class="tile-ic" style="background:var(--meadow)"><span class="mi" style="--ic:url(assets/icons/stock.png)"></span></span><b>จำนวนยาที่เหลือ</b></button>
     </div>
     <label class="card switch-row"><span>🔔 แจ้งเตือนกินยา</span>
       <span class="switch"><input type="checkbox" data-toggle-reminder="${p.id}" ${p.reminder_enabled ? 'checked' : ''} ${ownsProfile(p.id) ? '' : 'disabled'}><i></i></span></label>
     ${ownsProfile(p.id) ? `<button class="btn block" data-act="edit-person" data-id="${p.id}">✏️ แก้ไขข้อมูล</button>` : '<p class="small muted center">ข้อมูลส่วนตัวแก้ได้เฉพาะเจ้าของโปรไฟล์</p>'}`;
 }
+
+// เครดิตไอคอน (Flaticon · Free license with attribution — ชื่อผู้สร้างตามใบรับรองในโฟลเดอร์ License)
+const ICON_CREDITS = [['ยา', 'Magnific'], ['นัดพบแพทย์', 'Gajah Mada'], ['วันนี้', 'Aldo Cervantes'], ['สมาชิก', 'Magnific'], ['ตั้งค่า', 'Gregor Cresnar Premium'],
+  ['ติดตามอาการ', 'Magnific'], ['สรุปการกินยา', 'juicy_fish'], ['ประวัติการรักษา', 'Magnific'], ['จำนวนยาที่เหลือ', 'M Karruly'], ['สรุปอารมณ์ใน 1 เดือน (ภาพเคลื่อนไหว)', 'Magnific']];
 
 // ---------- แท็บตั้งค่า ----------
 function viewSettings() {
@@ -267,9 +292,10 @@ function viewSettings() {
     <h3 class="set-h">บัญชี</h3>
     <div class="card set-group">${row('✉️', 'อีเมล', esc(DB.user?.email || ''))}
       ${supa ? row('🔑', 'เปลี่ยนรหัสผ่าน', '', 'change-password') : ''}</div>
+    ${typeof membershipSection === 'function' ? membershipSection() : ''}
     <h3 class="set-h">การใช้งาน</h3>
     <div class="card set-group">${row('🌐', 'ภาษา', 'ไทย', 'language')}
-      <details class="set-det"><summary class="set-row"><span class="sr-ic">⏰</span><span class="sr-l">เวลาแต่ละช่วงยา</span><span class="muted chev">›</span></summary>
+      <details class="set-det"><summary class="set-row"><span class="sr-ic">⏰</span><span class="sr-l">ช่วงเวลาทานยา</span><span class="muted chev">›</span></summary>
         <div class="two">${SLOTS.map((s) => { const [hh, mm] = slotTime(s.key).split(':'); const mmOpts = [...new Set(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', mm])].sort();
           return `<div class="f"><span>${s.icon} ${s.label}</span><div class="t24">
             <select data-slot-hh="${s.key}" aria-label="ชั่วโมง">${Array.from({ length: 24 }, (_, h) => pad(h)).map((h) => `<option ${h === hh ? 'selected' : ''}>${h}</option>`).join('')}</select><b>:</b>
@@ -281,15 +307,20 @@ function viewSettings() {
         <p class="small muted" style="margin-bottom:0">${pushOk ? (supa && CFG.VAPID_PUBLIC_KEY ? 'ใช้ Web Push — เตือนได้แม้ปิดแอพ' : 'เตือนได้เฉพาะตอนเปิดแอพค้างไว้') : 'เบราว์เซอร์นี้ไม่รองรับ Web Push'}
           ${/iPhone|iPad/.test(navigator.userAgent) ? '<br>iPhone: ต้อง "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดจากไอคอนก่อน จึงจะเปิดแจ้งเตือนได้' : ''}</p></details></div>
     <h3 class="set-h">ความเป็นส่วนตัว</h3>
-    <div class="card set-group">${row('🛡️', 'ความเป็นส่วนตัวและข้อมูลสุขภาพ (PDPA)', '', 'privacy')}</div>
+    <div class="card set-group">${row('🛡️', 'ความเป็นส่วนตัวและข้อมูลสุขภาพ (PDPA)', '', 'privacy')}
+      <a class="set-row" href="privacy.html" target="_blank" rel="noopener"><span class="sr-ic">📄</span><span class="sr-l">นโยบายความเป็นส่วนตัว (หน้าเว็บ)</span><span class="muted chev">›</span></a>
+      <a class="set-row" href="delete-account.html" target="_blank" rel="noopener"><span class="sr-ic">🗑️</span><span class="sr-l">วิธีลบบัญชี</span><span class="muted chev">›</span></a></div>
     <h3 class="set-h">เกี่ยวกับแอพ</h3>
     <div class="card set-group">${row('📱', 'เวอร์ชันปัจจุบัน', APP_VERSION)}
       ${row('👩‍💻', 'ผู้พัฒนา', CFG.DEVELOPER_NAME ? esc(CFG.DEVELOPER_NAME) : unset)}
       ${row('📧', 'ติดต่อเรา', mail)}
-      ${row('💬', 'ช่องทางการสนับสนุน', support)}</div>
+      ${row('💬', 'ช่องทางการสนับสนุน', support)}
+      <details class="set-det"><summary class="set-row"><span class="sr-ic">🎨</span><span class="sr-l">เครดิตไอคอน</span><span class="muted chev">›</span></summary>
+        <table class="credits"><thead><tr><th>ไอคอน</th><th>designed by … from <a href="https://www.flaticon.com" target="_blank" rel="noopener">Flaticon</a></th></tr></thead><tbody>${ICON_CREDITS.map(([use, who]) => `<tr><td>${esc(use)}</td><td>${esc(who)}</td></tr>`).join('')}</tbody></table>
+        <p class="credits-note">ไอคอนจาก Flaticon ตามสัญญาอนุญาตแบบ Free (with attribution)</p></details></div>
     ${supa ? '<button class="btn ghost block" data-act="logout">ออกจากระบบ</button>'
       : '<p class="small muted">ยังไม่ได้เชื่อม Supabase — ข้อมูลอยู่ในเครื่องนี้เท่านั้น</p><div class="row"><button class="btn ghost" data-act="demo">ข้อมูลตัวอย่าง</button><button class="btn danger" data-act="wipe">ล้างข้อมูล</button></div>'}
-    <p class="small muted center">สุขใจ v${APP_VERSION} · ใช้ประกอบการดูแล ไม่แทนคำแนะนำของแพทย์/เภสัชกร<br>© 2026 สุขใจ (Sookjai) สงวนลิขสิทธิ์ · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต</p>`;
+    <p class="small muted center">สุขใจ v${APP_VERSION} ใช้ประกอบการดูแล ไม่แทนคำแนะนำของแพทย์/เภสัชกร<br>© 2026 สุขใจ (Sookjai)<br>สงวนลิขสิทธิ์ ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต</p>`;
 }
 
 // ---------- ตัวจัดการคลิกของหน้าจอใหม่ ----------
@@ -307,6 +338,8 @@ document.addEventListener('click', (ev) => {
     case 'today-go': ui.todayPage = id; render(); top(); break;
     case 'mood-sum': ui.todayPage = 'mood'; ui.moodYm = null; render(); top(); break;
     case 'mood-set': setMood(id); break;
+    case 'mood-day': moodDaySheet(id); break;
+    case 'mood-set-day': { const d = ui.moodDay; if (d) setMood(id, d).then(() => { closeSheet(); render(); }); break; }
     case 'mood-month': ui.moodYm = shiftYm(ui.moodYm || ymOf(new Date()), +id); render(); break;
     case 'ad-person': ui.adPid = id; render(); break;
     case 'ad-month': ui.adYm = shiftYm(ui.adYm || ymOf(new Date()), +id); render(); break;
@@ -654,6 +687,7 @@ function pdfFail(e, fallback) {
   toast('สร้าง PDF ตรงๆ ไม่ได้ — เปิดหน้าต่างพิมพ์แทน (เลือก "บันทึกเป็น PDF")'); fallback();
 }
 async function downloadMedsPdf(pid) {
+  if (!canUse('pdf')) return premiumSheet('pdf');
   if (!medsOf(pid).length) return toast('ยังไม่มียาให้ดาวน์โหลด');
   toast('กำลังสร้างและตรวจสอบไฟล์ PDF…');
   try { const { pdf, name } = await makeMedsPdf(pid, 'both'); pdf.save(name); toast('✓ ตรวจสอบ 3 รอบแล้ว ดาวน์โหลดไฟล์ PDF เรียบร้อย'); }

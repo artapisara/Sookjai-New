@@ -1007,3 +1007,107 @@ body:not(.auth) .ring-card, body:not(.auth) .member-row { border-left: 8px solid
 .tabbar button .ti::after, .tabbar button.home-tab .ti::after { width: 27px; height: 27px; opacity: 1; }
 .tabbar button.on .ti, .tabbar button.home-tab.on .ti { background: #DAFF7C; color: #161A4D; box-shadow: 0 4px 12px rgba(20, 24, 120, .35); }
 .tabbar button:active .ti, .tabbar button.home-tab:active .ti { transform: scale(.92); box-shadow: 0 0 0 3px rgba(218, 255, 124, .7); }
+/* ===== หน้าต้อนรับ (ก่อนกด "เริ่มใช้งาน"): ดีไซน์และอนิเมชันเดียวกับหน้า intro ===== */
+.wel-screen { position: fixed; inset: 0; z-index: 5; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; padding: 6vh 22px calc(20px + env(safe-area-inset-bottom)); background: linear-gradient(165deg, #5E67FF 0%, #4D55F5 50%, #4650F2 100%); }
+.wel-screen .sp-inner { margin: auto 0; }
+.wel-screen .sp-ask { margin-top: 18px; font-size: clamp(17px, 4.8vw, 21px); }
+.wel-actions { position: relative; z-index: 2; width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 12px; animation: sp-up .6s 1.5s ease both; }
+.wel-actions .btn { min-height: 56px; font-size: 19px; }
+.wel-go { background: #DAFF3A; color: #1B1F4D; box-shadow: 0 8px 20px rgba(20, 24, 120, .3); }
+.wel-have { background: transparent; color: #fff; border: 2px solid rgba(255, 255, 255, .75); box-shadow: none; }
+.wel-note { margin: 4px 0 0; font-size: 14px; line-height: 1.6; color: rgba(255, 255, 255, .8); }
+@media (prefers-reduced-motion: reduce) { .wel-actions { animation: none; } }
+/* ตั้งค่า > ช่วงเวลาทานยา: เว้นระยะให้โปร่ง ไม่แน่น (แถวละ 1 ช่วง) */
+.set-det .two { grid-template-columns: 1fr; gap: 18px; padding: 8px 2px 4px; }
+.set-det .two .f > span { display: block; margin-bottom: 8px; font-size: 17px; }
+.set-det .t24 { gap: 12px; }
+.set-det .t24 select { padding: 14px 10px; min-height: 52px; }
+.set-det .t24 b { font-size: 20px; }
+.set-det .t24 small { margin-left: 4px; font-size: 16px; }
+/* ===== v1.3: ปุ่มในหน้าสมาชิก (ไอคอนเส้นบนพื้นสีอ่อน) · ประวัติการรักษา · จำนวนยาที่เหลือ ===== */
+.mb-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px 8px; text-align: center; font: inherit; border: 0; min-height: 150px; }
+.mb-btn b { font-size: 18px; line-height: 1.3; }
+.mb-btn .tile-ic { width: 76px; height: 76px; }
+.slot-row .switch.sm { display: none; } /* ช่วงเวลาทานยาในฟอร์มยา: ไม่แสดงสวิตช์เตือน (ค่าเดิมยังเก็บ/ใช้ตามเดิม) */
+.hist-item { display: flex; flex-direction: column; gap: 4px; }
+.hist-item .hi-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hist-item > b { font-size: 19px; }
+.hist-item.rec { border-left: 6px solid var(--green); }
+.stk-card { padding: 6px 14px 10px; }
+.stk-head { display: grid; grid-template-columns: 56px 1fr 84px; gap: 10px; padding: 8px 0; font-size: 14px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.stk-head span:last-child { text-align: right; }
+.stk-row { display: grid; grid-template-columns: 56px 1fr 84px; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.stk-row:last-child { border-bottom: 0; }
+.stk-no { display: grid; place-items: center; min-height: 40px; border-radius: 12px; background: var(--sky-soft); font-size: 18px; }
+.stk-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stk-main b { font-size: 17px; overflow-wrap: anywhere; } .stk-main small { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.stk-left { display: flex; flex-direction: column; align-items: flex-end; } .stk-left b { font-size: 24px; line-height: 1.1; } .stk-left small { font-size: 14px; color: var(--muted); }
+.stk-row.low .stk-no { background: #FFEDEB; }
+.wel-screen .sp-ask { background: transparent; box-shadow: none; color: #fff; padding: 0; margin-top: 20px; font-weight: 600; line-height: 1.5; }
+
+/* เครดิตไอคอน (ตั้งค่า): ตารางเล็ก ตัวเล็ก */
+.credits { width: 100%; border-collapse: collapse; margin: 2px 0 4px; font-size: 12px; line-height: 1.3; }
+.credits th, .credits td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); font-weight: 400; }
+.credits th { color: var(--muted); font-size: 11px; }
+.credits th a { color: var(--brand); text-decoration: none; }
+.credits-note { margin: 2px 0 0; font-size: 11px; color: var(--muted); }
+/* จำนวนยาที่เหลือ: ช่องค้นหา */
+.stk-search { width: 100%; box-sizing: border-box; min-height: 52px; margin: 0 0 10px; padding: 12px 16px; border: 2px solid #D5D9FF; border-radius: 16px; background: #fff; font: inherit; font-size: 17px; color: var(--ink); }
+.stk-search:focus { outline: none; border-color: #4D55F5; }
+.stk-row[hidden], .stk-none[hidden] { display: none; }
+/* ฟอร์มยา: ช่วงเวลาทานยาแบ่งเป็น 2 คอลัมน์ ให้ตารางสั้นลง */
+.slot-pick { display: grid; grid-template-columns: 1fr 1fr; }
+.slot-row, .slot-row:first-child { padding: 2px 6px 2px 0; border-top: 1px solid var(--line); min-width: 0; }
+.slot-row:nth-child(-n+2) { border-top: 0; }
+.slot-row:nth-child(odd) { border-right: 1px solid var(--line); }
+.slot-main { gap: 6px; min-height: 44px; font-size: 15px; line-height: 1.25; min-width: 0; }
+.slot-main .si { font-size: 20px; }
+.slot-main input { margin-left: 8px; }
+.every-row { gap: 6px; font-size: 16px; } .every-row select { min-width: 62px; padding-inline: 8px; } .every-row .btn { padding-inline: 14px; }
+
+/* โหมดออฟไลน์ (ดูอย่างเดียว): แถบแจ้งด้านบน */
+#offbar { position: fixed; top: 0; left: 0; right: 0; z-index: 60; padding: 6px 12px; background: #1B1F4D; color: #fff; text-align: center; font-size: 14px; line-height: 1.35; }
+body.is-offline { padding-top: 34px; }
+/* Premium */
+.perks { margin: 6px 0 0; padding-left: 20px; } .perks li { margin: 3px 0; font-size: 16px; }
+a.set-row { text-decoration: none; color: inherit; }
+
+/* แพ็กเกจของฉัน: ตารางเทียบฟรี/Premium (✔ ✘) */
+.plan-tbl { width: 100%; border-collapse: collapse; margin: 10px 0 2px; font-size: 14.5px; }
+.plan-tbl th, .plan-tbl td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: center; line-height: 1.3; }
+.plan-tbl th:first-child, .plan-tbl td:first-child { text-align: left; }
+.plan-tbl th { font-size: 14px; color: var(--muted); font-weight: 600; }
+.plan-tbl .prem { background: #F4FFD2; font-weight: 600; }
+.plan-tbl tr:last-child td { border-bottom: 0; }
+.plan-tbl .yes { color: #1E8E3E; font-size: 19px; font-weight: 800; } .plan-tbl .no { color: #C5382E; font-size: 18px; font-weight: 800; }
+.plan-tbl .no { color: #8A8FB5; font-size: 20px; font-weight: 600; }
+/* ตารางแพ็กเกจ: ฟอนต์ขนาดเดียวกันทุกแถว · หัวข้อกลุ่มไม่มีพื้นหลัง */
+.plan-tbl, .plan-tbl th, .plan-tbl td { font-size: 14.5px; line-height: 1.35; font-family: inherit; }
+.plan-tbl th { font-size: 14.5px; }
+.plan-tbl tr.grp td { text-align: left; font-weight: 700; background: none; border-bottom: 0; padding: 10px 6px 2px; color: var(--ink); }
+.plan-tbl td.psub { padding-left: 22px; position: relative; color: var(--ink); } .plan-tbl td.psub::before { content: "•"; position: absolute; left: 10px; color: var(--muted); }
+/* ปุ่มสรุปอารมณ์: ไอคอนเคลื่อนไหว + ข้อความ */
+.mood-sum-btn { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.mood-sum-btn .mood-ic { width: 44px; height: 44px; flex: none; object-fit: contain; }
+.mood-sum-btn { min-height: 96px; gap: 14px; font-size: 20px; }
+.mood-sum-btn .mood-ic { width: 76px; height: 76px; }
+
+/* แถบเมนูล่าง: ป้ายชื่อบรรทัดเดียว (นัดพบแพทย์ ยาวกว่าชื่อเดิม) */
+.tabbar button { white-space: nowrap; letter-spacing: -.2px; }
+@media (max-width: 400px) { .tabbar button { font-size: 12.5px; } }
+/* ปฏิทินอารมณ์: วันที่แตะได้ */
+.mood-cal .day-btn { border: 0; font: inherit; color: inherit; cursor: pointer; } .mood-cal .day-btn:active { background: #E7E9FF; }
+.mood-cal .day-btn.today b { background: #4D55F5; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: grid; place-items: center; }
+.mood-cal .future { opacity: .45; }
+/* ตั้งค่า: ค่าด้านขวา (เช่น อีเมล) อยู่บรรทัดเดียว ตัวเล็กลง ถ้ายาวเกินตัดด้วย … */
+.sr-l { flex: 0 1 auto; min-width: 0; }
+.sr-v { flex: 1 1 0; min-width: 0; font-size: 13px; word-break: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 380px) { .sr-v { font-size: 12px; } }
+.set-row .chev { margin-left: auto; }
+
+/* ปฏิทินอารมณ์: ช่องสูงขึ้น ไอคอนไม่ชิดกรอบ */
+.mood-cal { gap: 6px; }
+.mood-cal .ad-d { min-height: 72px; padding: 8px 2px 12px; gap: 6px; justify-content: center; }
+.mood-cal .ad-d b { font-size: 16px; line-height: 1.1; }
+.mood-cal .ad-d small { font-size: 22px; line-height: 1; min-height: 22px; display: block; }
+.set-copy { text-align: center; line-height: 1.7; }
