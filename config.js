@@ -9,7 +9,7 @@
 window.SUKJAI_CONFIG = {
   SUPABASE_URL: 'https://yiczrjlyndicfiazruvt.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_yvltM9obpVYMJvzJj0tAVA_cG6ViLyi',  // publishable key (เปิดเผยได้)
-  VAPID_PUBLIC_KEY: '',   // จากคำสั่ง npx web-push generate-vapid-keys
+  VAPID_PUBLIC_KEY: 'BMjoz30lAtbAyXbtFoaaQjykfTCGFw3E0Vlt5AljvymgD167fYbdy5-2x14gWCUqsUSUOPUs8xgmTd_tThYzkao',   // จากคำสั่ง npx web-push generate-vapid-keys
   PRIVACY_CONTACT: '',    // อีเมลติดต่อเรื่องข้อมูลส่วนบุคคล (PDPA)
   DEVELOPER_NAME: 'Apisara B.',     // ชื่อผู้พัฒนา (แสดงในหน้าตั้งค่า)
   CONTACT_EMAIL: '',      // อีเมลติดต่อ (แสดงในหน้าตั้งค่า)
