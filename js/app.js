@@ -127,7 +127,7 @@ function apptAlerts(ids) {
   return S.appointments
     .filter((a) => ids.includes(a.profile_id))
     .map((a) => ({ a, n: daysUntil(a.appt_date) }))
-    .filter(({ n }) => n >= 0 && n <= Math.max(...REMIND_DAYS))
+    .filter(({ n }) => n >= 0 && n <= Math.max(...(remindDays().length ? remindDays() : REMIND_DAYS)))
     .sort((x, y) => x.n - y.n || hhmm(x.a.appt_time).localeCompare(hhmm(y.a.appt_time)))
     .map(({ a, n }) => {
       const p = profileById(a.profile_id); const h = hospitalById(a.hospital_id); const d = doctorById(a.doctor_id);
@@ -179,7 +179,7 @@ function dayTable(p, nextKey) {
         <div class="dtop"><span class="wi">${m.warning ? '⚠️' : ''}</span>${tick}</div>
         <div class="dmain" data-act="edit-med" data-id="${m.id}" role="button" tabindex="0" aria-label="ดูรายละเอียดยาลำดับที่ ${esc(medNo(m))} ${esc(m.name)}">
           <b class="onum">${m.as_needed ? '*' : ''}<small class="pfx">${esc(pre)}</small>${m.sort_order}</b>
-          <span class="mname">${esc(m.name)}</span>
+          <span class="mname">${esc(medShort(m))}</span>${m.as_needed ? '<small class="asn">เมื่อมีอาการ</small>' : ''}
         </div>
         ${num(m.dose, 1) !== 1 ? `<span class="dpill">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>` : ''}
         ${m.table_hint ? `<small class="hint">${esc(m.table_hint)}</small>` : ''}
@@ -190,39 +190,36 @@ function dayTable(p, nextKey) {
   const upd = latestUpdate(meds);
   return `<section class="dtable" style="--pc:${p.color}">
     <div class="dt-head">${avatarHtml(p, 'sm')}<div><b>ตารางการกินยาใน 1 วัน (${esc(p.name)})</b>
-      <div class="small muted">อัปเดต ${upd ? thDateTime(upd) : '-'}</div></div></div>
+      <div class="small muted">อัปเดต ${upd ? thDateTime(upd) : '-'}</div></div><button class="btn ghost sm dt-pdf" data-act="print-meds" data-id="${p.id}">📄 ไฟล์ PDF</button></div>
     <div class="dt-note">ทานยาครั้งละ 1 เม็ด${odd.length ? ` <b>ยกเว้นลำดับที่ ${odd.map(esc).join(', ')}</b> <span>(ดูจำนวนในช่อง)</span>` : ' ทุกรายการ'}</div>
     <table>${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${meds.some((m) => m.as_needed) ? '<p class="small muted dt-star">* กินเฉพาะตอนมีอาการเท่านั้น (ช่องสีชมพู)</p>' : ''}
     ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b>${warns.map((m) => `<div>${esc(medNo(m))}. ${esc(m.name)} → ${esc(m.warning)}</div>`).join('')}</div>` : ''}
-    <details class="dt-legend" data-legend="${p.id}" ${ui.legendOpen?.[p.id] ? 'open' : ''}><summary>ดูชื่อยาตามเลขลำดับ</summary>
-      ${meds.map((m) => `<div class="lg-row"><div class="lg-name"><b>${esc(medNo(m))}.</b> ${esc(m.name)}${m.purpose ? ` <span class="muted">— ${esc(m.purpose)}</span>` : ''}</div>
-        <div class="lg-right"><span class="lg-dose">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>${SLOTS.filter((s) => m.slots.includes(s.key)).map((s) => `<button type="button" class="slot-ic" data-act="slot-name" data-label="${esc(s.label)} (${slotTime(s.key)} น.)" title="${esc(s.label)}" aria-label="${esc(s.label)}">${s.icon}</button>`).join('')}</div></div>`).join('')}
-      <p class="small muted lg-hint">แตะไอคอนเพื่อดูว่าเป็นช่วงไหน</p>
-    </details>
+
   </section>`;
 }
 
 // ---------- หน้า: ยา ----------
 function medCard(m) {
   const dl = daysLeft(m); const p = profileById(m.profile_id); const out = runoutDate(m);
-  return `<div class="card med" data-id="${m.id}">
-    ${m.status === 'paused' ? '' : `<div class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="ยาลำดับที่ ${esc(medNo(m))}">${esc(medNo(m))}</div>`}
-    <div class="info" data-act="edit-med" data-id="${m.id}">
-      <div class="name">${esc(m.name)}</div>
-      ${m.purpose ? `<div class="small muted">รักษา: ${esc(m.purpose)}</div>` : ''}
-      ${m.prescriber ? `<div class="small muted">👨‍⚕️ แพทย์ที่จ่ายยา: ${esc(m.prescriber)}</div>` : ''}
-      ${m.prescribed_dept ? `<div class="small muted">🏥 แผนกที่จ่ายยา: ${esc(m.prescribed_dept)}</div>` : ''}
-      <div class="tags">${weekdaysText(m) ? `<span class="tag sun">📅 ${weekdaysText(m)}</span>` : ''}${m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && reminderOn(p) ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน · ดูหมายเหตุ</span>'}</div>
-      ${m.note ? `<div class="small med-note">📝 ${esc(m.note)}</div>` : ''}
-      ${m.status === 'active'
-        ? `<div class="small"><span class="${isLowStock(m) ? 'red-t' : 'muted'}">ครั้งละ ${doseLabel(m.dose)} ${esc(unitOf(m))}${tracksStock(m) ? ` · เหลือ ${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? ` · หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)` : ''}` : ''}</span></div>`
-        : `<div class="small"><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</div>`}
-      <div class="small muted">อัปเดต ${thDateTime(m.updated_at)}</div>
+  const wd = weekdaysText(m); const open = !!ui.medOpen?.[m.id];
+  const slotsTxt = m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${wd ? `<b>วัน</b>${esc(wd)} · ` : ''}${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && reminderOn(p) ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน</span>';
+  const kv = (k, v) => `<div class="mr-kv"><span>${k}</span><b>${v}</b></div>`;
+  const stock = tracksStock(m) ? kv('จำนวนที่เหลือ', `<span class="${isLowStock(m) ? 'red-t' : ''}">${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? `<br><small>หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)</small>` : ''}</span>`) : '';
+  return `<div class="mrow ${open ? 'open' : ''}" data-id="${m.id}">
+    <button type="button" class="mr-main" data-act="med-toggle" data-id="${m.id}" aria-expanded="${open}">
+      <span class="mr-no">${m.status === 'paused' ? '' : `<span class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="ยาลำดับที่ ${esc(medNo(m))}">${esc(medNo(m))}</span>`}</span>
+      <span class="mr-nm"><b class="name">${esc(m.name)}</b>${m.as_needed ? ' <span class="tag pn-tag">ทานเฉพาะเมื่อมีอาการ</span>' : ''}<span class="tags">${slotsTxt}<span class="tag dose-tag">ครั้งละ <b>${doseLabel(m.dose)} ${esc(unitOf(m))}</b></span></span>${m.purpose ? `<small class="muted">รักษา: ${esc(m.purpose)}</small>` : ''}${m.status !== 'active' ? `<small><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</small>` : ''}</span>
+      <span class="mr-chev">${open ? '▴' : '▾'}</span>
+    </button>
+    <div class="mr-more" ${open ? '' : 'hidden'}>
+      ${stock}
+      ${m.prescriber ? kv('แพทย์ที่จ่ายยา', esc(m.prescriber)) : ''}${m.prescribed_dept ? kv('แผนกที่จ่ายยา', esc(m.prescribed_dept)) : ''}
+      ${m.warning ? kv('หมายเหตุ / ข้อควรระวัง', `<span class="red-t">${esc(m.warning)}</span>`) : ''}${noteShown(m) ? kv('หมายเหตุ', esc(noteShown(m))) : ''}
+      <div class="mr-foot"><span class="med-upd">อัปเดต ${thDateTime(m.updated_at)}</span><button type="button" class="btn sm" data-act="edit-med" data-id="${m.id}">✏️ แก้ไขยา</button></div>
     </div>
   </div>`;
 }
-
 function viewMedList() {
   if (!S.profiles.length) return `${backBar('ยาและการดูแล', 'meds-go', 'hub')}<h1>ยาที่ต้องทาน</h1><div class="card empty"><div class="e">👨‍👩‍👧</div>เพิ่มคนในครอบครัวก่อน<br><button class="btn sm" data-act="add-person" style="margin-top:12px">+ เพิ่มคน</button></div>`;
   // ใช้การตั้งค่า "เลือกคนที่จะแสดง" ชุดเดียวกับหน้าวันนี้ (ตั้งได้เฉพาะบัญชีนี้ ไม่กระทบคนอื่นในกลุ่ม)
@@ -238,18 +235,19 @@ function viewMedList() {
     <h1>ยาที่ต้องทาน</h1>
     ${visBtn}
     ${personChips(ui.medsPerson, 'meds-person', false, false, vis)}
-    <div class="two-btn" style="margin:4px 0 10px;grid-template-columns:1fr 1.15fr"><button class="btn ghost" style="white-space:nowrap;padding-inline:8px" data-act="print-meds" data-id="${p.id}">📄 ดาวน์โหลดไฟล์ PDF</button>${canEditProfile(p.id) ? '<button class="btn" data-act="add-med">+ เพิ่มยา</button>' : '<span></span>'}</div>
-    <button class="btn ghost block" style="margin:0 0 10px" data-act="stickers" data-id="${p.id}">🏷️ ดาวน์โหลดสติกเกอร์ช่วงเวลากินยา (PDF)</button>
-    ${canEditProfile(p.id) ? lockToggle() : ''}
+    
+    <div class="tool-pair"><button class="btn ghost" data-act="stickers" data-id="${p.id}">⭐ สติกเกอร์ช่วงเวลา<br>และรหัสยา (PDF)</button>${canEditProfile(p.id) ? lockToggle() : ''}</div>
+    
     ${dayTable(p, null) || ''}
-    <p class="sub" style="margin-top:14px">เลขหน้ายา เช่น ${esc(medPrefix(p.id))}1 ${esc(medPrefix(p.id))}2 เรียงต่อเนื่องของแต่ละคน — ตั้งรหัสได้ในข้อมูลของคนนั้น ${canEditProfile(p.id) && ownsProfile(p.id) ? `<button class="linkbtn" data-act="edit-person" data-id="${p.id}">✏️ ตั้งรหัส "${esc(medPrefix(p.id)) || '-'}"</button>` : ''}</p>
+    
     ${shareTag(p.id) ? `<div class="tags">${shareTag(p.id)}</div>` : ''}
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>${esc(p.name)} แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <h2>ยาที่กำลังทาน <span class="small muted">${act.length} รายการ</span></h2>
-    <div id="medList">${act.map(medCard).join('')}</div>
+    <div class="med-group">${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map(medCard).join('')}</div></div>
     ${act.length ? '' : `<div class="card empty"><div class="e">💊</div>ยังไม่มียา กดปุ่ม + เพื่อเพิ่ม</div>`}
+    ${canEditProfile(p.id) ? '<button class="fab" data-act="add-med" aria-label="เพิ่มยา">+</button>' : ''}
     <h2>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} รายการ</span></h2>
-    ${off.map(medCard).join('') || `<div class="card empty small">ไม่มี</div>`}
+    ${off.length ? `<div class="med-group"><div class="mtable">${off.map(medCard).join('')}</div></div>` : `<div class="card empty small">ไม่มี</div>`}
   `;
 }
 

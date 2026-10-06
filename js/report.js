@@ -16,8 +16,8 @@ function reportButtonHtml(a) {
   // กรอบสรุป (สำคัญกว่า) อยู่ก่อน แล้วค่อยปุ่มโหลดไฟล์
   return `<div class="report-box">
     ${canUse('report') ? `<details class="rp-prev" data-appt="${a.id}"><summary><span class="mi rp-ic" style="--ic:url(assets/icons/report-notes.png)"></span>สรุปก่อนพบแพทย์</summary><div class="rp-prev-body small muted">กำลังเตรียมสรุป…</div></details>` : ''}
-    <button type="button" class="btn block ghost rp-dl ${st.ok ? '' : 'rp-dl-off'}" data-act="appt-report" data-id="${a.id}">📄 โหลดไฟล์ PDF ⭐</button>
-    ${st.ok ? '' : `<p class="small muted center" style="margin:4px 0 0">โหลดไฟล์ได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)</p>`}</div>`;
+    <button type="button" class="btn ghost rp-dl ${st.ok ? '' : 'rp-dl-off'}" data-act="appt-report" data-id="${a.id}">📄 ไฟล์ PDF ⭐</button>
+    ${st.ok ? '' : `<p class="small muted center" style="margin:4px 0 0;flex-basis:100%">สร้างไฟล์ได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)</p>`}</div>`;
 }
 // ---------- เลือกยาที่เกี่ยวกับแผนก ----------
 const reportDeptNorm = (s) => norm(String(s || '').replace(/^แผนก/, ''));
@@ -75,8 +75,8 @@ function reportBlocks(R) {
   B.push({ html: `<div class="rp-name">${e(p.name)}${age ? ` <span class="s">อายุ ${age} ปี</span>` : ''}</div>
     <table class="rp-t rp-info-t"><colgroup><col style="width:15%"><col style="width:38%"><col style="width:15%"><col style="width:32%"></colgroup>
       <tr>${cell('วันที่ไป', `${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`)}${cell('แผนก', e(a.department || '–'))}</tr>
-      <tr>${cell('หมอ', e(d?.name || '–'))}${cell('โรงพยาบาล', e(h?.name || '–'))}</tr>
-      <tr>${cell('ไปเพราะ', `<span class="rp-wide">${e(a.visit_reason || '–')}</span>`).replace('<td>', '<td colspan="3">')}</tr>${reportBodyRows(p, cell)}</table>`, info: true });
+      <tr>${cell('หมอ', e(d?.name || '–'))}${cell('รพ.', e(h?.name || '–'))}</tr>
+      <tr>${cell('สาเหตุ', `<span class="rp-wide">${e(a.visit_reason || '–')}</span>`).replace('<td>', '<td colspan="3">')}</tr>${reportBodyRows(p, cell)}</table>`, info: true });
   if (a.note) C(`<b class="rp-nt">📝 หมายเหตุ</b><div class="rp-notetext">${e(a.note)}</div>`, 'rp-notebox'); // หมายเหตุแยกกรอบ
   // 3) ผลการพบแพทย์ครั้งก่อน
   if (prev) {
@@ -111,13 +111,13 @@ const RPT_CSS = `.rp-wrap{position:fixed;left:-12000px;top:0;background:#fff;fon
 .rp-card{border:1.5px solid #D5D9F5;border-radius:12px;padding:9px 14px;font-size:16px;line-height:1.5;background:#fff}
 .rp-card .s,.rp-note .s,.rp-t .s{font-size:13px;color:#454B7A}
 .rp-red{background:#FFF0EE;border-color:#F2B8B2;color:#8C1D18}.rp-note{background:#F7F8FF;border-style:dashed}
-.rp-allergy{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.rp-allergy b{font:800 22px Prompt,Sarabun,sans-serif;color:#B3261E}.rp-allergy span{font:700 20px Prompt,Sarabun,sans-serif}
+.rp-no b,.rp-no{font-family:Prompt,Sarabun,sans-serif}.rp-allergy{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.rp-allergy b{font:800 22px Prompt,Sarabun,sans-serif;color:#B3261E}.rp-allergy span{font:700 20px Prompt,Sarabun,sans-serif}
 .rp-name{font:800 24px Prompt,Sarabun,sans-serif;margin:2px 0 4px}
 .rp-notebox{background:#FFF9E5;border-color:#F2D58B}.rp-nt{font-size:16px}.rp-notetext{font-size:16px;white-space:pre-line;overflow-wrap:anywhere;margin-top:2px}
 .rp-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14.5px;line-height:1.4}
 .rp-t th,.rp-t td{border:1.2px solid #C3C9EE;padding:6px 8px;vertical-align:top;text-align:left;overflow-wrap:anywhere}
 .rp-t th{background:var(--pcs);font-weight:700}
-.rp-info-t th,.rp-info-t td{font-size:13px;padding:3px 8px}.rp-info-t th{background:#F4F5FC;color:#5A6080;font-weight:600}
+.rp-info-t th,.rp-info-t td{font-size:13px;padding:3px 8px}.rp-info-t th{white-space:nowrap;width:1%}.rp-info-t th{background:#F4F5FC;color:#5A6080;font-weight:600}
 .rp-prev-t td.rp-say{font-size:16.5px;line-height:1.55;white-space:pre-line}.rp-prev-t th{font-size:14px}
 .rp-head-t th{background:var(--pc);color:#fff;border-color:var(--pc);font-size:13.5px;padding:5px 8px}
 .rp-med{margin-top:-1.2px}.rp-med td{background:#fff}.rp-no{text-align:center}.rp-no b{display:inline-block;background:var(--pc);color:#fff;border-radius:6px;padding:1px 6px;font:700 12px Prompt,Sarabun,sans-serif}
@@ -219,7 +219,7 @@ async function makeReportPdf(apptId, opt = {}) {
     finally { f2.wrap.remove(); }
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); const pages = [...f1.wrap.querySelectorAll('.rp-page')]; const i3 = [];
     for (let i = 0; i < pages.length; i++) {
-      const cv = await window.html2canvas(pages[i], { scale: 3, backgroundColor: '#fff', useCORS: true, windowWidth: RPT.W });
+      const cv = await window.html2canvas(pages[i], { scale: 3, backgroundColor: '#fff', useCORS: true, onclone: preloadCloneFonts, windowWidth: RPT.W });
       if (cv.width !== RPT.W * 3 || cv.height !== RPT.H * 3) i3.push(`[รอบ 3] หน้า ${i + 1}: ภาพ ${cv.width}×${cv.height}`);
       const t = document.createElement('canvas'); t.width = 120; t.height = 170; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 120, 170); const d = tc.getImageData(0, 0, 120, 170).data; let ink = 0;
       for (let k = 0; k < d.length; k += 4) if (d[k] + d[k + 1] + d[k + 2] < 690) ink++;
@@ -232,7 +232,7 @@ async function makeReportPdf(apptId, opt = {}) {
   } finally { f1.wrap.remove(); }
 }
 
-/** สรุปรายงานที่ซ่อนไว้ในหน้ารายละเอียดนัด: กดเปิดดูได้ทันทีโดยไม่ต้องดาวน์โหลด (แสดงใน Shadow DOM จึงไม่ปนกับสไตล์ของแอพ) */
+/** สรุปรายงานที่ซ่อนไว้ในหน้ารายละเอียดนัด: กดเปิดดูได้ทันทีโดยไม่ต้องสร้างไฟล์ (แสดงใน Shadow DOM จึงไม่ปนกับสไตล์ของแอพ) */
 function renderReportPreview(det) {
   const a = S.appointments.find((x) => x.id === det.dataset.appt); const box = det.querySelector('.rp-prev-body'); if (!a || !box) return;
   try {
@@ -240,7 +240,7 @@ function renderReportPreview(det) {
     box.className = 'rp-prev-body'; box.innerHTML = '';
     const root = box.attachShadow ? box.attachShadow({ mode: 'open' }) : box;
     root.innerHTML = `<style>${RPT_CSS}${RPT_NARROW}.rp-view{--pc:${R.p.color};--pcs:${tint(R.p.color, .16)};font-family:Sarabun,Prompt,sans-serif;color:#161A4D}.rp-view .rp-b{margin-bottom:10px}</style>
-      <div class="rp-view">${blocks.map((b) => `<div class="rp-b">${b.html}</div>`).join('')}<p style="font-size:12px;color:#5A6080;margin:4px 0 0">นี่คือสรุปที่จะอยู่ในไฟล์ PDF — กด "รายงานก่อนพบแพทย์ (PDF)" เพื่อเลือกยาและดาวน์โหลด</p></div>`;
+      <div class="rp-view">${blocks.map((b) => `<div class="rp-b">${b.html}</div>`).join('')}<p style="font-size:12px;color:#5A6080;margin:4px 0 0">นี่คือสรุปที่จะอยู่ในไฟล์ PDF — กด "รายงานก่อนพบแพทย์ (PDF)" เพื่อเลือกยาและสร้างไฟล์</p></div>`;
     det.dataset.ready = '1';
   } catch (e) { console.error(e); box.textContent = 'แสดงสรุปไม่สำเร็จ ลองใหม่อีกครั้ง'; }
 }
@@ -271,7 +271,7 @@ function reportPickSheet(a) {
 }
 async function runReport(apptId, opt) {
   toast('กำลังสร้างและตรวจสอบรายงาน…');
-  try { const { pdf, name, pages } = await makeReportPdf(apptId, opt); pdf.save(name); toast(`✓ ตรวจสอบแล้ว ดาวน์โหลดรายงาน ${pages} หน้า`); }
+  try { const { pdf, name, pages } = await makeReportPdf(apptId, opt); pdf.save(name); toast(`✓ ตรวจสอบแล้ว บันทึกรายงาน ${pages} หน้า`); }
   catch (e) { pdfFail(e, () => toast('สร้างรายงานไม่สำเร็จ ลองใหม่อีกครั้ง')); }
 }
 async function downloadReport(apptId) {

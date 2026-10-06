@@ -27,7 +27,7 @@ let delTimer = null;
 function lockToggle() {
   const lk = delLocked();
   return `<button type="button" class="lock-toggle ${lk ? 'on' : 'off'}" data-act="toggle-dellock" aria-pressed="${lk}">
-    <span class="lt-ic">${lk ? '🔒' : '🔓'}</span><span class="lt-tx"><b>${lk ? 'ล็อกการลบอยู่' : 'ปลดล็อกอยู่ (ลบได้)'}</b><small>${lk ? 'กันมือลั่น · แตะเพื่อปลดล็อก 2 นาที' : 'จะล็อกกลับเองใน 2 นาที · แตะเพื่อล็อกเดี๋ยวนี้'}</small></span></button>`;
+    <span class="lt-ic">${lk ? '🔒' : '🔓'}</span><span class="lt-tx"><b>${lk ? 'ล็อกข้อมูล' : 'ปลดล็อกอยู่'}</b><small>${lk ? 'ป้องกันลบข้อมูล แตะเพื่อปลดล็อก' : 'จะล็อกกลับเองใน 2 นาที'}</small></span></button>`;
 }
 // เข้าหน้าใหม่ทุกครั้ง = ล็อกกลับเป็นค่าเริ่มต้นเสมอ (เปลี่ยนคน/เลื่อนเดือนในหน้าเดิมไม่นับ)
 let lockPageKey = null;
@@ -247,9 +247,9 @@ function viewMoodSummary() {
   return `${head}
     <div class="card praise"><div class="praise-ic">${top.icon}</div><div class="praise-h">ส่วนใหญ่รู้สึก${top.label}</div>
       <p class="small">บันทึกแล้ว ${logs.length} วัน ในเดือนนี้ — ขอบคุณที่ดูแลใจตัวเองนะ 💛</p></div>
+    ${calCard}
     <div class="card"><b>จำนวนวันของแต่ละอารมณ์</b>
-      ${counts.map((c) => `<div class="ad-bar"><span>${c.icon} ${c.label}</span><div><i style="width:${(c.n / max) * 100}%;background:${c.color}"></i></div><b>${c.n} วัน</b></div>`).join('')}</div>
-    ${calCard}`;
+      ${counts.map((c) => `<div class="ad-bar"><span>${c.icon} ${c.label}</span><div><i style="width:${(c.n / max) * 100}%;background:${c.color}"></i></div><b>${c.n} วัน</b></div>`).join('')}</div>`;
 }
 
 // ---------- แท็บสมาชิก ----------
@@ -314,8 +314,6 @@ function memberDetail(p) {
     <div class="two-btn">
       <button type="button" class="card mb-btn" data-act="member-history" data-id="${p.id}"><span class="tile-ic" style="background:var(--pink-soft)"><span class="mi" style="--ic:url(assets/icons/history.png)"></span></span><b>ประวัติการรักษา</b></button>
     </div>
-    <label class="card switch-row"><span>🔔 แจ้งเตือนกินยาและนัดพบแพทย์</span>
-      <span class="switch"><input type="checkbox" data-toggle-reminder="${p.id}" ${reminderOn(p) ? 'checked' : ''} ${ownsProfile(p.id) ? '' : 'disabled'}><i></i></span></label>
     ${ownsProfile(p.id) ? `<button class="btn block" data-act="edit-person" data-id="${p.id}">✏️ แก้ไขข้อมูล</button>` : '<p class="small muted center">ข้อมูลส่วนตัวแก้ได้เฉพาะเจ้าของข้อมูล</p>'}`;
 }
 
@@ -349,6 +347,22 @@ const ICON_CREDITS = [['ยา', 'Magnific'], ['นัดพบแพทย์',
   ['ติดตามอาการ', 'Magnific'], ['สรุปการกินยา', 'juicy_fish'], ['ประวัติการรักษา', 'Magnific'], ['จำนวนยาที่เหลือ', 'M Karruly'], ['ความดัน / น้ำตาล', 'Smashicons'], ['ดูสรุปรายงานก่อนพบแพทย์', 'Magnific'], ['สรุปอารมณ์ใน 1 เดือน (ภาพเคลื่อนไหว)', 'Magnific']];
 
 // ---------- แท็บตั้งค่า ----------
+/** ตั้งค่า > การแจ้งเตือน: รวมสวิตช์แจ้งเตือนทุกรายการไว้ที่เดียว แยกเป็นหมวด (พับเก็บไว้ กดเพื่อเปิด) */
+function notifCategories() {
+  const sw = (attr, on, dis) => `<span class="switch"><input type="checkbox" ${attr} ${on ? 'checked' : ''} ${dis ? 'disabled' : ''}><i></i></span>`;
+  const who = (p) => `<span class="nt-who">${avatarHtml(p, 'xs')}<b>${esc(p.name)}</b></span>`;
+  const cat = (ic, title, sub, body) => `<details class="set-det nt-cat"><summary class="set-row"><span class="sr-ic">${ic}</span><span class="sr-l">${title}<small class="muted" style="display:block">${sub}</small></span><span class="muted chev">›</span></summary><div class="nt-body">${body}</div></details>`;
+  const none = '<p class="small muted">ยังไม่มีข้อมูล</p>';
+  const meds = S.profiles.map((p) => `<label class="nt-row">${who(p)}${sw(`data-toggle-reminder="${p.id}"`, reminderOn(p), !ownsProfile(p.id))}</label>`).join('');
+  const daysOn = remindDays();
+  const daysBox = `<div class="nt-days"><b>เตือนล่วงหน้า</b><div class="nt-chips">${REMIND_DAY_OPTIONS.map((d) => `<label class="nt-chip"><input type="checkbox" data-appt-day="${d}" ${daysOn.includes(d) ? 'checked' : ''}><span>${d === 0 ? 'วันนัด' : `${d} วัน`}</span></label>`).join('')}</div><small class="muted">ติ๊กได้หลายข้อ เช่น 5 วัน 3 วัน 1 วัน (ใช้กับทุกคน · เวลาเตือนประมาณ 08:00)</small></div>`;
+  const appts = S.profiles.map((p) => `<label class="nt-row">${who(p)}${sw(`data-toggle-appt="${p.id}"`, p.appt_reminder !== false, !ownsProfile(p.id))}</label>`).join('');
+  const plans = S.care_plans.filter((c) => c.status === 'active').map((c) => { const p = profileById(c.profile_id); return `<label class="nt-row"><span class="nt-who"><b>${esc(c.title)}</b><small class="muted">${esc(p?.name || '')}</small></span>${sw(`data-toggle-care="${c.id}"`, c.remind !== false, !canEditProfile(c.profile_id))}</label>`; }).join('');
+  return `<div class="nt-cats">
+    ${cat('💊', 'เตือนกินยา', 'เปิด/ปิดรายคน', meds || none)}
+    ${cat('📅', 'เตือนนัดพบแพทย์', 'เลือกเตือนล่วงหน้ากี่วัน · เปิด/ปิดรายคน', daysBox + (appts ? appts + '<p class="small muted">Free เตือนนัดหมอได้ 1 คน · Premium เตือนได้ทุกคน</p>' : none))}
+    ${cat('🩹', 'เตือนติดตามอาการ', 'เตือนวันถึงกำหนด · เลือกรายเรื่องที่ติดตาม', plans || '<p class="small muted">ยังไม่มีเรื่องที่ติดตามอาการ</p>')}</div>`;
+}
 function viewSettings() {
   const pushOk = 'serviceWorker' in navigator && 'PushManager' in window;
   const supa = DB.mode === 'supabase';
@@ -364,13 +378,14 @@ function viewSettings() {
     <h3 class="set-h">การใช้งาน</h3>
     <div class="card set-group">${row('🌐', 'ภาษา', 'ไทย', 'language')}
       <label class="set-row bigtext-row"><span class="sr-ic">🔠</span><span class="sr-l">ตัวอักษรใหญ่<small class="muted" style="display:block">ขยายตัวอักษรทั้งแอพ (เฉพาะเครื่องนี้)</small></span><span class="switch"><input type="checkbox" data-bigtext ${bigTextOn() ? 'checked' : ''}><i></i></span></label>
-      <details class="set-det"><summary class="set-row"><span class="sr-ic">⏰</span><span class="sr-l">ช่วงเวลาทานยา</span><span class="muted chev">›</span></summary>
+      <details class="set-det"><summary class="set-row"><span class="sr-ic">⏰</span><span class="sr-l">กำหนดช่วงเวลาทานยา</span><span class="muted chev">›</span></summary>
         <div class="two">${SLOTS.map((s) => { const [hh, mm] = slotTime(s.key).split(':'); const mmOpts = [...new Set(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', mm])].sort();
-          return `<div class="f"><span>${s.icon} ${s.label}</span><div class="t24">
+          return `<div class="f"><span>${s.icon} ${s.key === 'bedtime' ? s.label : s.label.replace(/^(ก่อน|หลัง)/, '<b class="sl-b">$1</b>')}</span><div class="t24">
             <select data-slot-hh="${s.key}" aria-label="ชั่วโมง">${Array.from({ length: 24 }, (_, h) => pad(h)).map((h) => `<option ${h === hh ? 'selected' : ''}>${h}</option>`).join('')}</select><b>:</b>
             <select data-slot-mm="${s.key}" aria-label="นาที">${mmOpts.map((m) => `<option ${m === mm ? 'selected' : ''}>${m}</option>`).join('')}</select><small>น.</small></div></div>`; }).join('')}</div></details>
       <details class="set-det"><summary class="set-row"><span class="sr-ic">🔔</span><span class="sr-l">การแจ้งเตือน</span><span class="muted chev">›</span></summary>
-        <p class="small" style="margin-top:0">• นัดหมอ: เตือนล่วงหน้า 5, 2 และ 1 วัน<br>• กินยา: เตือนเฉพาะคนและช่วงเวลาที่เปิด 🔔 ไว้<br>• ในการแจ้งเตือนมีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที"<br>• Free เตือนได้ 1 คน · Premium เตือนได้ทุกคน</p>
+        <p class="small" style="margin-top:0">• ในการแจ้งเตือนกินยามีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที"<br>• Free เตือนกินยาได้ 1 คน · Premium เตือนได้ทุกคน</p>
+        ${notifCategories()}
         <button class="btn block" data-act="enable-push" ${pushOk ? '' : 'disabled'}>🔔 เปิดการแจ้งเตือนบนเครื่องนี้</button>
         <button class="btn ghost block" data-act="test-push" style="margin-top:8px">ทดลองส่งแจ้งเตือน</button>
         <p class="small muted" style="margin-bottom:0">${pushOk ? (supa && CFG.VAPID_PUBLIC_KEY ? 'ใช้ Web Push — เตือนได้แม้ปิดแอพ' : 'เตือนได้เฉพาะตอนเปิดแอพค้างไว้') : 'เบราว์เซอร์นี้ไม่รองรับ Web Push'}
@@ -523,11 +538,11 @@ function printGridHtml(p, meds) {
   const body = Array.from({ length: nRows }, (_, r) => `<tr>${cols.map(({ list }) => {
     if (!list.length) return '<td class="off"></td>'; const m = list[r]; if (!m) return '<td></td>';
     const parts = remarkParts(m); const tag = parts.filter((x) => x.kind === 'warn').map((x) => x.t).join(' · '); const hint = parts.filter((x) => x.kind === 'hint').map((x) => x.t).join(' · ');
-    return `<td class="${tag ? 'wr' : ''}">${tag ? `<div class="pr-wn"><i></i>${esc(tag)}</div>` : ''}<div class="pr-main"><b class="pr-no">${m.as_needed ? '*' : ''}${esc(medNo(m))}</b>${num(m.dose, 1) !== 1 ? `<span class="pr-dz">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>` : ''}${hasFridge(parts) ? '<span class="pr-fr">❄️</span>' : ''}</div><div class="pr-nm">${esc(m.name)}</div>${hint ? `<em>${esc(hint)}</em>` : ''}</td>`; }).join('')}</tr>`).join('');
+    return `<td class="${tag ? 'wr' : ''} ${m.as_needed ? 'pn' : ''}">${tag ? `<div class="pr-wn"><i></i>${esc(tag)}</div>` : ''}<div class="pr-main"><b class="pr-no">${m.as_needed ? '*' : ''}${esc(medNo(m))}</b>${num(m.dose, 1) !== 1 ? `<span class="pr-dz">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>` : ''}${hasFridge(parts) ? '<span class="pr-fr">❄️</span>' : ''}</div><div class="pr-nm">${esc(medShort(m))}</div>${m.as_needed ? '<div class="pr-as">เมื่อมีอาการ</div>' : ''}${hint ? `<em>${esc(hint)}</em>` : ''}</td>`; }).join('')}</tr>`).join('');
   return prSection(p, 'grid', `ตารางการกินยาใน 1 วัน (${esc(p.name)})`,
-    `ทานครั้งละ 1 เม็ด${odd.length ? ` <b class="pr-red">(ยกเว้นลำดับที่ ${odd.map(esc).join(' และ ')})</b>` : ''}`,
+    `ทานครั้งละ 1 เม็ด${odd.length ? ` <b class="pr-red">(ยกเว้นลำดับที่ ${odd.map(esc).join(' และ ')})</b>` : ''}<small class="pr-leg">สัญลักษณ์:<i class="y"></i>เหลือง = ข้อควรระวัง<i class="p"></i>ชมพู * = กินเฉพาะเมื่อมีอาการ</small>`,
     `<table class="pr-grid">${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`,
-    meds.some((m) => m.as_needed) ? '* กินเฉพาะเมื่อมีอาการ' : '');
+    meds.some((m) => m.as_needed) ? '<span class="pr-star">* กินเฉพาะเมื่อมีอาการ</span>' : '');
 }
 
 /** แบบที่ 2: รายการยามีชื่อยา — ลำดับ ชื่อยา ใช้รักษา จำนวน เวลา หมายเหตุ */
@@ -590,6 +605,8 @@ function printMeds(pid, mode = 'both') {
 
 // ---------- กล่องถามยืนยันก่อนแก้ไข/ลบ (ซ้อนทับหน้าที่เปิดอยู่ ถ้ากดไม่ใช่ ก็กลับไปแก้ต่อได้ ข้อมูลที่กรอกไม่หาย) ----------
 function askConfirm(msg, yes = 'ใช่ ยืนยัน', no = 'ไม่ใช่') {
+  // ข้อความยืนยันแก้ไข: ไม่ต้องมีบรรทัดอธิบายใต้คำถาม และให้ "ใช่หรือไม่?" ลงบรรทัดล่างเสมอ
+  msg = String(msg).replace(/(?:<br>)?\s*<small class="muted">กด "ใช่ แก้ไข"[^<]*<\/small>/, '').replace(/\s*ใช่หรือไม่\?/, '<br>ใช่หรือไม่?');
   return new Promise((resolve) => {
     const ov = document.createElement('div'); ov.className = 'ask-ov';
     ov.innerHTML = `<div class="ask-box" role="alertdialog" aria-modal="true"><div class="ask-ic">✋</div><p class="ask-msg">${msg}</p>
@@ -629,13 +646,23 @@ function splitPrintSection(sec, maxH) {
   if (chunks.length <= 1) return [sec];
   return chunks.map((idx) => { const c = sec.cloneNode(true); [...c.querySelector('table').tBodies[0].rows].forEach((r, i) => { if (!idx.includes(i)) r.remove(); }); return c; });
 }
+/** html2canvas คัดลอกหน้าไปเรนเดอร์ในเอกสารใหม่ — ถ้าฟอนต์ในสำเนายังโหลดไม่ครบ ตัวหนังสือจะถูกวัดด้วยฟอนต์สำรองแล้ววาดด้วย Sarabun ทำให้ช่องไฟเพี้ยน (เช่น "เมื่อ มี อาการ")
+ *  จึงรอให้ฟอนต์ทุกน้ำหนักในสำเนาโหลดเสร็จก่อนเสมอ */
+async function preloadCloneFonts(cdoc) {
+  const t0 = Date.now();
+  while (![...cdoc.fonts].some((f) => /Sarabun/.test(f.family)) && Date.now() - t0 < 5000) await new Promise((r) => setTimeout(r, 100));
+  const sample = 'เมื่อมีอาการ ก่อนอาหาร เก็บในที่ทึบแสง 0123456789 Abc';
+  await Promise.all(['Sarabun', 'Prompt'].flatMap((fam) => ['400', '500', '600', '700', '800'].map((w) => cdoc.fonts.load(`${w} 16px ${fam}`, sample).catch(() => null))));
+  await Promise.race([cdoc.fonts.ready, new Promise((r) => setTimeout(r, 4000))]);
+  await new Promise((r) => setTimeout(r, 80));
+}
 /** สร้างหน้า PDF ในกรอบซ่อน (iframe) → แบ่งหน้า → ล็อกขนาดทุกหน้าเท่ากัน → ใส่เลขหน้า — คืน { ifr, doc, pages } (ผู้เรียกต้อง ifr.remove()) */
 async function buildPdfFrame(sectionsHtml) {
   const css = await (await fetch('styles.css?v=' + Date.now())).text();
   const ifr = document.createElement('iframe'); ifr.setAttribute('aria-hidden', 'true'); ifr.style.cssText = `position:fixed;left:-12000px;top:0;width:${PDF_PAGE_W}px;height:1200px;border:0`;
   document.body.appendChild(ifr);
   const doc = ifr.contentDocument; doc.open();
-  doc.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap"><style>${css.replace(/@media print/g, '@media all').replace(/@page[^{]*\{[^}]*\}/g, '')}</style><style>html,body{margin:0!important;padding:0!important;width:${PDF_PAGE_W}px;background:#fff!important;color:#000;font-family:Sarabun,Prompt,sans-serif}.pr-page{break-after:auto!important;width:${PDF_PAGE_W}px;background:#fff}</style></head><body>${sectionsHtml}</body></html>`);
+  doc.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><link rel="stylesheet" href="${new URL('fonts/fonts.css', location.href).href}"><style>${css.replace(/@media print/g, '@media all').replace(/@page[^{]*\{[^}]*\}/g, '')}</style><style>html,body{margin:0!important;padding:0!important;width:${PDF_PAGE_W}px;background:#fff!important;color:#000;font-family:Sarabun,Prompt,sans-serif}.pr-page{break-after:auto!important;width:${PDF_PAGE_W}px;background:#fff}</style></head><body>${sectionsHtml}</body></html>`);
   doc.close();
   await Promise.race([new Promise((r) => { const l = doc.querySelector('link'); if (!l) return r(); l.onload = r; l.onerror = r; }), new Promise((r) => setTimeout(r, 5000))]);
   await Promise.race([doc.fonts.ready, new Promise((r) => setTimeout(r, 4000))]); await new Promise((r) => setTimeout(r, 300));
@@ -667,9 +694,9 @@ function auditFrame(frame, ctx) {
     pg.querySelectorAll('td, th').forEach((c) => {
       const cr = c.getBoundingClientRect(); const lab = nz(c.textContent).slice(0, 30);
       if (c.scrollWidth > c.clientWidth + 1) issues.push(`${tag}: ข้อความล้นกว้างในช่อง "${lab}"`);
-      const kids = [...c.querySelectorAll('.pr-wn, .pr-main, .pr-nm, em, .pr-r, .pr-no, .pr-dz')].filter((k) => k.textContent.trim());
+      const kids = [...c.querySelectorAll('.pr-wn, .pr-main, .pr-nm, .pr-as, em, .pr-r, .pr-no, .pr-dz')].filter((k) => k.textContent.trim());
       kids.forEach((k) => { const kr = k.getBoundingClientRect(); if (kr.right > cr.right + 1 || kr.left < cr.left - 1 || kr.bottom > cr.bottom + 1 || kr.top < cr.top - 1) issues.push(`${tag}: "${nz(k.textContent).slice(0, 30)}" ล้นออกนอกช่อง`); });
-      const blocks = [...c.querySelectorAll('.pr-wn, .pr-main, .pr-nm, em, .pr-r')].filter((k) => k.textContent.trim());
+      const blocks = [...c.querySelectorAll('.pr-wn, .pr-main, .pr-nm, .pr-as, em, .pr-r')].filter((k) => k.textContent.trim());
       for (let a = 0; a < blocks.length; a++) for (let b = a + 1; b < blocks.length; b++) {
         const A = blocks[a].getBoundingClientRect(), B = blocks[b].getBoundingClientRect();
         if (Math.min(A.right, B.right) - Math.max(A.left, B.left) > 1 && Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top) > 1) issues.push(`${tag}: "${nz(blocks[a].textContent).slice(0, 20)}" ซ้อนทับ "${nz(blocks[b].textContent).slice(0, 20)}"`);
@@ -681,7 +708,7 @@ function auditFrame(frame, ctx) {
     if (ctx.mode !== 'list') {
       if (!grids.length) issues.push('ไม่มีหน้าตารางเลขรหัส');
       SLOTS.forEach((s, ci) => {
-        const exp = meds.filter((m) => m.slots.includes(s.key)).map((m) => `${m.as_needed ? '*' : ''}${medNo(m)}|${nz(m.name)}`);
+        const exp = meds.filter((m) => m.slots.includes(s.key)).map((m) => `${m.as_needed ? '*' : ''}${medNo(m)}|${nz(medShort(m))}`);
         const got = grids.flatMap((g) => [...g.querySelectorAll('tbody tr')].map((tr) => { const c = tr.children[ci]; const no = c?.querySelector('.pr-no')?.textContent.trim(); return no ? `${no}|${nz(c.querySelector('.pr-nm')?.textContent)}` : null; }).filter(Boolean));
         if (JSON.stringify(exp) !== JSON.stringify(got)) issues.push(`ตารางเลขรหัส ช่วง ${s.label}: ในแอพ [${exp}] แต่ใน PDF [${got}]`);
         const hd = grids[0]?.querySelectorAll('thead th')[ci]; const tw = grids[0]?.querySelector('table')?.getBoundingClientRect().width || 1; const cw = ((hd?.getBoundingClientRect().width || 0) / tw) * 100;
@@ -742,7 +769,7 @@ async function renderVerifiedPdf(buildSections, ctx) {
     finally { f2.ifr.remove(); }
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' }); const i3 = [];
     for (let i = 0; i < f1.pages.length; i++) {
-      const cv = await window.html2canvas(f1.pages[i], { scale: PDF_SCALE, backgroundColor: '#fff', useCORS: true, windowWidth: PDF_PAGE_W });
+      const cv = await window.html2canvas(f1.pages[i], { scale: PDF_SCALE, backgroundColor: '#fff', useCORS: true, windowWidth: PDF_PAGE_W, onclone: preloadCloneFonts });
       if (cv.width !== PDF_PAGE_W * PDF_SCALE || cv.height !== PDF_PAGE_H * PDF_SCALE) i3.push(`[รอบ 3] หน้า ${i + 1}: ภาพ ${cv.width}×${cv.height} ไม่ใช่ ${PDF_PAGE_W * PDF_SCALE}×${PDF_PAGE_H * PDF_SCALE}`);
       const t = document.createElement('canvas'); t.width = 210; t.height = 144; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 210, 144); const d = tc.getImageData(0, 0, 210, 144).data; let ink = 0;
       for (let k = 0; k < d.length; k += 4) if (d[k] + d[k + 1] + d[k + 2] < 690) ink++;
@@ -772,15 +799,15 @@ function pdfFail(e, fallback) {
 }
 async function downloadMedsPdf(pid) {
   if (!canUse('pdf')) return premiumSheet('pdf');
-  if (!medsOf(pid).length) return toast('ยังไม่มียาให้ดาวน์โหลด');
+  if (!medsOf(pid).length) return toast('ยังไม่มียาให้สร้างไฟล์');
   toast('กำลังสร้างและตรวจสอบไฟล์ PDF…');
-  try { const { pdf, name } = await makeMedsPdf(pid, 'both'); pdf.save(name); toast('✓ ตรวจสอบ 3 รอบแล้ว ดาวน์โหลดไฟล์ PDF เรียบร้อย'); }
+  try { const { pdf, name } = await makeMedsPdf(pid, 'both'); pdf.save(name); toast('✓ ตรวจสอบ 3 รอบแล้ว บันทึกไฟล์ PDF เรียบร้อย'); }
   catch (e) { pdfFail(e, () => printMeds(pid, 'both')); }
 }
 async function downloadSummaryPdf() {
-  const pid = ui.adPid; const ym = ui.adYm || ymOf(new Date()); if (!pid) return toast('ยังไม่มีข้อมูลให้ดาวน์โหลด');
+  const pid = ui.adPid; const ym = ui.adYm || ymOf(new Date()); if (!pid) return toast('ยังไม่มีข้อมูลให้สร้างไฟล์');
   toast('กำลังสร้างและตรวจสอบไฟล์ PDF…');
-  try { const { pdf, name } = await makeSummaryPdf(pid, ym); pdf.save(name); toast('✓ ตรวจสอบ 3 รอบแล้ว ดาวน์โหลดไฟล์ PDF เรียบร้อย'); }
+  try { const { pdf, name } = await makeSummaryPdf(pid, ym); pdf.save(name); toast('✓ ตรวจสอบ 3 รอบแล้ว บันทึกไฟล์ PDF เรียบร้อย'); }
   catch (e) { pdfFail(e, () => printNow('print-app')); }
 }
 /** ตรวจ PDF ทุกคน ทุกแบบ ซ้ำหลายรอบ (ใช้ใน console: await auditAllPdfs(3)) */

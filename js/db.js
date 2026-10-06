@@ -103,7 +103,8 @@ class SupaDB {
       care_plans: cp.data, care_logs: cl.data, circles: c.data, circle_members: cm.data, circle_care_for: ccf.data, circle_invites: ci.data, emergency_contacts: ec.data,
       mood_logs: ml.data, treatment_records: tr.data, health_logs: hl.data,
       settings: { slot_times: { ...DEFAULT_SLOT_TIMES, ...(s.data?.slot_times || {}) }, today_hidden: s.data?.today_hidden || [],
-        profile_order: s.data?.profile_order || [], pdpa_consent_at: s.data?.pdpa_consent_at || null, pdpa_version: s.data?.pdpa_version || null } };
+        profile_order: s.data?.profile_order || [], pdpa_consent_at: s.data?.pdpa_consent_at || null, pdpa_version: s.data?.pdpa_version || null,
+        appt_remind_days: Array.isArray(s.data?.appt_remind_days) ? s.data.appt_remind_days : null } };
   }
   /** ลบทุกแถวของตารางที่ตรงเงื่อนไข (ใช้ตอนผู้ใช้สั่งลบข้อมูลของตัวเอง — RLS ยังจำกัดให้ลบได้เฉพาะของตัวเอง) */
   async removeWhere(t, col, val) { const { error } = await this.sb.from(t).delete().eq(col, val); if (error) throw error; }
@@ -112,8 +113,14 @@ class SupaDB {
   async remove(t, id) { this.guard(); const { error } = await this.sb.from(t).delete().eq('id', id); if (error) throw error; }
   async saveSettings(settings) {
     this.guard();
-    const { error } = await this.sb.from('user_settings').upsert({ user_id: this.user.id, slot_times: settings.slot_times, today_hidden: settings.today_hidden || [],
-      profile_order: settings.profile_order || [], pdpa_consent_at: settings.pdpa_consent_at || null, pdpa_version: settings.pdpa_version || null, timezone: 'Asia/Bangkok' });
+    const row = { user_id: this.user.id, slot_times: settings.slot_times, today_hidden: settings.today_hidden || [],
+      profile_order: settings.profile_order || [], pdpa_consent_at: settings.pdpa_consent_at || null, pdpa_version: settings.pdpa_version || null, timezone: 'Asia/Bangkok' };
+    if (Array.isArray(settings.appt_remind_days)) row.appt_remind_days = settings.appt_remind_days; // ส่งเฉพาะเมื่อผู้ใช้เลือกเอง (ยังไม่รัน SQL ก็บันทึกเวลายาปกติได้)
+    const { error } = await this.sb.from('user_settings').upsert(row);
+    if (error && 'appt_remind_days' in row && (error.code === 'PGRST204' || /appt_remind_days/.test(error.message || ''))) { // ยังไม่มีคอลัมน์ → บันทึกส่วนอื่นให้ก่อน แล้วแจ้งว่าต้องรัน SQL
+      delete row.appt_remind_days; const r2 = await this.sb.from('user_settings').upsert(row); if (r2.error) throw r2.error;
+      throw Object.assign(new Error('NEED_SQL_APPT_DAYS'), { needSql: true });
+    }
     if (error) throw error;
   }
   async upload(file, apptId) {

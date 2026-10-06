@@ -91,7 +91,7 @@ const PDPA_TEXT = `
     <li><p><b>ใช้ทำอะไร:</b> ทำตารางยา เตือน และแชร์ให้คนที่คุณเชิญ ไม่ขาย ไม่ส่งต่อ ไม่ใช้ทำโฆษณา</p></li>
     <li><p><b>ปลอดภัย:</b> เห็นเฉพาะคุณและกลุ่มที่คุณแชร์ · เก็บบน Supabase (สิงคโปร์) ล็อกสิทธิ์ไว้</p></li>
     <li><p><b>เก็บนานแค่ไหน:</b> รูปใบนัดลบอัตโนมัติหลังครบ 1 ปีนับจากวันนัด รูปอื่นๆ เก็บไว้จนกว่าคุณจะลบเอง</p></li>
-    <li><p><b>คุณคุมได้:</b> ดาวน์โหลด แก้ไข ถอนความยินยอม หรือลบทั้งหมดได้ทุกเมื่อ ที่ ตั้งค่า → ความเป็นส่วนตัว</p></li>
+    <li><p><b>คุณคุมได้:</b> ขอสำเนา แก้ไข ถอนความยินยอม หรือลบทั้งหมดได้ทุกเมื่อ ที่ ตั้งค่า → ความเป็นส่วนตัว</p></li>
   </ul>`;
 
 function consentView(onDone) {
@@ -118,7 +118,7 @@ function privacySheet() {
   openSheet(`<h3>ความเป็นส่วนตัวและข้อมูลสุขภาพ</h3>${PDPA_TEXT}
     ${DB.mode === 'supabase' ? `<p class="small muted">ให้ความยินยอมเมื่อ ${at ? thDate(String(at).slice(0, 10), 'long') : '-'}</p>` : '<p class="small muted">โหมดทดลอง: ข้อมูลอยู่ในเครื่องนี้เท่านั้น ไม่ได้ส่งขึ้นเซิร์ฟเวอร์</p>'}
     ${CFG.PRIVACY_CONTACT ? `<p class="small">ติดต่อเรื่องข้อมูลส่วนบุคคล: <b>${esc(CFG.PRIVACY_CONTACT)}</b></p>` : ''}
-    <button class="btn ghost block" id="pvExport">⬇️ ดาวน์โหลดข้อมูลของฉัน (ไฟล์ JSON)</button>
+    <button class="btn ghost block" id="pvExport">⬇️ ขอสำเนาข้อมูลของฉัน (ไฟล์ JSON)</button>
     <button class="btn danger block" id="pvDelete" style="margin-top:8px">🗑️ ลบบัญชีและข้อมูลทั้งหมดของฉัน</button>
     <div class="row sticky-actions"><button class="btn ghost" data-act="close">ปิด</button></div>`);
   $('#pvExport').onclick = exportMyData;
@@ -145,12 +145,12 @@ function exportMyData() {
   const blob = new Blob([JSON.stringify(myData(), null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `sookjai-mydata-${todayKey()}.json`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  toast('ดาวน์โหลดข้อมูลแล้ว');
+  toast('บันทึกข้อมูลแล้ว');
 }
 
 function deleteMyDataSheet() {
   const sheet = openSheet(`<h3>ลบบัญชีและข้อมูลทั้งหมดของฉัน</h3>
-    <div class="alert red"><div class="ic">⚠️</div><div><b>ย้อนกลับไม่ได้</b><span class="small">จะลบคนในครอบครัวที่คุณสร้าง ยา นัดหมอ รูป บันทึกอาการ อารมณ์ ค่าความดัน/น้ำตาล กลุ่มผู้ดูแลของคุณ และออกจากกลุ่มที่คนอื่นแชร์มา แนะนำให้ดาวน์โหลดข้อมูลเก็บไว้ก่อน</span></div></div>
+    <div class="alert red"><div class="ic">⚠️</div><div><b>ย้อนกลับไม่ได้</b><span class="small">จะลบคนในครอบครัวที่คุณสร้าง ยา นัดหมอ รูป บันทึกอาการ อารมณ์ ค่าความดัน/น้ำตาล กลุ่มผู้ดูแลของคุณ และออกจากกลุ่มที่คนอื่นแชร์มา แนะนำให้ขอสำเนาข้อมูลเก็บไว้ก่อน</span></div></div>
     <p class="small muted">รวมถึงลบ <b>บัญชีผู้ใช้ (อีเมล)</b> ของคุณถาวรด้วย</p>
     <label class="f"><span>พิมพ์คำว่า <b>ลบข้อมูล</b> เพื่อยืนยัน</span><input type="text" id="delConfirm" autocomplete="off"></label>
     <div class="row sticky-actions"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn danger" id="delGo" disabled>ลบทั้งหมด</button></div>`);

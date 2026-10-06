@@ -145,7 +145,6 @@ function careForm(c) {
         </div></div>
       <label class="f"><span>แนวทางการดูแล <small>(บรรทัดละ 1 ข้อ)</small></span><textarea name="care_steps" rows="4" placeholder="เช่น&#10;ล้างแผลด้วยน้ำเกลือ เปลี่ยนผ้าก๊อซ เช้า-เย็น&#10;ทายาฆ่าเชื้อ เช้า-เย็น&#10;ระวังอย่าให้แผลโดนน้ำ">${esc((e.care_steps || []).join('\n'))}</textarea></label>
       <label class="f"><span>หมายเหตุ / สิ่งที่หมอสั่ง</span><textarea name="note" placeholder="เช่น ถ้าแผลบวมแดงหรือมีหนองให้กลับไปพบแพทย์">${esc(e.note)}</textarea></label>
-      <label class="switch-row card flat"><span>🔔 เตือนวันที่ถึงกำหนด (${CARE_REMIND_AT} น.)</span><span class="switch"><input type="checkbox" name="remind" ${e.remind !== false ? 'checked' : ''}><i></i></span></label>
       ${c ? `<div class="f"><span class="lbl">สถานะ</span><div class="seg">${Object.entries(CARE_STATUS).map(([k, v]) => `<label><input type="radio" name="status" value="${k}" ${c.status === k ? 'checked' : ''}><span>${v}</span></label>`).join('')}</div></div>` : ''}
       <div class="row sticky-actions">
         ${c ? `<button type="button" class="btn danger" data-act="del-care" data-id="${c.id}">ลบ</button>` : ''}
@@ -165,7 +164,7 @@ function careForm(c) {
       profile_id: fd.get('profile_id'), title: fd.get('title').trim(), started_on: fd.get('started_on'),
       interval_days: Math.min(365, Math.max(1, Math.round(num(fd.get('interval_days'), 1)))),
       care_steps: String(fd.get('care_steps')).split('\n').map((s) => s.trim()).filter(Boolean),
-      note: fd.get('note').trim(), remind: !!fd.get('remind'),
+      note: fd.get('note').trim(), remind: c ? c.remind !== false : true, // เปิด/ปิดที่ ตั้งค่า > การแจ้งเตือน
     };
     if (c) {
       data.status = fd.get('status') || c.status;

@@ -17,7 +17,7 @@ const isPremium = () => !paywallOn() || premiumActive();
 const reminderFirstId = () => (S.profiles || []).filter((p) => p.reminder_enabled && ownsProfile(p.id))
   .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.id).localeCompare(String(b.id)))[0]?.id;
 /** เตือนนัดหมอของโปรไฟล์นี้ได้ไหม (กติกาเดียวกับเตือนกินยา) */
-const apptReminderOn = (pid) => { const p = profileById(pid); return !p || isPremium() || !ownsProfile(pid) || pid === reminderFirstId(); };
+const apptReminderOn = (pid) => { const p = profileById(pid); return !p || (p.appt_reminder !== false && (isPremium() || !ownsProfile(pid) || pid === reminderFirstId())); }; // เปิด/ปิดรายคนที่ ตั้งค่า > การแจ้งเตือน (appt_reminder) + กติกา Free
 const reminderOn = (p) => !!p.reminder_enabled && (isPremium() || !ownsProfile(p.id) || p.id === reminderFirstId());
 const myCircleIds = () => new Set((S.circles || []).filter((c) => c.user_id === DB.user?.id).map((c) => c.id));
 /** ผู้ดูแลแบบ "แก้ไขได้" ในกลุ่มของเรา (คำเชิญที่รอ + สมาชิก) — แบบ "ดูอย่างเดียว" ไม่จำกัด เพราะเป็นทางที่แอพแพร่ไปถึงคนในครอบครัว */
@@ -46,14 +46,14 @@ const PREMIUM_WHY = {
   reminders: `Free Package เปิดแจ้งเตือนการกินยาและนัดพบแพทย์ได้ ${FREE_LIMITS.medReminders} คน`,
   slips: `Free Package ใส่รูปในนัดพบแพทย์ได้ ${FREE_LIMITS.slipAppts} ครั้ง (ต่อบัญชี)`,
   care: `Free Package สร้างแผนติดตามอาการได้ ${FREE_LIMITS.carePlans} แผน (แผนที่มีอยู่ ดูประวัติและบันทึกต่อได้)`,
-  pdf: 'ดาวน์โหลดตารางยาเป็น PDF ได้เฉพาะสมาชิก Premium',
+  pdf: 'ทำตารางยาเป็น PDF ได้เฉพาะสมาชิก Premium',
   summary: `Free Package ดูสรุปการกินยาได้ ${FREE_LIMITS.adherenceDays} วันล่าสุด · ย้อนหลังและกราฟรายเดือนสำหรับ Premium`,
   health: `Free Package ดูบันทึกความดัน/น้ำตาลได้ ${FREE_LIMITS.healthDays} วันล่าสุด · กราฟและย้อนหลังทั้งหมดสำหรับ Premium`,
   report: 'รายงานก่อนพบแพทย์ (รวมแพ้ยา ยาที่เกี่ยวกับแผนกนั้น และผลการพบแพทย์ครั้งก่อนเป็น PDF ฉบับเดียว) สำหรับสมาชิก Premium',
   mood: 'บันทึกอารมณ์รายวันและสรุปอารมณ์ 1 เดือน เป็นฟีเจอร์สำหรับ Premium Package',
   history: 'ประวัติการรักษา (ดึงข้อมูลจากติดตามอาการและใบนัด) ดูได้เฉพาะสมาชิก Premium',
 };
-const PREMIUM_PERKS = ['ดูแลได้ทั้งครอบครัว: เพิ่มคน สร้างกลุ่ม และเชิญผู้ดูแลได้ไม่จำกัด', 'เตือนกินยาและนัดพบแพทย์ได้ทุกคน', 'แจ้งผู้ดูแลเมื่อลืมกินยา', 'รายงานก่อนพบแพทย์ (PDF) · บันทึกความดัน/น้ำตาลพร้อมกราฟแนวโน้ม', 'ติดตามอาการได้ไม่จำกัด · ประวัติการรักษา', 'สรุปการกินยาย้อนหลัง · ดาวน์โหลดตารางยาและสติกเกอร์ PDF', 'ใส่รูปใบนัดไม่จำกัด', 'บันทึกและสรุปอารมณ์', 'ไม่มีโฆษณา'];
+const PREMIUM_PERKS = ['ดูแลได้ทั้งครอบครัว: เพิ่มคน สร้างกลุ่ม และเชิญผู้ดูแลได้ไม่จำกัด', 'เตือนกินยาและนัดพบแพทย์ได้ทุกคน', 'แจ้งผู้ดูแลเมื่อลืมกินยา', 'รายงานก่อนพบแพทย์ (PDF) · บันทึกความดัน/น้ำตาลพร้อมกราฟแนวโน้ม', 'ติดตามอาการได้ไม่จำกัด · ประวัติการรักษา', 'สรุปการกินยาย้อนหลัง · ตารางยาและสติกเกอร์ PDF', 'ใส่รูปใบนัดไม่จำกัด', 'บันทึกและสรุปอารมณ์', 'ไม่มีโฆษณา'];
 
 function premiumSheet(kind) {
   const e = entState(); const offline = !!DB.offline;
@@ -91,7 +91,7 @@ const PLAN_ROWS = [
   ['เพิ่มคนในครอบครัว', `${FREE_LIMITS.profiles} คน`, 'ไม่จำกัด'], ['สร้างกลุ่มผู้ดูแล', `${FREE_LIMITS.circles} กลุ่ม`, 'ไม่จำกัด'],
   ['เชิญผู้ดูแล "แก้ไขได้"', `${FREE_LIMITS.editors} คน`, 'ไม่จำกัด'], ['เชิญผู้ดูแล "ดูอย่างเดียว"', 'ไม่จำกัด', 'ไม่จำกัด'],
   { group: '💊 ยา' },
-  ['เพิ่มยา', 'ไม่จำกัด', 'ไม่จำกัด'], ['ตารางกินยาอัตโนมัติ', true, true], ['สรุปการกินยา', `${FREE_LIMITS.adherenceDays} วันล่าสุด`, 'ย้อนหลัง + กราฟรายเดือน'], ['ดาวน์โหลดตารางยา / สติกเกอร์ (PDF)', false, true],
+  ['เพิ่มยา', 'ไม่จำกัด', 'ไม่จำกัด'], ['ตารางกินยาอัตโนมัติ', true, true], ['สรุปการกินยา', `${FREE_LIMITS.adherenceDays} วันล่าสุด`, 'ย้อนหลัง + กราฟรายเดือน'], ['ตารางยา / สติกเกอร์ (PDF)', false, true],
   { group: '🔔 การแจ้งเตือน' },
   ['เตือนกินยา', `${FREE_LIMITS.medReminders} คน`, 'ไม่จำกัด'], ['เตือนนัดพบแพทย์', `${FREE_LIMITS.medReminders} คน`, 'ไม่จำกัด'], ['ปุ่ม "กินแล้ว / เตือนอีก 15 นาที"', true, true],
   ['เตือนยาใกล้หมด', false, true], ['แจ้งผู้ดูแลเมื่อลืมกินยา', false, true],

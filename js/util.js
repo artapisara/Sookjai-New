@@ -31,7 +31,9 @@ const PRESET_COLORS = ['#4D55F5', '#CA7FFE', '#DAFF7C', '#5CC8FF', '#FF7AD9', '#
 const LEGACY_COLORS = { '#3FA796': '#3DDC97', '#EF5B4C': '#FF7AD9', '#7C6CF2': '#CA7FFE', '#F2A93B': '#FFB347', '#3B82F6': '#5CC8FF', '#D9548F': '#FF7AD9', '#5BAA3C': '#DAFF7C', '#8C6E5D': '#FFE45C', '#A855F7': '#CA7FFE', '#5E9E0F': '#DAFF7C', '#1E88E5': '#5CC8FF', '#E0399B': '#FF7AD9', '#E8590C': '#FFB347', '#0F9D8A': '#3DDC97', '#8A6A4F': '#FFE45C', '#20C58D': '#3DDC97', '#FE8046': '#FFB347', '#FFCF34': '#FFE45C', '#E5675F': '#FF7AD9' }; // สีชุดเก่า → ชุดใหม่ (ย้ายให้อัตโนมัติ)
 /** สีตัวหนังสือที่อ่านออกบนพื้นสีนั้น (พื้นสว่างใช้น้ำเงินเข้ม พื้นเข้มใช้ขาว) */
 const inkOn = (hex) => { const n = parseInt(String(hex).slice(1), 16); const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; const L = .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255); return L > .4 ? '#161A4D' : '#fff'; };
-const REMIND_DAYS = [5, 2, 1];
+const REMIND_DAYS = [5, 2, 1]; // ค่าเริ่มต้น — ผู้ใช้เลือกเองได้ที่ ตั้งค่า > การแจ้งเตือน > เตือนนัดพบแพทย์ (user_settings.appt_remind_days)
+const REMIND_DAY_OPTIONS = [7, 5, 3, 2, 1, 0]; // 0 = วันนัด
+const remindDays = () => { const d = (typeof S !== 'undefined' && S?.settings?.appt_remind_days); return Array.isArray(d) ? d.map(Number) : REMIND_DAYS; };
 const LOW_STOCK_DAYS = 7; const LOW_STOCK_QTY = 5; // ใกล้หมด = เหลือไม่เกิน 5 หน่วย หรือพอกินอีกไม่เกิน 7 วัน
 
 const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
@@ -51,6 +53,11 @@ const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 �
 const unitOf = (m) => m.unit || 'เม็ด';
 const tracksStock = (m) => STOCK_UNITS.includes(unitOf(m));
 // ยาที่ "ทาน" (กินเข้าปาก): ไม่นับยาหยอดตา/ป้ายตา/ครีม/แผ่นแปะ ฯลฯ — ดูจากหน่วยของยา
+// ชื่อยาแบบสั้นสำหรับตารางกินยา: ตัดความแรง (mg, มก., ml, IU ฯลฯ) ออก ถ้าตัดแล้วว่างให้ใช้ชื่อเดิม
+const STRENGTH_RE = /\s*\(?\s*\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)*\s*(?:mg|mcg|µg|ug|g|ml|iu|units?|มก\.?|มล\.?|มิลลิกรัม|กรัม)(?:\s*\/\s*\d+(?:[.,]\d+)?\s*(?:mg|mcg|ml|g|มก\.?|มล\.?))?\s*\)?/gi;
+const medShort = (m) => { const n = String(m.name || '').replace(STRENGTH_RE, ' ').replace(/\s{2,}/g, ' ').replace(/\s+([+,/])/g, ' $1').trim(); return n || String(m.name || ''); };
+// หมายเหตุที่แสดงในแอพ: ไม่แสดงข้อความ "เก็บในที่ทึบแสง"
+const noteShown = (m) => String(m.note || '').split(/\s*(?:·|\n)\s*/).filter((x) => x.trim() && !/ทึบแสง/.test(x)).join(' · ');
 const isOralMed = (m) => { const u = String(m.unit || ''); return !(['หยด', 'ครั้ง', 'แผ่น'].includes(u) || /หยอด|ป้าย|ทา|ครีม|พ่น|สูด|ตา/.test(u)); };
 // รหัสเลขลำดับยาเริ่มต้น = พยัญชนะตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ) เช่น ปู่หวาน → ป, แม่ → ม
 const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null; const n = Number(s); return Number.isFinite(n) ? n : null; };

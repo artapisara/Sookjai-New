@@ -1350,3 +1350,230 @@ html.bigtext #app, html.bigtext #modal .sheet { zoom: 1.18; }
 /* สรุปก่อนพบแพทย์: ไอคอน+ข้อความอยู่กึ่งกลางกรอบ ลูกศรชิดขวา */
 .rp-prev > summary { position: relative; justify-content: center; text-align: center; padding-left: 40px; padding-right: 40px; }
 .rp-prev > summary::after { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); margin: 0; }
+
+/* ชื่อยาในตารางหน้าแอพ/PDF: ยาที่ทานเฉพาะเมื่อมีอาการ + ฟอนต์ PDF ที่อ่านง่าย */
+.dtable .asn, .lg-name .asn { display: block; font-size: 10.5px; font-weight: 500; color: #B0407E; line-height: 1.2; }
+.lg-name .asn { display: inline; font-size: 12px; }
+@media print {
+  .pr-nm { font-family: Sarabun, 'TH Sarabun New', 'Leelawadee UI', Tahoma, sans-serif; font-size: 9.5pt; font-weight: 400; color: #111; letter-spacing: 0; }
+  .pr-as { margin-top: 1px; font-family: Sarabun, 'TH Sarabun New', sans-serif; font-size: 8pt; font-weight: 500; color: #B0407E; line-height: 1.2; }
+}
+.tag.pn-tag { background: #FCE4F1; color: #A0306F; }
+
+/* v1.16 แก้ตามภาพจากผู้ใช้ */
+.ordwrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
+.cap { display: block; font-size: 12px; color: var(--muted, #6B7090); font-weight: 600; margin-bottom: 1px; }
+.ordwrap .cap { margin: 0; }
+.med .med-upd { font-size: 12px; color: var(--muted, #6B7090); text-align: right; margin-top: 12px; }
+.tel-btn { margin-right: 8px; padding: 4px 12px !important; }
+.kv .tel-num { margin-right: 0; }
+.ev-in { width: 76px; min-height: 48px; text-align: center; margin: 0 6px; display: inline-block; vertical-align: middle; }
+.dose-quick button { min-width: 56px; }
+.sl-b { font-weight: 800; }
+@media print { .pr-star { display: inline-block; font-size: 11pt; font-weight: 700; color: #B0407E; background: #FDE7F1; border: 1.2pt solid #B0407E; border-radius: 4pt; padding: 3pt 8pt; margin-top: 6pt; } }@media print {
+  .pr-list tr.wr td:not(.no) { background: transparent !important; }
+  .pr-list .pr-r, .pr-list .pr-r.pr-hint, .pr-list .pr-r.pr-warn { font-size: 13pt !important; line-height: 1.4; font-weight: 600; }
+  .pr-leg { display: block; margin-top: 3px; font-size: 9pt; font-weight: 600; color: #333; }
+  .pr-leg i { display: inline-block; width: 9pt; height: 9pt; border: .6pt solid #777; vertical-align: -1pt; margin: 0 2pt 0 4pt; }
+  .pr-leg i.y { background: #FFF3B0; } .pr-leg i.p { background: #FDE7F1; }
+  .pr-note .pr-star { font-size: 13pt; }
+}
+.set-det .two .f > span { font-weight: 400; } .set-det .two .f > span .sl-b { font-weight: 800; }
+
+.dt-head .dt-pdf { margin-left: auto; flex: none; white-space: nowrap; padding: 8px 12px; background: #fff; }
+
+/* สรุปก่อนพบแพทย์ ชิดซ้าย + ปุ่มไฟล์ PDF ชิดขวาสุด (แถวเดียวกัน; ตอนกางสรุปปุ่มลงบรรทัดล่างชิดขวา) */
+.report-box { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.report-box .rp-prev { flex: 1 1 0; min-width: 0; margin-top: 0; }
+.report-box .rp-prev[open] { flex-basis: 100%; }
+.report-box .rp-prev > summary { justify-content: flex-start; text-align: left; padding-left: 16px; padding-right: 40px; }
+.report-box .rp-dl { flex: none; margin: 0 0 0 auto; align-self: stretch; padding: 0 14px; white-space: nowrap; display: inline-flex; align-items: center; }
+.kv .tel-btn, .tel-btn { background: transparent !important; color: inherit; box-shadow: none; padding: 0 !important; margin-right: 8px; font-size: 24px; line-height: 1; }
+
+.every-box .lbl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.every-box input.ev-in, .f input.ev-in { width: 72px !important; min-width: 0; flex: none; margin: 0; padding-inline: 6px; text-align: center; }
+.every-box input.ev-in::-webkit-inner-spin-button { display: none; }
+
+.stock-every { align-items: start; gap: 10px; }
+.stock-every .every-box { margin: 0; padding: 10px; }
+.stock-every .every-box .lbl { font-size: 15px; gap: 6px; }
+.stock-every input.ev-in { width: 56px !important; min-height: 44px; }
+.stock-every .every-row { margin: 6px 0 0; } .stock-every .every-row .btn { white-space: normal; padding: 8px 10px; font-size: 15px; line-height: 1.25; }
+
+.note-box { background: #F3F4FF; border: 1.5px solid #D5D9FF; border-radius: 16px; padding: 10px 12px; }
+.note-box textarea { background: #fff; }
+.switch-row.asn-box { background: #FDE7F1; border: 1.5px solid #F2B6D2; border-radius: 16px; padding: 12px 14px; }
+.every-box { margin-top: 4px; }
+
+.slot-box { background: #F3F4FF; border: 1.5px solid #D5D9FF; border-radius: 16px; padding: 12px; }
+.slot-box .slot-pick { background: #fff; }
+
+.switch-row.wd-sw { background: #F6EEFF; border: 1.5px solid #E2CBFA; border-radius: 16px; padding: 12px 14px; }
+.switch-row.wd-sw > span:first-child, .switch-row.asn-box > span:first-child { font-size: 16px; font-weight: 500; color: var(--muted); }
+.switch-row.wd-sw small, .switch-row.asn-box small { font-size: 14px; font-weight: 400; }
+
+.switch-row.wd-sw, .switch-row.asn-box { margin-bottom: 16px; }
+.wd-box { margin-bottom: 16px; }
+
+.dose-row2 { align-items: start; gap: 10px; }
+.dose-row2 > .f:first-child { margin-bottom: 0; } .dose-row2 .dose-quick { margin-top: 0; }
+.stock-box { background: #EEF9D6; border: 1.5px solid #CFE79A; border-radius: 16px; padding: 10px 12px; margin-bottom: 16px; }
+.stock-box > span { font-size: 15px; }
+.stock-box input { background: #fff; }
+
+.dose-row2 .dose-quick { gap: 6px; flex-wrap: nowrap; } .dose-row2 .dose-quick button { min-width: 0; flex: 1 1 0; padding: 0 4px; }
+
+.warn-box { background: #FFF1F0; border: 2px solid #E5675F; border-radius: 16px; padding: 10px 12px; }
+.warn-box > span { color: #B3261E; font-weight: 600; }
+.warn-box textarea { background: #fff; border-color: #F6C1BB; }
+
+.sw-pair { align-items: stretch; gap: 10px; margin-bottom: 16px; }
+.sw-pair .switch-row { margin-bottom: 0; flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 12px; }
+.sw-pair .switch-row > span:first-child { font-size: 15px; }
+.sw-pair .switch-row small { font-size: 12.5px; }
+
+.warn-box { background: linear-gradient(165deg, #F0605A 0%, #D63B35 100%); border: 0; box-shadow: 0 6px 14px rgba(214, 59, 53, .32), inset 0 1px 0 rgba(255, 255, 255, .3); }
+.warn-box > span { color: #fff; font-weight: 700; text-shadow: 0 1px 0 rgba(0, 0, 0, .12); }
+.warn-box textarea { background: #fff; border-color: #fff; }
+
+.warn-box { background: linear-gradient(165deg, #FFD9D5 0%, #FFB5AE 100%); border: 1.5px solid #F59A93; box-shadow: 0 4px 12px rgba(224, 69, 63, .18), inset 0 1px 0 #fff; }
+.warn-box > span { color: #8E1F19; text-shadow: none; }
+.warn-box textarea { border-color: #F6C1BB; }
+
+.dose-row2 .every-box { margin: 10px 0 0; padding: 10px; }
+.dose-row2 .every-box .lbl { font-size: 15px; gap: 6px; }
+.dose-row2 input.ev-in { width: 56px !important; min-height: 44px; }
+.dose-row2 .every-row { margin: 6px 0 0; } .dose-row2 .every-row .btn { white-space: normal; padding: 8px 10px; font-size: 15px; line-height: 1.25; }
+
+#evNote { display: block; white-space: pre-line; line-height: 1.6; margin-top: 6px; }
+
+details.every-box > summary { cursor: pointer; font-weight: 600; font-size: 15px; color: var(--muted); list-style: none; }
+details.every-box > summary::-webkit-details-marker { display: none; }
+details.every-box > summary::after { content: '▾'; float: right; }
+details.every-box[open] > summary::after { content: '▴'; }
+details.every-box .every-in { margin-top: 8px; }
+details.every-box .lbl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 15px; }
+
+details.every-box > summary { position: relative; text-align: center; padding: 4px 22px; }
+details.every-box > summary::after { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); float: none; }
+
+details.every-box .every-in { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+details.every-box .lbl { justify-content: center; }
+details.every-box select { width: auto; min-width: 70px; min-height: 44px; }
+details.every-box #evNote { text-align: center; }
+
+details.every-box .lbl { flex-wrap: nowrap; gap: 4px; font-size: 14px; white-space: nowrap; }
+details.every-box select { -webkit-appearance: none; appearance: none; background-image: none; width: 46px !important; min-width: 0 !important; min-height: 40px; padding: 4px !important; text-align: center; text-align-last: center; font-size: 16px; }
+details.every-box input.ev-in { width: 46px !important; min-height: 40px; font-size: 16px; }
+details.every-box .lbl b { font-size: 16px; }
+
+details.every-box #evNote { display: block; width: fit-content; max-width: 100%; text-align: left; margin: 0 auto; }
+
+.slot-box > .lbl { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.slot-box .slot-hint { font-size: 13px; font-weight: 400; color: var(--muted); }
+
+.ordwrap { width: 48px; }
+.med-head { display: flex; gap: 10px; padding: 0 16px; margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--muted, #6B7090); }
+.med-head span:first-child { width: 48px; text-align: center; flex: none; }
+
+.med-group { background: #F3F4FF; border: 1.5px solid #D5D9FF; border-radius: 22px; padding: 12px 10px 4px; margin-bottom: 14px; }
+.med-group .med-head { margin-bottom: 8px; }
+
+.med-more-btn { margin: 6px 0 2px; padding: 6px 12px; border: 1.5px solid #D5D9FF; background: #fff; color: var(--brand, #4D55F5); border-radius: 999px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.med-more { margin-top: 4px; }
+
+/* ยาที่กำลังทาน = ตารางเรียงลงมา กดแถวเพื่อดูข้อมูลเพิ่มเติม */
+.mtable { background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #E3E6FF; }
+.mrow + .mrow { border-top: 1px solid #E3E6FF; }
+.mr-main { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 12px 12px; background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.mr-no { width: 48px; flex: none; display: flex; justify-content: center; }
+.mr-nm { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.mr-nm .name { font-size: 18px; font-weight: 700; }
+.mr-nm .tags { margin: 0; } .mr-nm small { font-size: 14px; }
+.mr-chev { flex: none; color: var(--brand, #4D55F5); font-size: 16px; padding-top: 4px; }
+.mrow.open { background: #F8F9FF; }
+.mr-more { padding: 0 14px 12px 70px; }
+.mr-kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px dashed #DDE0F7; font-size: 15px; }
+.mr-kv > span { color: var(--muted, #6B7090); flex: none; } .mr-kv > b { text-align: right; font-weight: 600; }
+.mr-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.mr-foot .med-upd { margin: 0; text-align: left; }
+.med-group .med-head { padding: 0 12px; }
+.mr-foot .med-upd { font-size: 12px; color: var(--muted, #6B7090); }
+.mr-kv b small { font-weight: 400; font-size: 13px; }
+
+.tag.dose-tag { background: #EEF9D6; color: var(--ink, #1B1F4B); }
+
+/* ตั้งค่า > กำหนดช่วงเวลาทานยา: ช่องเวลาขนาดพอดี อยู่แถวเดียวกับชื่อช่วง */
+.set-det .two { gap: 6px; padding: 4px 2px; }
+.set-det .two .f { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; padding: 8px 4px; border-top: 1px solid var(--line, #E6E8F5); }
+.set-det .two .f:first-child { border-top: 0; }
+.set-det .two .f > span { margin: 0; font-size: 16px; flex: 1; min-width: 0; }
+.set-det .t24 { display: flex; align-items: center; gap: 6px; flex: none; }
+.set-det .t24 select { width: 64px !important; min-width: 0 !important; min-height: 44px; padding: 6px 4px !important; text-align: center; text-align-last: center; font-size: 17px; -webkit-appearance: none; appearance: none; background-image: none; }
+.set-det .t24 b { font-size: 18px; } .set-det .t24 small { font-size: 14px; margin-left: 2px; }
+/* ตารางกินยา PDF: เหลือง = ข้อควรระวัง · ชมพู = กินเฉพาะเมื่อมีอาการ (ตรงกับในแอพและคำอธิบายหัวกระดาษ) */
+@media print { .pr-grid td.wr { background: #FFF3B0 !important; } .pr-grid td.pn { background: #FDE7F1 !important; } }
+
+.purpose-row { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 16px; }
+.purpose-row > label.f { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
+.opq-box { flex: none; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 6px 12px; border: 1.5px solid #D5D9FF; border-radius: 14px; background: #F3F4FF; font-size: 14px; font-weight: 600; max-width: 42%; line-height: 1.25; cursor: pointer; }
+.opq-box input { width: 22px; height: 22px; flex: none; accent-color: var(--brand, #4D55F5); }
+
+.name-row { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 16px; }
+.name-row > label.f { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
+.st-chip { flex: none; min-height: 52px; padding: 6px 12px; border-radius: 14px; border: 1.5px solid #CFE79A; background: #EEF9D6; color: var(--ink, #1B1F4B); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.st-chip.st-paused { background: #FFF3B0; border-color: #EBD66B; } .st-chip.st-stopped { background: #FFE1DE; border-color: #F2A9A3; }
+.st-panel { background: #F3F4FF; border: 1.5px solid #D5D9FF; border-radius: 16px; padding: 10px 12px; }
+.st-panel { margin-bottom: 16px; } .st-panel[hidden] { display: none; }
+
+.slot-box { background: #FFF4D6; border: 1.5px solid #F0D488; }
+.slot-box .slot-pick { border-color: #EBD28A; }
+
+.st-panel.pn-active { background: #EEF9D6; border-color: #CFE79A; }
+.st-panel.pn-paused { background: #FFF3B0; border-color: #EBD66B; }
+.st-panel.pn-stopped { background: #FFE1DE; border-color: #F2A9A3; }
+
+.tool-pair { display: flex; align-items: stretch; gap: 8px; margin: 0 0 10px; }
+.tool-pair > .btn { flex: 1 1 0; min-width: 0; white-space: normal; line-height: 1.25; padding: 8px 10px; font-size: 15px; }
+.tool-pair > .lock-toggle { flex: 1 1 0; width: auto; min-width: 0; margin: 0; min-height: 0; padding: 8px 10px; gap: 8px; }
+.tool-pair .lock-toggle .lt-ic { font-size: 22px; } .tool-pair .lock-toggle .lt-tx b { font-size: 15px; } .tool-pair .lock-toggle .lt-tx small { font-size: 12px; }
+
+.tool-pair .lock-toggle .lt-ic { font-size: 40px; line-height: 1; }
+.tool-pair > .lock-toggle { gap: 10px; }
+
+/* รหัสยาในไฟล์ PDF ใช้ฟอนต์ Prompt */
+.pr-no, .pr-list td.no { font-family: Prompt, Sarabun, sans-serif !important; letter-spacing: 0; }
+
+/* ตั้งค่า > การแจ้งเตือน: หมวดแจ้งเตือน (พับเก็บ) */
+.nt-cats { margin: 10px 0 12px; border: 1px solid #E3E6FF; border-radius: 16px; background: #fff; overflow: hidden; }
+.nt-cat + .nt-cat { border-top: 1px solid #E3E6FF; }
+.nt-cat > summary { padding: 12px 14px; }
+.nt-body { padding: 0 14px 12px; }
+.nt-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px dashed #DDE0F7; }
+.nt-row:first-child { border-top: 0; }
+.nt-who { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; } .nt-who b { font-size: 16px; } .nt-who small { font-size: 13px; }
+.nt-person + .nt-person { border-top: 1px solid #E3E6FF; margin-top: 6px; padding-top: 4px; }
+.nt-sub { margin: 0 0 6px 4px; } .nt-sub > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--brand, #4D55F5); padding: 4px 0; }
+.nt-med { padding: 6px 0; border-top: 1px dashed #E6E8F5; } .nt-mn { font-size: 15px; margin-bottom: 4px; }
+.nt-slots { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.nt-slot { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.nt-none { margin: 0 0 6px 4px; }
+.stk-mode { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; padding: 12px; }
+.stk-mode > label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.stk-mode input { width: 22px; height: 22px; flex: none; margin-top: 2px; accent-color: var(--brand, #4D55F5); }
+.stk-mode label > span { display: flex; flex-direction: column; gap: 2px; } .stk-mode small { font-size: 13px; }
+
+.nt-days { padding: 6px 0 10px; border-bottom: 1px dashed #DDE0F7; margin-bottom: 4px; } .nt-days > b { font-size: 15px; display: block; margin-bottom: 8px; } .nt-days small { display: block; margin-top: 8px; font-size: 13px; }
+.nt-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.nt-chip { position: relative; } .nt-chip input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.nt-chip span { display: inline-block; padding: 8px 14px; border: 1.5px solid #D5D9FF; border-radius: 999px; background: #fff; font-size: 15px; font-weight: 600; }
+.nt-chip input:checked + span { background: var(--brand, #4D55F5); border-color: var(--brand, #4D55F5); color: #fff; }
+/* สติกเกอร์: เลือกขนาดด้วยปุ่มติ๊กวงกลม (ขนาดละ 1 แผ่น) */
+.stk-tick { position: relative; flex: none; width: 36px; height: 36px; cursor: pointer; }
+.stk-tick input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.stk-tick i { display: block; width: 36px; height: 36px; border-radius: 50%; border: 2.5px solid #C4C8F2; background: #fff; box-sizing: border-box; }
+.stk-tick input:checked + i { background: var(--brand, #4D55F5); border-color: var(--brand, #4D55F5); }
+.stk-tick input:checked + i::after { content: ''; display: block; width: 10px; height: 18px; margin: 4px 0 0 11px; border: solid #fff; border-width: 0 3.5px 3.5px 0; transform: rotate(45deg); box-sizing: border-box; }
+.stk-mode .stk-opt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.stk-mode .stk-opt-head b { font-size: 17px; } .stk-mode .stk-opt-head small { font-size: 12px; }
+.stk-mode.off > label:not(.stk-tick) { opacity: .4; pointer-events: none; }

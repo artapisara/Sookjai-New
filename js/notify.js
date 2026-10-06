@@ -38,7 +38,7 @@ const Notifier = (() => {
     if (now >= '08:00') {
       for (const a of S.appointments.filter((x) => apptReminderOn(x.profile_id))) {
         const n = daysUntil(a.appt_date);
-        if (REMIND_DAYS.includes(n)) { const msg = apptMessage(a, n); out.push({ key: `appt:${a.id}:${n}`, ...msg }); }
+        if (remindDays().includes(n)) { const msg = apptMessage(a, n); out.push({ key: `appt:${a.id}:${n}`, ...msg }); }
       }
     }
     if (now >= CARE_REMIND_AT) {
