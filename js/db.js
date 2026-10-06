@@ -6,7 +6,7 @@
  */
 'use strict';
 
-const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors', 'med_logs', 'care_plans', 'care_logs', 'circles', 'circle_members', 'circle_care_for', 'circle_invites', 'emergency_contacts', 'mood_logs', 'treatment_records'];
+const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors', 'med_logs', 'care_plans', 'care_logs', 'circles', 'circle_members', 'circle_care_for', 'circle_invites', 'emergency_contacts', 'mood_logs', 'treatment_records', 'health_logs'];
 const HISTORY_MONTHS = 24; // ดูสรุปย้อนหลังได้กี่เดือน (ข้อมูลเก็บในฐานข้อมูลไม่หาย — โหลดมาทีละเดือนตอนเปิดดู)
 const BUCKET = 'attachments';
 
@@ -29,6 +29,13 @@ class SupaDB {
   }
   async resetPassword(email) { const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; }
   async signOut() { this.clearSnapshot(); await this.sb.auth.signOut(); }
+  /** แจ้งเตือนเด้งไปหาผู้ถูกเชิญ (Edge Function notify-invite) — ทำเบื้องหลัง ล้มเหลวก็ไม่กระทบการเชิญ (ผู้ถูกเชิญยังเห็นคำเชิญเมื่อเปิดแอพ) */
+  notifyInvite(inviteId) {
+    if (this.offline) return Promise.resolve();
+    return this.sb.functions.invoke('notify-invite', { body: { invite_id: inviteId } }).then((r) => { if (r.error) console.warn('notify-invite', r.error.message); return r; }).catch((e) => console.warn('notify-invite', e));
+  }
+  /** โหลดเฉพาะคำเชิญของฉันใหม่ (ใช้อัปเดตจุดแดงโดยไม่โหลดทั้งแอพ) */
+  async fetchInvites() { const { data, error } = await this.sb.from('circle_invites').select('*').order('created_at'); if (error) throw error; return data; }
   /** ลบบัญชีผู้ใช้ (อีเมล) ถาวร — ต้องรัน supabase/premium.sql ก่อน (ฟังก์ชัน delete_my_account) */
   async deleteAccount() { const { error } = await this.sb.rpc('delete_my_account'); if (error) throw error; }
 
@@ -76,7 +83,7 @@ class SupaDB {
   async loadAllOnline() {
     const d0 = new Date(); const since = dk(new Date(d0.getFullYear(), d0.getMonth(), 1)); // เริ่มด้วยเดือนนี้ — เดือนก่อนๆ โหลดตอนกดดูย้อนหลัง
     const q = (t) => this.sb.from(t).select('*');
-    const [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr] = await Promise.all([
+    const [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr, hl] = await Promise.all([
       q('profiles').order('created_at'), q('medications').order('sort_order'), q('appointments').order('appt_date'),
       q('hospitals').order('name'), q('doctors').order('name'), this.logsBetween('med_logs', since).then((data) => ({ data })).catch((error) => ({ error })),
       this.sb.from('user_settings').select('*').maybeSingle(),
@@ -85,14 +92,16 @@ class SupaDB {
       q('circle_care_for').order('added_at'), q('circle_invites').order('created_at'), q('emergency_contacts').order('created_at'),
       this.logsBetween('mood_logs', since).then((data) => ({ data })).catch((error) => ({ error })),
       q('treatment_records').order('record_date'),
+      q('health_logs').order('log_date'),
     ]);
     // ยังไม่ได้รัน schema.sql ล่าสุด (ไม่มีตาราง mood_logs) → เปิดแอพได้ตามปกติ แต่ยังบันทึกอารมณ์ไม่ได้
     if (ml.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง mood_logs — รัน supabase/schema.sql ใหม่'); ml.error = null; ml.data = []; }
     if (tr.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง treatment_records — รัน SQL ประวัติการรักษา'); tr.error = null; tr.data = []; }
-    for (const r of [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr]) if (r.error) throw r.error;
+    if (hl.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง health_logs — รัน supabase/health.sql'); hl.error = null; hl.data = []; }
+    for (const r of [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr, hl]) if (r.error) throw r.error;
     return { profiles: p.data, medications: m.data, appointments: a.data, hospitals: h.data, doctors: d.data, med_logs: l.data,
       care_plans: cp.data, care_logs: cl.data, circles: c.data, circle_members: cm.data, circle_care_for: ccf.data, circle_invites: ci.data, emergency_contacts: ec.data,
-      mood_logs: ml.data, treatment_records: tr.data,
+      mood_logs: ml.data, treatment_records: tr.data, health_logs: hl.data,
       settings: { slot_times: { ...DEFAULT_SLOT_TIMES, ...(s.data?.slot_times || {}) }, today_hidden: s.data?.today_hidden || [],
         profile_order: s.data?.profile_order || [], pdpa_consent_at: s.data?.pdpa_consent_at || null, pdpa_version: s.data?.pdpa_version || null } };
   }
@@ -164,6 +173,7 @@ class LocalDB {
       this.data.circle_care_for = this.data.circle_care_for.filter((ccf) => ccf.profile_id !== id);
       this.data.mood_logs = this.data.mood_logs.filter((l) => l.profile_id !== id);
       this.data.treatment_records = (this.data.treatment_records || []).filter((l) => l.profile_id !== id);
+      this.data.health_logs = (this.data.health_logs || []).filter((l) => l.profile_id !== id);
     }
     if (t === 'medications') this.data.med_logs = this.data.med_logs.filter((l) => l.medication_id !== id);
     if (t === 'care_plans') this.data.care_logs = this.data.care_logs.filter((l) => l.plan_id !== id);
@@ -201,7 +211,7 @@ function demoData() {
       { id: P[2], name: 'พ่อ', relation: 'พ่อ', birth_year: 1970, blood_type: 'B', color: '#7C6CF2', avatar: 'm-adult-ok',
         chronic_diseases: ['ความดันโลหิตสูง'], drug_allergies: ['Aspirin', 'ยากลุ่ม NSAIDs'], reminder_enabled: true },
       { id: P[3], name: 'แม่', relation: 'แม่', birth_year: 1973, blood_type: 'AB', color: '#F2A93B', avatar: 'f-adult-smile',
-        chronic_diseases: [], drug_allergies: [], reminder_enabled: false },
+        chronic_diseases: [], drug_allergies: [], reminder_enabled: true },
     ],
     medications: [
       med(1, P[0], 'Amlodipine 5 mg', 'ความดันโลหิตสูง', ['after_breakfast'], { stock: 5 }),

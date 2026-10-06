@@ -31,7 +31,7 @@ body {
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 body.noscroll { overflow: hidden; }
-#app { max-width: 560px; margin: 0 auto; padding: calc(60px + env(safe-area-inset-top)) 16px 24px; }
+#app { max-width: 560px; margin: 0 auto; padding: calc(84px + env(safe-area-inset-top)) 16px 24px; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 h1 { font-size: 28px; margin: 0 0 2px; font-weight: 700; }
@@ -1111,3 +1111,242 @@ a.set-row { text-decoration: none; color: inherit; }
 .mood-cal .ad-d b { font-size: 16px; line-height: 1.1; }
 .mood-cal .ad-d small { font-size: 22px; line-height: 1; min-height: 22px; display: block; }
 .set-copy { text-align: center; line-height: 1.7; }
+
+/* แพ็กเกจของฉัน: รายละเอียดย่อและซ่อนไว้ */
+.plan-det { margin: 6px 0 2px; }
+.plan-det > summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 8px 4px; list-style: none; }
+.plan-det > summary::before { content: "▸ "; } .plan-det[open] > summary::before { content: "▾ "; }
+.plan-det .plan-tbl, .plan-det .plan-tbl th, .plan-det .plan-tbl td { font-size: 12.5px; }
+.plan-det .plan-tbl td { padding: 6px 4px; }
+/* หน้าเข้าสู่ระบบ/สมัคร: พื้นหลังขาว + เม็ดยาลอยเหมือนหน้า intro */
+html:has(.login.plain), body.auth:has(.login.plain) { background: #fff !important; }
+.login.plain { position: relative; }
+.login.plain > :not(.login-deco) { position: relative; z-index: 1; }
+.login-deco { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.login-deco .lc { position: absolute; display: block; width: 76px; height: 30px; border-radius: 15px; box-shadow: 0 6px 14px rgba(77, 85, 245, .2); }
+.login-deco .lc1 { left: 6%; top: 9%; transform: rotate(-28deg); background: linear-gradient(90deg, #DAFF7C 50%, #E7E9FF 50%); animation: sp-float 5s ease-in-out infinite; }
+.login-deco .lc2 { right: 7%; top: 16%; transform: rotate(32deg); background: linear-gradient(90deg, #CA7FFE 50%, #F3E4FF 50%); animation: sp-float 6s .8s ease-in-out infinite; }
+.login-deco .lc3 { left: 9%; bottom: 14%; transform: rotate(18deg); width: 60px; height: 24px; background: linear-gradient(90deg, #4D55F5 50%, #E7E9FF 50%); animation: sp-float 5.5s 1.4s ease-in-out infinite; }
+.login-deco .lc4 { right: 10%; bottom: 20%; transform: rotate(-20deg); width: 64px; height: 26px; background: linear-gradient(90deg, #DAFF7C 50%, #CA7FFE 50%); animation: sp-float 6.5s .4s ease-in-out infinite; }
+.login-deco .ls { position: absolute; color: #CA7FFE; font-size: 24px; line-height: 1; animation: sp-spin 10s linear infinite; }
+.login-deco .ls1 { left: 18%; top: 30%; } .login-deco .ls2 { right: 16%; top: 48%; color: #4D55F5; font-size: 20px; animation-duration: 13s; }
+@media (prefers-reduced-motion: reduce) { .login-deco .lc, .login-deco .ls { animation: none; } }
+/* หน้า intro: ตัวอักษรเล็กลง เว้นระยะพอดี + ข้อความลิขสิทธิ์ท้ายหน้า */
+#splash { padding: 24px 20px calc(110px + env(safe-area-inset-bottom)); }
+#splash .sp-logo { width: min(40vw, 150px); height: min(40vw, 150px); }
+#splash .sp-name { font-size: clamp(50px, 15vw, 68px); margin: 14px 0 0; }
+#splash .sp-stars { margin: 2px 0 8px; font-size: 14px; letter-spacing: 7px; }
+#splash .sp-slogan { font-size: clamp(14px, 3.8vw, 16px); line-height: 1.6; gap: 3px; }
+#splash .sp-ask { margin: 20px 0 0; padding: 9px 18px; font-size: clamp(16px, 4.5vw, 19px); }
+#splash .sp-skip { margin-top: 16px; font-size: 13px; }
+#splash .sp-foot { position: absolute; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 2; margin: 0; padding: 0 16px; text-align: center; font-size: 11.5px; line-height: 1.7; color: rgba(255, 255, 255, .78); }
+#splash .sp-foot .sf-a, #splash .sp-foot .sf-b { display: block; }
+#splash .sp-foot .sf-a { font-size: 11.5px; }
+#splash .sp-foot .sf-b { font-size: 10px; margin-top: 10px; opacity: .85; line-height: 1.6; }
+/* ข้อความท้ายหน้า intro: กรอบสีขาวบางๆ + พื้นขาวจางหลังข้อความ */
+#splash .sp-foot { left: 18px; right: 18px; padding: 12px 14px; border: 1px solid rgba(255, 255, 255, .6); border-radius: 16px; background: rgba(255, 255, 255, .08); bottom: calc(18px + env(safe-area-inset-bottom)); }
+/* กรอบขาวบางเฉพาะ 2 บรรทัดล่างสุด (พอดีกับข้อความ) */
+#splash .sp-foot { left: 0; right: 0; padding: 0 16px; border: 0; border-radius: 0; background: none; bottom: calc(18px + env(safe-area-inset-bottom)); }
+#splash .sp-foot .sf-b { display: table; margin: 10px auto 0; padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .6); border-radius: 12px; background: rgba(255, 255, 255, .08); opacity: 1; }
+/* คำเชิญเข้ากลุ่ม: จุดแดงที่แท็บสมาชิก + แถบเตือนหน้าวันนี้ */
+#tabbar button { position: relative; }
+#tabbar button.has-badge::after { content: ""; position: absolute; top: 6px; left: calc(50% + 10px); width: 12px; height: 12px; border-radius: 50%; background: #FF4D4D; border: 2px solid #4D55F5; }
+.invite-alert { margin-bottom: 10px; }
+/* v1.16 เว้นระยะด้านบนของแอพ + ข้อความลิขสิทธิ์ท้ายหน้าตั้งค่าตัวเล็กลง */
+.set-copy { font-size: clamp(8px, 2.7vw, 12px) !important; line-height: 1.5 !important; margin: 14px 0 6px; white-space: nowrap; }
+.set-copy .sc-line { display: block; font-size: inherit; line-height: inherit; margin: 0; }
+.stk-opts { display: grid; gap: 8px; margin: 10px 0; }
+.stk-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; }
+.stk-txt { min-width: 0; }
+.stk-step { display: inline-flex; align-items: center; gap: 10px; flex: none; }
+.stk-step output { min-width: 26px; text-align: center; font-size: 22px; font-weight: 800; }
+.stk-b { width: 44px; height: 44px; border-radius: 14px; border: 2px solid var(--brand); background: #fff; color: var(--brand); font-size: 26px; font-weight: 700; line-height: 1; }
+.stk-b:active { background: var(--brand); color: #fff; }
+/* ตารางแพ็กเกจ: หัวหมวดเด่นชัด */
+.plan-tbl tr.grp td { background: var(--sky-soft, #EEF0FF); color: var(--brand, #4D55F5); font-weight: 800; font-size: 17px; padding: 9px 12px; border-radius: 12px; border-bottom: 0; }
+.plan-tbl tr.grp td::before { content: none; }
+.plan-tbl tr.grp:not(:first-child) td { border-top: 10px solid #fff; }
+.plan-det .plan-tbl tr.grp td { font-size: 16.5px; }
+/* ตารางแพ็กเกจ: ลดช่องว่างให้กระชับ */
+.set-group .set-row:has(+ .plan-det), .set-group .set-row:has(+ .btn + .plan-det) { padding-top: 10px; padding-bottom: 6px; }
+.set-group .plan-det { margin: 0; }
+.set-group .plan-det > summary { padding: 4px 4px 6px; }
+.set-group .plan-det .plan-tbl { margin: 2px 0 0; }
+.plan-det .plan-tbl tr.grp td { padding: 6px 12px; }
+.plan-tbl tr.grp:not(:first-child) td { border-top-width: 6px; }
+/* ตารางแพ็กเกจแบบกรอบตามหมวดหมู่ */
+.plan-grid { margin: 4px 0 2px; }
+.plan-colhead, .plan-r { display: grid; grid-template-columns: minmax(0, 1fr) 76px 84px; align-items: center; }
+.plan-colhead { padding: 4px 4px 6px; font-size: 13px; font-weight: 700; color: var(--muted); text-align: center; line-height: 1.25; }
+.plan-colhead span:first-child { text-align: left; }
+.plan-colhead .prem { color: #4A5A00; }
+.plan-box { margin: 0 0 10px; border: 2px solid #C9CEFF; border-radius: 16px; overflow: hidden; background: #fff; }
+.plan-box h4 { margin: 0; padding: 9px 12px; background: #E9EBFF; color: #3F47E0; font-size: 17px; font-weight: 800; line-height: 1.3; }
+.plan-r { padding: 0; border-top: 1px solid var(--line); font-size: 14.5px; line-height: 1.35; text-align: center; }
+.plan-box h4 + .plan-r { border-top: 0; }
+.plan-r > span { padding: 9px 6px; align-self: stretch; display: flex; align-items: center; justify-content: center; }
+.plan-r > span:first-child { justify-content: flex-start; text-align: left; padding-left: 12px; }
+.plan-r .prem { background: #F4FFD2; font-weight: 700; }
+.plan-r .yes { color: #1E8E3E; font-size: 20px; font-weight: 800; } .plan-r .no { color: #8A8FB5; font-size: 20px; font-weight: 600; }
+
+/* ---- ความดัน / น้ำตาลในเลือด ---- */
+.h-ic { font-size: 34px; line-height: 1; }
+.seg > button { flex: 1; border: 0; background: transparent; padding: 10px 6px; border-radius: 10px; font: inherit; font-size: 16px; color: var(--ink); cursor: pointer; }
+.seg > button.on { background: var(--card); font-weight: 700; box-shadow: var(--shadow); color: var(--brand); }
+.h-range { display: flex; align-items: center; gap: 8px; margin: 6px 0 10px; flex-wrap: wrap; }
+.h-range button { border: 2px solid #D5D9FF; background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 15px; color: var(--ink); cursor: pointer; }
+.h-range button.on { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
+.h-latest { text-align: center; }
+.h-big { font-size: 44px; font-weight: 800; line-height: 1.15; color: var(--brand); }
+.h-big small { font-size: 16px; font-weight: 500; color: var(--muted); }
+.h-stats .h-stat-row { display: flex; gap: 10px; margin-top: 8px; }
+.h-stats .h-stat-row > div { flex: 1; display: flex; flex-direction: column; background: var(--sky-soft, #EEF0FF); border-radius: 14px; padding: 8px 10px; text-align: center; }
+.h-stats .h-stat-row b { font-size: 20px; }
+.h-chart { width: 100%; height: auto; display: block; margin-top: 8px; }
+.h-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; margin-top: 4px; }
+.hl-key { display: inline-flex; align-items: center; gap: 6px; }
+.hl-key i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+.h-item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.h-item-top b { font-size: 22px; }
+.report-box { margin: 12px 0 4px; }
+/* ตัวอักษรใหญ่ (ตั้งในหน้าตั้งค่า) */
+html.bigtext #app, html.bigtext #modal .sheet { zoom: 1.18; }
+.bigtext-row small { font-size: 12.5px; }
+
+/* ยาที่ลืมบ่อย: แยกกรอบตัวยาแต่ละตัว */
+.miss-list { display: grid; gap: 8px; margin-top: 10px; }
+.miss-item { display: flex; align-items: center; gap: 10px; background: #fff; border: 2px solid #E3D2FF; border-radius: 14px; padding: 9px 12px; }
+.miss-no { flex: none; min-width: 40px; text-align: center; background: var(--brand, #4D55F5); color: #fff; border-radius: 10px; padding: 4px 8px; font-size: 16px; }
+.miss-nm { flex: 1; min-width: 0; font-weight: 600; font-size: 17px; overflow-wrap: anywhere; }
+.miss-n { flex: none; font-size: 14px; color: #8C1D18; font-weight: 600; }
+
+/* เลือกยาที่จะใส่ในรายงานก่อนพบแพทย์ */
+.rp-pick { display: grid; gap: 8px; margin: 8px 0; max-height: 46vh; overflow-y: auto; }
+.rp-pick-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.rp-pick-row input { width: 22px; height: 22px; flex: none; }
+.rp-pick-no { flex: none; min-width: 38px; text-align: center; background: var(--brand, #4D55F5); color: #fff; border-radius: 9px; padding: 3px 6px; }
+.rp-pick-nm { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.rp-pick-nm small { display: block; font-weight: 400; font-size: 13px; }
+
+/* เบอร์โทรในกรอบรายละเอียดนัด */
+.kv .tel-link { color: var(--brand, #4D55F5); text-decoration: none; font-weight: 700; white-space: nowrap; }
+.kv .tel-link:active { opacity: .6; }
+.kv .tel-num { font-weight: 700; margin-right: 8px; }
+.kv .tel-btn { display: inline-block; background: var(--brand, #4D55F5); color: #fff; text-decoration: none; font-weight: 700; border-radius: 999px; padding: 4px 14px; white-space: nowrap; }
+.kv .tel-btn:active { opacity: .7; }
+
+/* สรุปรายงานที่ซ่อนไว้ในหน้ารายละเอียดนัด */
+.rp-prev { margin-top: 10px; border: 2px solid #D5D9FF; border-radius: 16px; background: #fff; }
+.rp-prev > summary { cursor: pointer; padding: 12px 14px; font-weight: 700; font-size: 16px; list-style: none; color: var(--brand, #4D55F5); }
+.rp-prev > summary::-webkit-details-marker { display: none; }
+.rp-prev > summary::after { content: "▾"; float: right; }
+.rp-prev[open] > summary::after { content: "▴"; }
+.rp-prev-body { padding: 0 10px 12px; }
+.rp-mode { margin: 6px 0 4px; }
+.rp-mode-hint { margin: 0 0 6px; }
+.rp-prev > summary .rp-ic { display: inline-block; width: 24px; height: 24px; vertical-align: -6px; margin-right: 8px; }
+
+/* รายงานก่อนพบแพทย์: กรอบ "สรุป" สำคัญกว่า — เด่น ใหญ่ ปุ่มโหลดไฟล์เป็นรอง */
+.rp-prev { margin-top: 10px; border: 2.5px solid var(--brand, #4D55F5); border-radius: 18px; background: #F3F4FF; box-shadow: 0 4px 14px rgba(77, 85, 245, .14); }
+.rp-prev > summary { padding: 15px 16px; font-size: 19px; font-weight: 800; }
+.rp-prev > summary .rp-ic { width: 28px; height: 28px; vertical-align: -8px; }
+.rp-prev-body { padding: 4px 12px 14px; background: #fff; border-radius: 0 0 15px 15px; }
+.rp-dl { margin-top: 10px; font-size: 15px; padding-block: 9px; }
+.rp-dl.rp-dl-off { opacity: .6; }
+/* ช่วงเวลาทานยาในฟอร์มยา: เน้นคำว่า ก่อน/หลัง (ตัวหนา ขีดเส้นใต้) · ก่อนนอนอยู่กลางแถว */
+.slot-row .sl-kw { font-weight: 800; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
+.slot-row.slot-bed { grid-column: 1 / -1; border-right: 0; justify-content: center; }
+.slot-row.slot-bed .slot-main { justify-content: center; }
+/* ช่อง "ข้อควรระวัง" ในฟอร์มยา: โซนสีแดงอ่อน (สอดคล้องกับสีเตือนในแอพ) */
+.f.warn-field > span { display: inline-block; align-self: flex-start; width: fit-content; background: linear-gradient(165deg, #F0605A 0%, #D63B35 100%); border: 0; border-radius: 12px; padding: 5px 16px; color: #fff; font-weight: 800; box-shadow: 0 4px 10px rgba(214, 59, 53, .30), inset 0 1px 0 rgba(255, 255, 255, .3); }
+.f.warn-field input { background: #FFF0EE; border-color: #F2B8B2; }
+.f.warn-field input:focus { border-color: #E5675F; outline: none; box-shadow: 0 0 0 3px rgba(229, 103, 95, .18); }
+.f.warn-field input::placeholder { color: #B98480; }
+
+/* ===== PDF v4: อ่านง่ายขึ้น — ตัวหนาไม่เกิน 700 (น้ำหนักที่โหลดจริง: 800 จะถูกสร้างเป็นตัวหนาเทียมจนตัวอักษรไทยติดกัน) · ตัวอักษรใหญ่ขึ้น · ขีดเส้นใต้ห่างจากตัวอักษร ===== */
+@media print {
+  .pr-top h1, .pr-grid th, .pr-list th, .pr-list td.no, .pr-no, .pr-h2, .pr-kpi-pct { font-weight: 700; }
+  .pr-grid th u { text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  .pr-grid th { font-size: 15pt; padding: 8px 3px; line-height: 1.35; }
+  .pr-grid th small { font-size: 10pt; font-weight: 600; color: #222; }
+  .pr-nm { font-size: 9.5pt; line-height: 1.25; color: #222; font-weight: 600; }
+  .pr-grid em { font-size: 9pt; }
+  .pr-wn { font-size: 8.5pt; color: #333; }
+  .pr-list th { font-size: 14pt; }
+  .pr-list td { font-size: 13pt; line-height: 1.4; }
+  .pr-sum th, .pr-sum td { font-size: 12pt; }
+  .pr-note { font-size: 11pt; color: #222; }
+  .pr-foot { font-size: 9pt; color: #333; }
+}
+
+/* การ์ด "แพ็กเกจของฉัน": ตอนยังไม่เปิดดูรายละเอียด = พื้นเขียวมะนาวตามสีหลักของแอพ (#DAFF7C) ตัวอักษรกรมท่า · เปิดดูรายละเอียดแล้วกลับเป็นการ์ดปกติ */
+.card.set-group.plan-card { border: 1.5px solid #A6DA3A; } /* เขียวมะนาวเข้มขึ้นเล็กน้อยสำหรับเส้นขอบ (--green ในแอพเป็นสีน้ำเงิน) */
+.card.set-group.plan-card:not(:has(.plan-det[open])) { background: #DAFF7C; box-shadow: 0 4px 14px rgba(120, 170, 20, .25); }
+.card.set-group.plan-card:not(:has(.plan-det[open])) .plan-det > summary { color: #161A4D; font-weight: 700; }
+/* แถว "ตัวอักษรใหญ่": สวิตช์ชิดขวาสุดของกรอบ */
+.bigtext-row { justify-content: flex-start; }
+.bigtext-row .sr-l { flex: 1; min-width: 0; }
+.bigtext-row .switch { margin-left: auto; flex: none; }
+/* การ์ดอารมณ์ที่ล็อกไว้สำหรับ Premium: หน้าอารมณ์จางลง + ปุ่มดูรายละเอียด */
+.mood-locked .mood-dim { opacity: .45; pointer-events: none; filter: grayscale(.4); }
+/* ปุ่มเปิด-ปิดตาที่ช่องรหัสผ่าน */
+.pw-wrap { position: relative; display: block; }
+.pw-wrap > input { width: 100%; padding-right: 52px; box-sizing: border-box; }
+.pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 42px; height: 42px; border: 0; border-radius: 12px; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; }
+.pw-eye:active { background: rgba(77, 85, 245, .12); }
+/* ปุ่มเลือกจำนวนยาต่อครั้ง */
+.dose-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.dose-quick button { min-width: 48px; height: 40px; padding: 0 12px; border: 2px solid #D5D9FF; border-radius: 12px; background: #fff; color: var(--ink); font: inherit; font-size: 18px; font-weight: 700; cursor: pointer; }
+.dose-quick button:active { background: var(--brand); border-color: var(--brand); color: #fff; }
+/* ช่องที่ต้องกรอก */
+.req { color: #D63B35; font-weight: 800; margin-left: 2px; }
+.slot-pick.need { border-color: #D63B35; box-shadow: 0 0 0 3px rgba(214, 59, 53, .20); animation: need-shake .35s; }
+@keyframes need-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+/* หัวข้อกล่อง พบแพทย์ครั้งถัดไป ตัวใหญ่ */
+.preview b { font-size: 18px; line-height: 1.4; }
+.preview { font-size: 16px; }
+.preview { white-space: pre-wrap; }
+
+/* สระ/วรรณยุกต์ไม่ซ้อนกัน (ตึก/ชั้น) */
+.kv span, .kv b { line-height: 1.7; text-rendering: optimizeLegibility; font-kerning: normal; font-variant-ligatures: common-ligatures contextual; }
+
+/* ป้ายแดงยาใกล้หมด (หน้ายา) */
+.low-badge { display: inline-flex; align-items: center; gap: 4px; flex: none; background: #E5332A; color: #fff; font-weight: 800; font-size: 15px; line-height: 1; padding: 6px 10px 6px 6px; border-radius: 999px; box-shadow: 0 2px 6px rgba(229,51,42,.4); animation: low-pulse 1.6s ease-in-out infinite; }
+.low-badge i { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: #E5332A; font-style: normal; font-weight: 900; font-size: 14px; }
+.low-badge.sm { font-size: 12px; padding: 3px 7px 3px 3px; margin-left: 6px; animation: none; }
+.low-badge.sm i { width: 15px; height: 15px; font-size: 11px; }
+@keyframes low-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .low-badge { animation: none; } }
+.two-btn:has(> :only-child) { grid-template-columns: 1fr; }
+.low-box .low-list { margin: 8px 0 0; padding-left: 18px; font-size: 16px; line-height: 1.7; }
+.low-box .low-list li b { margin-right: 4px; }
+
+/* รายการยาที่เหลือ = ตารางจริง */
+.stk-card { padding: 4px 6px 8px; overflow: hidden; }
+.stk-t { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
+.stk-t th { text-align: left; font-weight: 600; font-size: 13px; color: var(--muted); padding: 8px 4px; border-bottom: 2px solid var(--line); line-height: 1.3; }
+.stk-t th:nth-child(1) { width: 14%; } .stk-t th:nth-child(2) { width: 29%; } .stk-t th:nth-child(3) { width: 19%; } .stk-t th:nth-child(4) { width: 19%; } .stk-t th:nth-child(5) { width: 19%; text-align: right; }
+.stk-t td { padding: 10px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; line-height: 1.35; }
+.stk-t tr:last-child td { border-bottom: 0; }
+.stk-t td b { font-size: 15px; display: block; }
+.stk-t td small { display: block; font-size: 12.5px; color: var(--muted); }
+.stk-t .stk-no { min-height: 0; padding: 6px 0; font-size: 16px; text-align: center; display: block; }
+.stk-t .stk-left { text-align: right; } .stk-t .stk-left b { font-size: 20px; }
+.stk-t td.red-t small { color: inherit; }
+.stk-t tr.low td { background: #FFF5F4; }
+.stk-t tr[hidden] { display: none; }
+.low-box .low-list li > span, .low-box .low-list li > b { display: inline; }
+.stk-t tr.stk-row { display: table-row; padding: 0; } .stk-t td.stk-left { display: table-cell; } .stk-t tr.stk-row[hidden] { display: none; } .stk-t .stk-no { display: block; }
+.ex-circle { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 3px solid #E5332A; color: #E5332A; font-weight: 900; font-size: 22px; line-height: 1; background: #fff; }
+.alert .ic .ex-circle { flex: none; width: 34px; height: 34px; min-width: 34px; color: #E5332A !important; -webkit-text-fill-color: #E5332A; background: #fff; font-family: inherit; font-size: 22px; font-weight: 900; line-height: 1; padding: 0; text-shadow: none; filter: none; }
+.alert .ic .ex-svg { display: block; flex: none; }
+
+/* สรุปก่อนพบแพทย์: ไอคอน ข้อความ ลูกศร อยู่กึ่งกลางกรอบแนวตั้ง */
+.rp-prev > summary { display: flex; align-items: center; gap: 10px; line-height: 1.3; min-height: 56px; }
+.rp-prev > summary .rp-ic { vertical-align: middle; margin: 0; flex: none; }
+.rp-prev > summary::after { float: none; margin-left: auto; font-size: 16px; line-height: 1; }
+
+/* สรุปก่อนพบแพทย์: ไอคอน+ข้อความอยู่กึ่งกลางกรอบ ลูกศรชิดขวา */
+.rp-prev > summary { position: relative; justify-content: center; text-align: center; padding-left: 40px; padding-right: 40px; }
+.rp-prev > summary::after { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); margin: 0; }

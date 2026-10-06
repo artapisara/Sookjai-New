@@ -87,7 +87,7 @@ function adherenceData(pid, ym) {
 // ---------- PDPA: ความยินยอม + ความเป็นส่วนตัว ----------
 const PDPA_TEXT = `
   <ul class="pdpa">
-    <li><p><b>เก็บอะไร:</b> ข้อมูลสุขภาพของคนที่คุณใส่ไว้ (โรคประจำตัว ยา นัดหมอ รูป อารมณ์) และอีเมลของคุณ</p></li>
+    <li><p><b>เก็บอะไร:</b> ข้อมูลสุขภาพของคนที่คุณใส่ไว้ (โรคประจำตัว ยา นัดหมอ รูป อารมณ์ ค่าความดัน/น้ำตาล ผลการพบแพทย์ที่คุณจดไว้) และอีเมลของคุณ</p></li>
     <li><p><b>ใช้ทำอะไร:</b> ทำตารางยา เตือน และแชร์ให้คนที่คุณเชิญ ไม่ขาย ไม่ส่งต่อ ไม่ใช้ทำโฆษณา</p></li>
     <li><p><b>ปลอดภัย:</b> เห็นเฉพาะคุณและกลุ่มที่คุณแชร์ · เก็บบน Supabase (สิงคโปร์) ล็อกสิทธิ์ไว้</p></li>
     <li><p><b>เก็บนานแค่ไหน:</b> รูปใบนัดลบอัตโนมัติหลังครบ 1 ปีนับจากวันนัด รูปอื่นๆ เก็บไว้จนกว่าคุณจะลบเอง</p></li>
@@ -137,6 +137,7 @@ function myData() {
     care_plans: S.care_plans.filter((c) => planIds.has(c.id)), care_logs: S.care_logs.filter((l) => planIds.has(l.plan_id)),
     mood_logs: (S.mood_logs || []).filter((l) => pids.has(l.profile_id)),
     treatment_records: (S.treatment_records || []).filter((l) => pids.has(l.profile_id)),
+    health_logs: (S.health_logs || []).filter((l) => pids.has(l.profile_id)),
     circles: mine('circles'), emergency_contacts: mine('emergency_contacts'), hospitals: mine('hospitals'), doctors: mine('doctors'), settings: S.settings,
   };
 }
@@ -149,7 +150,7 @@ function exportMyData() {
 
 function deleteMyDataSheet() {
   const sheet = openSheet(`<h3>ลบบัญชีและข้อมูลทั้งหมดของฉัน</h3>
-    <div class="alert red"><div class="ic">⚠️</div><div><b>ย้อนกลับไม่ได้</b><span class="small">จะลบคนในครอบครัวที่คุณสร้าง ยา นัดหมอ รูป บันทึกอาการ อารมณ์ กลุ่มผู้ดูแลของคุณ และออกจากกลุ่มที่คนอื่นแชร์มา แนะนำให้ดาวน์โหลดข้อมูลเก็บไว้ก่อน</span></div></div>
+    <div class="alert red"><div class="ic">⚠️</div><div><b>ย้อนกลับไม่ได้</b><span class="small">จะลบคนในครอบครัวที่คุณสร้าง ยา นัดหมอ รูป บันทึกอาการ อารมณ์ ค่าความดัน/น้ำตาล กลุ่มผู้ดูแลของคุณ และออกจากกลุ่มที่คนอื่นแชร์มา แนะนำให้ดาวน์โหลดข้อมูลเก็บไว้ก่อน</span></div></div>
     <p class="small muted">รวมถึงลบ <b>บัญชีผู้ใช้ (อีเมล)</b> ของคุณถาวรด้วย</p>
     <label class="f"><span>พิมพ์คำว่า <b>ลบข้อมูล</b> เพื่อยืนยัน</span><input type="text" id="delConfirm" autocomplete="off"></label>
     <div class="row sticky-actions"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn danger" id="delGo" disabled>ลบทั้งหมด</button></div>`);
@@ -164,7 +165,7 @@ function deleteMyDataSheet() {
       await DB.removeFiles(files).catch(() => {});
       for (const c of d.circles) await DB.remove('circles', c.id);
       for (const p of d.profiles) await DB.remove('profiles', p.id);
-      for (const t of ['emergency_contacts', 'hospitals', 'doctors', 'med_logs', 'mood_logs', 'treatment_records', 'circle_members', 'circle_invites', 'care_logs', 'care_plans', 'appointments', 'medications', 'push_subscriptions', 'user_settings']) {
+      for (const t of ['emergency_contacts', 'hospitals', 'doctors', 'med_logs', 'mood_logs', 'treatment_records', 'health_logs', 'circle_members', 'circle_invites', 'care_logs', 'care_plans', 'appointments', 'medications', 'push_subscriptions', 'user_settings']) {
         await DB.removeWhere(t, t === 'circle_invites' ? 'invited_by' : 'user_id', uid).catch((e) => console.warn(t, e));
       }
       let acct = true;

@@ -99,26 +99,27 @@ function medForm(m) {
     <form id="f">
       <label class="f"><span>ยาของใคร</span>${profileRadio(e.profile_id)}</label>
       <div id="allergyBox">${allergyNote(pid0)}</div>
-      <label class="f"><span>ชื่อยา</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น Amlodipine 5 mg"></label>
-      <label class="f"><span>รักษาโรคอะไร</span><input type="text" name="purpose" value="${esc(e.purpose)}" placeholder="เช่น ความดันโลหิตสูง"></label>
+      <label class="f"><span>ชื่อยา <b class="req" aria-hidden="true">*</b></span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น Amlodipine 5 mg"></label>
+      <label class="f"><span>รักษาโรคอะไร <b class="req" aria-hidden="true">*</b></span><input type="text" name="purpose" required value="${esc(e.purpose)}" placeholder="เช่น ความดันโลหิตสูง"></label>
       <label class="f"><span>แพทย์ที่จ่ายยา <small>(ไม่บังคับ)</small></span><input type="text" name="prescriber" list="docList" maxlength="120" value="${esc(e.prescriber)}" placeholder="ชื่อแพทย์"><datalist id="docList">${S.doctors.map((d) => `<option value="${esc(d.name)}">`).join('')}</datalist></label>
       <div class="f"><span class="lbl">แผนกที่จ่ายยา <small>(ไม่บังคับ)</small></span>${selectOther('prescribed_dept', DEPARTMENTS, e.prescribed_dept, 'เลือกแผนก')}</div>
       <label class="f"><span>เลขลำดับยา <small>(เรียงต่อเนื่องของคนนี้ · รหัส "<b id="noPrefix">${esc(medPrefix(pid0))}</b>")</small></span>
         <input type="number" name="sort_order" min="1" step="1" inputmode="numeric" required value="${e.sort_order || nextNoFor(pid0)}"></label>
       <div class="two">
-        <label class="f"><span>จำนวนต่อครั้ง</span><input type="number" name="dose" min="0" step="0.25" inputmode="decimal" value="${num(e.dose, 1)}"></label>
+        <label class="f"><span>จำนวนต่อครั้ง</span><input type="number" name="dose" min="0" step="0.25" inputmode="decimal" value="${num(e.dose, 1)}">
+          <span class="dose-quick" role="group" aria-label="เลือกจำนวนที่ใช้บ่อย">${[0.25, 0.5, 0.75, 1, 1.5, 2].map((d) => `<button type="button" data-dose-set="${d}">${doseLabel(d)}</button>`).join('')}</span></label>
         <div class="f"><span class="lbl">หน่วย</span>${selectOther('unit', UNITS, unitOf(e), 'เลือกหน่วย')}</div>
       </div>
       <label class="f"><span>จำนวนคงเหลือ <small>(นับวันยาหมดให้อัตโนมัติ)</small></span><input type="number" name="stock" min="0" step="0.25" inputmode="decimal" value="${num(e.stock)}">
         <small class="small muted" id="runout"></small></label>
       <div class="f every-box"><span class="lbl">⏱️ ยาที่ทานทุกกี่ชั่วโมง? <small>(ไม่บังคับ · ให้แอพเลือกช่วงเวลาที่ใกล้ที่สุดให้)</small></span>
         <div class="every-row"><span>ทุก</span><select id="evHours"><option>4</option><option>6</option><option selected>8</option><option>12</option></select><span>ชม. เริ่มเวลา</span><select id="evHH">${Array.from({ length: 24 }, (_, i) => `<option ${i === 6 ? 'selected' : ''}>${pad(i)}</option>`).join('')}</select><b>:</b><select id="evMM"><option>00</option><option>15</option><option>30</option><option>45</option></select><button type="button" class="btn sm" id="evGo">ตั้งให้</button></div>
-        <small class="small muted" id="evNote"></small></div>      <div class="f"><span class="lbl">ช่วงเวลาทานยา <small>(เลือกได้หลายช่วง)</small></span>
+        <small class="small muted" id="evNote"></small></div>      <div class="f"><span class="lbl">ช่วงเวลาทานยา <b class="req" aria-hidden="true">*</b> <small>(เลือกได้หลายช่วง · ต้องเลือกอย่างน้อย 1 ช่วง)</small></span>
         <p class="small muted" style="margin:0 0 6px">ต้องการตั้งเวลาใหม่ ไปที่ <b>ตั้งค่า › ช่วงเวลาทานยา</b></p>
         <div class="slot-pick">${SLOTS.map((s) => {
           const on = e.slots.includes(s.key);
-          return `<div class="slot-row ${on ? 'on' : ''}">
-            <label class="slot-main"><input type="checkbox" name="slots" value="${s.key}" ${on ? 'checked' : ''}><span class="si">${s.icon}</span><span>${s.label}</span></label>
+          return `<div class="slot-row ${on ? 'on' : ''} ${s.key === 'bedtime' ? 'slot-bed' : ''}">
+            <label class="slot-main"><input type="checkbox" name="slots" value="${s.key}" ${on ? 'checked' : ''}><span class="si">${s.icon}</span><span>${s.key === 'bedtime' ? s.label : s.label.replace(/^(ก่อน|หลัง)/, '<u class="sl-kw">$1</u>')}</span></label>
             <label class="switch sm" title="แจ้งเตือน"><input type="checkbox" name="remind_${s.key}" ${on && e.slot_reminders?.[s.key] !== false ? 'checked' : ''} ${on ? '' : 'disabled'}><i></i></label>
           </div>`;
         }).join('')}</div>
@@ -132,9 +133,8 @@ function medForm(m) {
         ${(m.status_history || []).length ? `<div class="hist">${m.status_history.slice().reverse().map((h) => `${thDate(h.date)} · ${MED_STATUS[h.status] || h.status}${h.reason ? ' — ' + esc(h.reason) : ''}`).join('<br>')}</div>` : ''}
       </div>` : ''}
       <label class="f"><span>หมายเหตุ</span><textarea name="note" placeholder="เช่น ห้ามทานพร้อมนม">${esc(e.note)}</textarea></label>
-      <div class="sep"><b>แสดงในตารางหน้า "วันนี้"</b></div>
-      <label class="f"><span>คำกำกับใต้เลข (สั้น ๆ)</span><input type="text" name="table_hint" value="${esc(e.table_hint)}" placeholder="เช่น ขับลม (เคี้ยว) / หลังอาหารทันที"></label>
-      <label class="f"><span>ข้อควรระวัง (ถ้ามี จะขึ้น ⚠️)</span><input type="text" name="warning" value="${esc(e.warning)}" placeholder="เช่น พบแพทย์หากคลื่นไส้หรือหอบเหนื่อย"></label>
+      <label class="f"><span>อธิบายสั้นๆ</span><input type="text" name="table_hint" value="${esc(e.table_hint)}" placeholder="เช่น ขับลม (เคี้ยว) / หลังอาหารทันที"></label>
+      <label class="f warn-field"><span>ข้อควรระวัง</span><input type="text" name="warning" value="${esc(e.warning)}" placeholder="เช่น พบแพทย์หากคลื่นไส้หรือหอบเหนื่อย"></label>
       <label class="switch-row"><span>กินเฉพาะเมื่อมีอาการ</span><span class="switch"><input type="checkbox" name="as_needed" ${e.as_needed ? 'checked' : ''}><i></i></span></label>
       ${m ? `<p class="small muted">อัปเดตล่าสุด ${thDateTime(m.updated_at)} (อัตโนมัติ)</p>` : ''}
       <div class="row sticky-actions">
@@ -184,7 +184,9 @@ function medForm(m) {
     ev.preventDefault();
     const fd = new FormData(f);
     const slots = fd.getAll('slots');
-    if (!slots.length) return toast('เลือกช่วงเวลาทานยาอย่างน้อย 1 ช่วง');
+    if (!String(fd.get('name') || '').trim()) { toast('กรอกชื่อยาก่อนนะ'); return f.elements.name.focus(); }
+    if (!String(fd.get('purpose') || '').trim()) { toast('กรอกว่ายานี้รักษาโรคอะไร'); return f.elements.purpose.focus(); }
+    if (!slots.length) { const box = $('.slot-pick', f); box.classList.add('need'); box.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(() => box.classList.remove('need'), 2500); return toast('เลือกช่วงเวลาทานยาอย่างน้อย 1 ช่วง'); }
     if (m && !(await askConfirm(`ต้องการ <b>แก้ไขข้อมูลยา "${esc(m.name)}"</b> ใช่หรือไม่?<br><small class="muted">กด "ใช่ แก้ไข" เพื่อบันทึกการเปลี่ยนแปลง</small>`, 'ใช่ แก้ไข'))) return;
     const pid = fd.get('profile_id');
     const sortNo = Math.max(1, Math.round(num(fd.get('sort_order'), 1)));
@@ -197,7 +199,8 @@ function medForm(m) {
       profile_id: pid, sort_order: sortNo, no_pending: false, name: fd.get('name').trim(), purpose: fd.get('purpose').trim(),
       ...(String(fd.get('prescriber') || '').trim() || m?.prescriber ? { prescriber: String(fd.get('prescriber') || '').trim() } : {}),
       ...(String(readSelectOther(fd, 'prescribed_dept') || '').trim() || m?.prescribed_dept ? { prescribed_dept: String(readSelectOther(fd, 'prescribed_dept') || '').trim() } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
-      dose: num(fd.get('dose'), 1), unit, stock: num(fd.get('stock')), ...(m && num(fd.get('stock')) !== num(m.stock) ? { stock_at: todayKey() } : {}), // เริ่มนับจำนวนคงเหลือใหม่จากวันที่แก้ตัวเลข slots: SLOTS.map((s) => s.key).filter((k) => slots.includes(k)),
+      dose: num(fd.get('dose'), 1), unit, stock: num(fd.get('stock')), ...(m && num(fd.get('stock')) !== num(m.stock) ? { stock_at: todayKey() } : {}), // เริ่มนับจำนวนคงเหลือใหม่จากวันที่แก้ตัวเลข
+      slots: SLOTS.map((s) => s.key).filter((k) => slots.includes(k)),
       slot_reminders: Object.fromEntries(slots.map((k) => [k, !!fd.get(`remind_${k}`)])),
       note: fd.get('note').trim(), updated_at: new Date().toISOString(),
       ...(wd.length || m?.weekdays?.length ? { weekdays: wd.length === 7 ? [] : wd } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
@@ -264,6 +267,7 @@ function apptForm(a, date, pid) {
         <label class="btn ghost block filebtn">📎 เลือกรูป / ถ่ายรูป<input type="file" accept="image/*" multiple id="fileIn" hidden></label>
         <p class="small muted" id="photoNote" style="margin:6px 0 0"></p>
       </div>
+      <label class="f"><span>10. พบแพทย์แล้ว หมอบอกว่าอะไรบ้าง <small>(กรอกหลังพบแพทย์ · จะขึ้นในรายงานนัดครั้งถัดไป)</small></span><textarea name="visit_summary" maxlength="1000" placeholder="เช่น ปรับยาใหม่ / ให้งดอาหารเค็ม / นัดตรวจเลือดอีก 1 เดือน">${esc(e.visit_summary)}</textarea></label>
       <p class="small muted">🔔 ระบบจะเตือนล่วงหน้า 5, 2 และ 1 วัน พร้อมหมายเหตุ</p>
       <div class="row sticky-actions">
         ${a ? `<button type="button" class="btn danger" data-act="del-appt" data-id="${a.id}">ลบ</button>` : ''}
@@ -332,8 +336,14 @@ function apptForm(a, date, pid) {
         doctor_id, hospital_id, building: fd.get('building').trim(), visit_reason: readSelectOther(fd, 'visit_reason'),
         note: fd.get('note').trim(), attachments: [...keep, ...uploaded],
       };
-      if (a) { await DB.update('appointments', id, data); Object.assign(a, data); }
-      else { await DB.insert('appointments', { id, ...data }); S.appointments.push({ id, ...data }); }
+      const summary = String(fd.get('visit_summary') || '').trim();
+      if (summary || (a && a.visit_summary)) data.visit_summary = summary || null; // ส่งเฉพาะเมื่อมีค่า (กันพังถ้ายังไม่ได้รัน SQL เพิ่มคอลัมน์)
+      const save = async () => { if (a) { await DB.update('appointments', id, data); Object.assign(a, data); } else { await DB.insert('appointments', { id, ...data }); S.appointments.push({ id, ...data }); } };
+      try { await save(); }
+      catch (err) {
+        if (!/visit_summary/.test(String(err?.message || ''))) throw err;
+        delete data.visit_summary; await save(); toast('บันทึกนัดแล้ว แต่ยังบันทึก "ผลการพบแพทย์" ไม่ได้ — ต้องรัน supabase/appt-summary.sql ก่อน');
+      }
       if (removed.length) DB.removeFiles(removed).catch(() => {});
       ui.calSel = data.appt_date; const d = parseDk(data.appt_date); ui.calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
       closeSheet(); render(); toast('บันทึกนัดแล้ว');
@@ -345,10 +355,10 @@ function apptForm(a, date, pid) {
 
 /** รายละเอียดนัด — อ่านจากข้อมูลชุดเดียวกับปฏิทินและการแจ้งเตือน */
 function apptMessage(a, n) {
-  const p = profileById(a.profile_id); const d = doctorById(a.doctor_id); const h = hospitalById(a.hospital_id);
+  // ข้อความแจ้งเตือนนัดหมอ: บอกแค่ว่า "พบแพทย์ครั้งถัดไป" + วัน เวลา แผนก (ไม่ใส่ชื่อหมอ/โรงพยาบาล/หมายเหตุ เพื่อให้สั้นและเป็นส่วนตัวบนหน้าจอล็อก)
   return {
-    title: `🩺 ${p.name} นัดหมอ${whenText(n)}`,
-    body: `${thDate(a.appt_date)} ${hhmm(a.appt_time)} น. · ${a.department || ''}${d ? ' · ' + d.name : ''}${h ? ' · ' + h.name : ''}${a.building ? ' (' + a.building + ')' : ''}${a.note ? '\n📝 ' + a.note : ''}`,
+    title: '🩺 พบแพทย์ครั้งถัดไป',
+    body: [thDate(a.appt_date), `เวลา ${hhmm(a.appt_time)} น.`, a.department ? `แผนก : ${a.department}` : ''].filter(Boolean).join('  '),
   };
 }
 
@@ -364,20 +374,15 @@ async function apptDetail(a) {
       ${row('แผนก', esc(a.department))}
       ${row('หมอ', esc(d?.name))}
       ${row('โรงพยาบาล', esc(h?.name))}
+      ${h?.phone ? row('เบอร์โทร', `<span class="tel-num">${esc(h.phone)}</span><a class="tel-btn" data-call-name="${esc(h.name)}" data-call-num="${esc(h.phone)}" href="${telHref(h.phone)}" aria-label="โทรหา ${esc(h.name)}">📞 โทร</a>`) : ''}
       ${row('ตึก/ชั้น', esc(a.building))}
       ${row('สาเหตุ', esc(a.visit_reason))}
     </div>
-    ${h?.phone ? `<a class="btn block call" href="${telHref(h.phone)}">📞 โทรหา${esc(h.name)} (${esc(h.phone)})</a>` : ''}
+    ${typeof reportButtonHtml === 'function' ? reportButtonHtml(a) : ''}
     ${a.note ? `<div class="alert sun" style="margin-top:12px"><div class="ic">📝</div><div><b>หมายเหตุ</b><span>${esc(a.note)}</span></div></div>` : ''}
-    ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
+    ${a.visit_summary ? `<div class="alert" style="margin-top:12px"><div class="ic">🩺</div><div><b>พบแพทย์แล้ว หมอบอกว่า</b><span style="white-space:pre-line">${esc(a.visit_summary)}</span></div></div>` : ''}
     ${(a.attachments || []).length ? `<h4>รูปที่แนบ</h4><div class="thumbs" id="dThumbs">${a.attachments.map(() => '<div class="thumb loading"></div>').join('')}</div>` : ''}
-    <h4>กำหนดการแจ้งเตือน</h4>
-    <div class="card flat small">${REMIND_DAYS.map((k) => {
-      const day = dk(addDays(parseDk(a.appt_date), -k)); const passed = day < todayKey();
-      return `<div class="kv"><span>${k} วันก่อน</span><b class="${passed ? 'muted' : ''}">${thDate(day)} ${passed ? '(ผ่านแล้ว)' : '🔔'}</b></div>`;
-    }).join('')}
-      <div class="preview"><b>${esc(apptMessage(a, Math.max(1, Math.min(n, 5))).title)}</b><br>${esc(apptMessage(a, 1).body).replace(/\n/g, '<br>')}</div>
-    </div>
+    <div class="card flat small"><div class="preview"><b>${esc(apptMessage(a, Math.max(1, Math.min(n, 5))).title)}</b><br>${esc(apptMessage(a, 1).body).replace(/\n/g, '<br>')}</div></div>
     <div class="row sticky-actions"><button class="btn ghost" data-act="close">ปิด</button><button class="btn" data-act="edit-appt" data-id="${a.id}">✏️ แก้ไข</button></div>
   `);
   if ((a.attachments || []).length) {
@@ -397,6 +402,7 @@ function slipsSheet(pid) {
     ...mine.filter((a) => daysUntil(a.appt_date) < 0).sort((a, b) => b.appt_date.localeCompare(a.appt_date)),
   ];
   const sheet = openSheet(`
+    ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <div class="detail-head" style="--pc:${p.color}">${avatarHtml(p, 'lg')}<div><div class="small muted">ใบนัด/เอกสารของ</div><h3 style="margin:0">${esc(p.name)}</h3></div></div>
     <p class="small muted" style="margin:0 0 10px">🗓️ รูปใบนัดเก็บไว้ 1 ปีนับจากวันนัด แล้วลบอัตโนมัติ</p>
     <button class="btn block" data-act="add-appt" data-pid="${pid}">📷 เพิ่มนัดใหม่พร้อมรูปใบนัด</button>
@@ -421,17 +427,23 @@ function viewImage(src) {
 // ---------- ฟอร์มโปรไฟล์ ----------
 function avatarPicker(sel, color) {
   return AV_AGES.map(([age, ageL]) => `<div class="av-group"><small>${ageL}</small><div class="pick av-pick">
-    ${AV_GENDERS.flatMap(([g]) => AV_POSES.map(([pose, poseL]) => { const id = `${g}-${age}-${pose}`;
+    ${AV_GENDERS.flatMap(([g]) => avPosesOf(age).map(([pose, poseL]) => { const id = `${g}-${age}-${pose}`;
       return `<label title="${poseL}"><input type="radio" name="avatar" value="${id}" ${id === sel ? 'checked' : ''}><span class="opt av-opt">${avatarSVG(id, color)}</span></label>`; })).join('')}
   </div></div>`).join('');
 }
 
+/** Free: เปิดเตือนกินยาให้โปรไฟล์นี้แล้ว → ปิดของโปรไฟล์อื่นที่เราเป็นเจ้าของ (กันที่ค้างเปิดไว้ในฐานข้อมูลแต่ไม่ได้ทำงาน แล้วกลับมาทำงานเองตอนปิดตัวนี้) */
+async function enforceOneReminder(keepId) {
+  if (isPremium()) return;
+  for (const q of S.profiles.filter((x) => x.id !== keepId && x.reminder_enabled && ownsProfile(x.id))) { q.reminder_enabled = false; await dbDo(DB.update('profiles', q.id, { reminder_enabled: false })); }
+}
 function personForm(p, preset = {}) {
   if (!p && !canUse('profiles')) return premiumSheet('profiles');
-  const e = p || { color: PRESET_COLORS[S.profiles.length % PRESET_COLORS.length], avatar: 'f-elder-smile', reminder_enabled: true, chronic_diseases: [], drug_allergies: [], ...preset };
+  const e = p || { color: PRESET_COLORS[S.profiles.length % PRESET_COLORS.length], avatar: 'f-elder-smile', reminder_enabled: canUse('reminders'), chronic_diseases: [], drug_allergies: [], ...preset };
   const relOther = e.relation && !RELATIONS.includes(e.relation);
   let avatarTouched = !!p;
-  const sheet = openSheet(`<h3>${p ? 'แก้ไขโปรไฟล์' : 'เพิ่มคนในครอบครัว'}</h3>
+  const sheet = openSheet(`<h3>${p ? 'แก้ไขข้อมูลคน' : 'เพิ่มคนในครอบครัว'}</h3>
+    ${preset.welcome ? '<div class="alert sun welcome-note"><div class="ic">👋</div><div><b>ยินดีต้อนรับสู่สุขใจ</b><span class="small">เริ่มจากเพิ่มคนแรกที่คุณดูแลก่อนนะ ใช้เวลาไม่ถึงนาที · ถ้าจะดูแลตัวเอง ให้เลือกความสัมพันธ์ว่า "ตัวเอง"</span></div></div>' : ''}
     <form id="f">
       <div class="detail-head" id="pvHead">${avatarHtml(e, 'lg')}<div><b id="pvName">${esc(e.name || 'ชื่อเรียก')}</b><div class="small muted" id="pvRel">${esc(e.relation || '')}</div></div></div>
       <label class="f"><span>ชื่อเล่น/ชื่อเรียก</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น ย่าปลา, ปู่เค็ม"></label>
@@ -450,10 +462,10 @@ function personForm(p, preset = {}) {
         <label class="f"><span>ส่วนสูง (ซม.)</span><input type="number" name="height_cm" min="0" max="250" step="0.1" inputmode="decimal" value="${e.height_cm ?? ''}" placeholder="เช่น 160"></label>
         <label class="f"><span>รอบเอว (ซม.)</span><input type="number" name="waist_cm" min="0" max="250" step="0.1" inputmode="decimal" value="${e.waist_cm ?? ''}" placeholder="เช่น 80"></label>
       </div>
-      <label class="f"><span>รหัส <small>(เช่น "ป" → ป1 ป2 ป3 · เว้นว่าง = ใช้ตัวแรกของชื่อ)</small></span><input type="text" name="med_prefix" maxlength="3" value="${esc(e.med_prefix ?? '')}" placeholder="${esc(defaultPrefix(e.name) || 'ป')}"></label>
+      <label class="f"><span>รหัสแทนลำดับยา <small>(เช่น A จะเรียงลำดับ A1 A2 … ตามจำนวนยาที่ทาน · เว้นว่าง = ใช้ตัวแรกของชื่อ)</small></span><input type="text" name="med_prefix" maxlength="3" value="${esc(e.med_prefix ?? '')}" placeholder="${esc(defaultPrefix(e.name) || 'ป')}"></label>
       <div class="f"><span class="lbl">โรคประจำตัว</span>${tagBox('chronic_diseases', e.chronic_diseases, 'พิมพ์แล้วกด เพิ่ม')}</div>
       <div class="f"><span class="lbl red-t">⚠️ แพ้ยา</span>${tagBox('drug_allergies', e.drug_allergies, 'เช่น Penicillin', 'allergy')}</div>
-      <label class="switch-row card flat"><span>🔔 แจ้งเตือนกินยาของคนนี้</span><span class="switch"><input type="checkbox" name="reminder_enabled" ${e.reminder_enabled ? 'checked' : ''}><i></i></span></label>
+      <label class="switch-row card flat"><span>🔔 แจ้งเตือนกินยาและนัดพบแพทย์ของคนนี้</span><span class="switch"><input type="checkbox" name="reminder_enabled" ${(p ? reminderOn(p) : e.reminder_enabled) ? 'checked' : ''}><i></i></span></label>
       <div class="row sticky-actions">
         ${p ? `<button type="button" class="btn danger" data-act="del-person" data-id="${p.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" type="submit">บันทึก</button>
@@ -486,12 +498,13 @@ function personForm(p, preset = {}) {
       name: fd.get('name').trim(), relation: readSelectOther(fd, 'relation'), birth_year: Number.isFinite(by) ? by : null,
       blood_type: fd.get('blood_type') || null, color: colorIn.value, avatar: curAvatar(),
       chronic_diseases: readTagBox(f, 'chronic_diseases'), drug_allergies: readTagBox(f, 'drug_allergies'),
-      reminder_enabled: !!fd.get('reminder_enabled'),
+      reminder_enabled: !!fd.get('reminder_enabled') && canUse('reminders', { id: p?.id }),
       weight_kg: numOrNull(fd.get('weight_kg')), height_cm: numOrNull(fd.get('height_cm')), waist_cm: numOrNull(fd.get('waist_cm')),
       med_prefix: String(fd.get('med_prefix') || '').trim() || null,
     };
-    if (p) { Object.assign(p, data); closeSheet(); render(); if (await dbDo(DB.update('profiles', p.id, data))) toast('บันทึกแล้ว'); }
-    else { const row = { id: uuid(), ...data }; S.profiles.push(row); closeSheet(); render(); if (await dbDo(DB.insert('profiles', row))) toast('เพิ่มแล้ว'); }
+    if (!!fd.get('reminder_enabled') && !data.reminder_enabled) toast('Free Package เปิดแจ้งเตือนการกินยาได้ 1 คน — ปิดการเตือนของคนนี้ไว้ก่อน');
+    if (p) { Object.assign(p, data); closeSheet(); render(); if (await dbDo(DB.update('profiles', p.id, data))) toast('บันทึกแล้ว'); if (data.reminder_enabled) await enforceOneReminder(p.id); }
+    else { const row = { id: uuid(), ...data }; S.profiles.push(row); closeSheet(); render(); if (await dbDo(DB.insert('profiles', row))) toast('เพิ่มแล้ว'); if (data.reminder_enabled) await enforceOneReminder(row.id); }
   };
 }
 
@@ -514,7 +527,7 @@ document.addEventListener('click', async (ev) => {
   if (ev.target.id === 'modal') return closeSheet();
   const el = ev.target.closest('[data-act], [data-tab]');
   if (!el || !S) return;
-  if (el.dataset.tab) return go(el.dataset.tab);
+  if (el.dataset.tab) return navTab(el.dataset.tab);
   const { act, id } = el.dataset;
   if (act === 'del-med' && delLocked()) return toast('🔒 ล็อกการลบอยู่ — ปลดล็อกที่ปุ่มล็อกในหน้ารายการยาก่อน');
   const appt = () => S.appointments.find((a) => a.id === id);
@@ -581,7 +594,7 @@ document.addEventListener('click', async (ev) => {
     case 'reorder-people': reorderPeopleSheet(); break;
     case 'privacy': privacySheet(); break;
     case 'today-visibility': openSheet(`<h3>แสดงตารางของใครบ้าง</h3>
-      <p class="small muted">เลือกเฉพาะคนที่อยากเห็นในหน้า "วันนี้" ตั้งได้เฉพาะบัญชีของคุณ ไม่กระทบคนอื่นในกลุ่ม</p>
+      <p class="small muted">เลือกเฉพาะคนที่อยากเห็นในหน้า "วันนี้" "ยาที่ต้องทาน" "จำนวนยาที่เหลือ" และ "ความดัน / น้ำตาล" ตั้งได้เฉพาะบัญชีของคุณ ไม่กระทบคนอื่นในกลุ่ม</p>
       ${S.profiles.map((p) => `<label class="switch-row card"><span class="vis-who">${avatarHtml(p, 'xs')}<b>${esc(p.name)}</b></span>
         <span class="switch"><input type="checkbox" data-today-toggle="${p.id}" ${todayHidden().includes(p.id) ? '' : 'checked'}><i></i></span></label>`).join('')}
       <div class="row"><button class="btn" data-act="close">เสร็จแล้ว</button></div>`); break;
@@ -663,7 +676,7 @@ async function importFile(file) {
   const sheet = openSheet(`<h3>นำเข้าข้อมูล</h3>
     <div class="card flat">${data.profiles.map((p) => `<div class="kv"><span>${esc(p.name)}</span><b>${data.medications.filter((m) => m.profile_key === p.key).length} ยา</b></div>`).join('')}</div>
     ${dups.length ? `<div class="alert sun"><div class="ic">⚠️</div><div><b>มีชื่อนี้อยู่แล้วในบัญชี</b><span class="small">${dups.map(esc).join(', ')} — ถ้านำเข้าจะได้คนซ้ำ ควรยกเลิกหรือลบของเดิมก่อน</span></div></div>` : ''}
-    <p class="small muted">จะสร้างโปรไฟล์และรายการยาใหม่ในบัญชีของคุณ (ไม่ลบหรือแก้ข้อมูลเดิม)</p>
+    <p class="small muted">จะเพิ่มคนและรายการยาใหม่ในบัญชีของคุณ (ไม่ลบหรือแก้ข้อมูลเดิม)</p>
     <div class="row"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" id="doImport">นำเข้า</button></div>`);
   $('#doImport', sheet).onclick = async (ev) => {
     const btn = ev.currentTarget; btn.disabled = true; btn.textContent = 'กำลังนำเข้า…';
@@ -672,7 +685,7 @@ async function importFile(file) {
     try {
       for (const p of data.profiles) {
         ids[p.key] = uuid();
-        const row = { id: ids[p.key], chronic_diseases: [], drug_allergies: [], reminder_enabled: false, ...pick(p, ['name', 'relation', 'birth_year', 'blood_type', 'color', 'avatar']) };
+        const row = { id: ids[p.key], chronic_diseases: [], drug_allergies: [], reminder_enabled: true, ...pick(p, ['name', 'relation', 'birth_year', 'blood_type', 'color', 'avatar']) };
         await DB.insert('profiles', row); S.profiles.push(row);
       }
       for (const m of data.medications) {
@@ -783,11 +796,11 @@ function circleForm(c) {
       else if (email === String(DB.user.email || '').toLowerCase()) toast('นี่คืออีเมลของคุณเอง');
       else if (S.circle_invites.some((i) => i.circle_id === circleId && i.email === email)) toast('เชิญอีเมลนี้ไปแล้ว');
       else if (S.circle_members.some((m) => m.circle_id === circleId && String(m.email || '').toLowerCase() === email)) toast('อีเมลนี้เป็นสมาชิกในกลุ่มแล้ว');
-      else if (!canUse('invites')) setTimeout(() => premiumSheet('invites'), 400); // หน้านี้ปิดต่อด้านล่าง แล้วค่อยเปิดหน้าสมาชิก Premium
+      else if (!canUse('invites', { role: fd.get('member_role') === 'viewer' ? 'viewer' : 'member' })) setTimeout(() => premiumSheet('invites'), 400); // หน้านี้ปิดต่อด้านล่าง แล้วค่อยเปิดหน้าสมาชิก Premium
       else {
         const inv = { id: uuid(), circle_id: circleId, circle_name: data.name, email, role: fd.get('member_role') === 'viewer' ? 'viewer' : 'member', created_at: now };
         S.circle_invites.push(inv);
-        if (await dbDo(DB.insert('circle_invites', inv))) toast(`ส่งคำเชิญถึง ${email} แล้ว`);
+        if (await dbDo(DB.insert('circle_invites', inv))) { toast(`ส่งคำเชิญถึง ${email} แล้ว`); if (DB.notifyInvite) DB.notifyInvite(inv.id); } // แจ้งเตือนเด้งไปที่เครื่องผู้ถูกเชิญ (ทำเบื้องหลัง)
       }
     }
     closeSheet();
@@ -801,6 +814,7 @@ document.addEventListener('change', async (ev) => {
   if (t.dataset.memberRole) {
     const m = S.circle_members.find((x) => x.id === t.dataset.memberRole); if (!m) return;
     const role = t.value === 'viewer' ? 'viewer' : 'member';
+    if (role === 'member' && !canUse('invites', { role, memberId: m.id })) { t.value = m.role; return premiumSheet('invites'); } // Free: ผู้ดูแลแบบแก้ไขได้ 1 คน
     m.role = role;
     if (await dbDo(DB.update('circle_members', m.id, { role }))) toast(`เปลี่ยนสิทธิ์ของ ${m.email || 'สมาชิก'} เป็น "${roleLabel(role)}" แล้ว`);
     return;
@@ -825,7 +839,9 @@ document.addEventListener('change', async (ev) => {
   }
   if (t.dataset.toggleReminder) {
     const p = S.profiles.find((x) => x.id === t.dataset.toggleReminder);
+    if (t.checked && !canUse('reminders', { id: p.id })) { t.checked = false; return premiumSheet('reminders'); } // Free: เตือนกินยาได้ 1 โปรไฟล์
     p.reminder_enabled = t.checked;
+    if (t.checked) await enforceOneReminder(p.id);
     if (await dbDo(DB.update('profiles', p.id, { reminder_enabled: p.reminder_enabled }))) toast(p.reminder_enabled ? `เปิดเตือนกินยาของ${p.name}` : `ปิดเตือนกินยาของ${p.name}`);
   }
 });
@@ -833,3 +849,30 @@ document.addEventListener('toggle', (ev) => {
   const d = ev.target; if (d.dataset?.legend) { ui.legendOpen = ui.legendOpen || {}; ui.legendOpen[d.dataset.legend] = d.open; }
 }, true);
 document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !$('#modal').classList.contains('hidden')) closeSheet(); });
+
+// โทรออกทุกครั้งต้องถามยืนยันก่อน (กันกดพลาด) — ใช้กับลิงก์ tel: ทุกที่ในแอพ รวมเบอร์ฉุกเฉิน
+document.addEventListener('click', async (ev) => {
+  const a = ev.target.closest && ev.target.closest('a[href^="tel:"]');
+  if (!a || a.classList.contains('disabled') || a.getAttribute('href') === '#') return;
+  ev.preventDefault(); ev.stopPropagation();
+  const href = a.getAttribute('href'); const number = a.dataset.callNum || decodeURIComponent(href.slice(4)); const name = a.dataset.callName || '';
+  if (await askConfirm(`ต้องการ <b>โทรออก</b>${name ? ` ไปที่ <b>${esc(name)}</b>` : ''}<br><b style="font-size:1.25em">${esc(number)}</b> ใช่หรือไม่?`, '📞 ใช่ โทรเลย', 'ยกเลิก')) location.href = href;
+}, true);
+
+// ---------- ปุ่มเปิด-ปิดตา (แสดง/ซ่อนรหัสผ่าน) ที่ช่องรหัสผ่านทุกช่องในแอพ ----------
+function addPwEye(inp) {
+  if (inp.dataset.eye) return; inp.dataset.eye = '1';
+  const wrap = document.createElement('span'); wrap.className = 'pw-wrap'; inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'pw-eye'; b.textContent = '👁️'; b.setAttribute('aria-label', 'แสดงรหัสผ่าน'); b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => { const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.textContent = show ? '🙈' : '👁️'; b.setAttribute('aria-label', show ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'); b.setAttribute('aria-pressed', String(show)); inp.focus(); });
+  wrap.appendChild(b);
+}
+const addPwEyes = () => document.querySelectorAll('input[type=password]:not([data-eye])').forEach(addPwEye);
+new MutationObserver(addPwEyes).observe(document.body, { childList: true, subtree: true }); addPwEyes();
+
+// ปุ่มเลือกจำนวนยาต่อครั้งที่ใช้บ่อย (¼ ½ ¾ 1 1½ 2) ในฟอร์มยา
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-dose-set]'); if (!b) return;
+  const inp = b.closest('label, .f')?.querySelector('input[name=dose]'); if (!inp) return;
+  inp.value = b.dataset.doseSet; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+});

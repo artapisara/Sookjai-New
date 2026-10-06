@@ -119,7 +119,7 @@ function ring(done, total) {
     <text x="42" y="42">${Math.round(pct * 100)}%</text></svg>`;
 }
 
-const tagList = (arr, cls = '') => (arr || []).map((t) => `<span class="tag ${cls}">${cls === 'allergy' ? '⚠️ ' : ''}${esc(t)}</span>`).join('');
+const tagList = (arr, cls = '') => (arr || []).map((t) => `<span class="tag ${cls}">${esc(t)}</span>`).join('');
 const whenText = (n) => (n === 0 ? 'วันนี้' : n === 1 ? 'พรุ่งนี้' : `อีก ${n} วัน`);
 const bodyText = (p) => [p.weight_kg ? `น้ำหนัก ${num(p.weight_kg)} กก.` : '', p.height_cm ? `ส่วนสูง ${num(p.height_cm)} ซม.` : '', p.waist_cm ? `รอบเอว ${num(p.waist_cm)} ซม.` : ''].filter(Boolean).join(' · ');
 
@@ -141,7 +141,7 @@ function apptAlerts(ids) {
 }
 
 function stockAlerts(ids) {
-  const low = S.medications.filter((m) => m.status === 'active' && ids.includes(m.profile_id) && daysLeft(m) <= LOW_STOCK_DAYS);
+  const low = S.medications.filter((m) => m.status === 'active' && ids.includes(m.profile_id) && isLowStock(m));
   if (!low.length) return '';
   return `<div class="alert red"><div class="ic">📦</div><div><b>ยาใกล้หมด ควรเตรียมรับยาเพิ่ม</b>
     <span class="small">${low.map((m) => `${esc(profileById(m.profile_id).name)}: ${esc(medNo(m))} ${esc(m.name)} เหลือ ${qtyText(stockLeft(m))} ${unitOf(m)} — หมดประมาณ ${thDate(runoutDate(m))}`).join('<br>')}</span></div></div>`;
@@ -213,10 +213,10 @@ function medCard(m) {
       ${m.purpose ? `<div class="small muted">รักษา: ${esc(m.purpose)}</div>` : ''}
       ${m.prescriber ? `<div class="small muted">👨‍⚕️ แพทย์ที่จ่ายยา: ${esc(m.prescriber)}</div>` : ''}
       ${m.prescribed_dept ? `<div class="small muted">🏥 แผนกที่จ่ายยา: ${esc(m.prescribed_dept)}</div>` : ''}
-      <div class="tags">${weekdaysText(m) ? `<span class="tag sun">📅 ${weekdaysText(m)}</span>` : ''}${m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && p.reminder_enabled ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน · ดูหมายเหตุ</span>'}</div>
+      <div class="tags">${weekdaysText(m) ? `<span class="tag sun">📅 ${weekdaysText(m)}</span>` : ''}${m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && reminderOn(p) ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน · ดูหมายเหตุ</span>'}</div>
       ${m.note ? `<div class="small med-note">📝 ${esc(m.note)}</div>` : ''}
       ${m.status === 'active'
-        ? `<div class="small"><span class="${dl <= LOW_STOCK_DAYS ? 'red-t' : 'muted'}">ครั้งละ ${doseLabel(m.dose)} ${esc(unitOf(m))}${tracksStock(m) ? ` · เหลือ ${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? ` · หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)` : ''}` : ''}</span></div>`
+        ? `<div class="small"><span class="${isLowStock(m) ? 'red-t' : 'muted'}">ครั้งละ ${doseLabel(m.dose)} ${esc(unitOf(m))}${tracksStock(m) ? ` · เหลือ ${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? ` · หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)` : ''}` : ''}</span></div>`
         : `<div class="small"><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</div>`}
       <div class="small muted">อัปเดต ${thDateTime(m.updated_at)}</div>
     </div>
@@ -225,15 +225,21 @@ function medCard(m) {
 
 function viewMedList() {
   if (!S.profiles.length) return `${backBar('ยาและการดูแล', 'meds-go', 'hub')}<h1>ยาที่ต้องทาน</h1><div class="card empty"><div class="e">👨‍👩‍👧</div>เพิ่มคนในครอบครัวก่อน<br><button class="btn sm" data-act="add-person" style="margin-top:12px">+ เพิ่มคน</button></div>`;
-  if (!S.profiles.some((p) => p.id === ui.medsPerson)) ui.medsPerson = S.profiles[0].id;
+  // ใช้การตั้งค่า "เลือกคนที่จะแสดง" ชุดเดียวกับหน้าวันนี้ (ตั้งได้เฉพาะบัญชีนี้ ไม่กระทบคนอื่นในกลุ่ม)
+  const vis = todayProfiles(); const nHidden = todayHidden().filter((id) => S.profiles.some((x) => x.id === id)).length;
+  const visBtn = `<div class="tool-row"><button class="pill-btn" data-act="today-visibility">เลือกคนที่จะแสดง${nHidden ? ` (ซ่อน ${nHidden})` : ''}</button></div>`;
+  if (!vis.length) return `${backBar('ยาและการดูแล', 'meds-go', 'hub')}<h1>ยาที่ต้องทาน</h1>${visBtn}<div class="card empty"><div class="e">👁️</div>ซ่อนทุกคนอยู่ — กด "เลือกคนที่จะแสดง" ด้านบน</div>`;
+  if (!vis.some((x) => x.id === ui.medsPerson)) ui.medsPerson = vis[0].id;
   const p = profileById(ui.medsPerson);
   const act = medsOf(p.id);
   const off = S.medications.filter((m) => m.profile_id === p.id && m.status !== 'active').sort((a, b) => a.sort_order - b.sort_order);
   return `
     ${backBar('ยาและการดูแล', 'meds-go', 'hub')}
     <h1>ยาที่ต้องทาน</h1>
-    ${personChips(ui.medsPerson, 'meds-person')}
-    <div class="two-btn" style="margin:4px 0 10px;grid-template-columns:1fr 1.15fr"><button class="btn ghost" style="white-space:nowrap;padding-inline:8px" data-act="print-meds" data-id="${p.id}">📄 ดาวน์โหลด PDF</button>${canEditProfile(p.id) ? '<button class="btn" data-act="add-med">+ เพิ่มยา</button>' : '<span></span>'}</div>
+    ${visBtn}
+    ${personChips(ui.medsPerson, 'meds-person', false, false, vis)}
+    <div class="two-btn" style="margin:4px 0 10px;grid-template-columns:1fr 1.15fr"><button class="btn ghost" style="white-space:nowrap;padding-inline:8px" data-act="print-meds" data-id="${p.id}">📄 ดาวน์โหลดไฟล์ PDF</button>${canEditProfile(p.id) ? '<button class="btn" data-act="add-med">+ เพิ่มยา</button>' : '<span></span>'}</div>
+    <button class="btn ghost block" style="margin:0 0 10px" data-act="stickers" data-id="${p.id}">🏷️ ดาวน์โหลดสติกเกอร์ช่วงเวลากินยา (PDF)</button>
     ${canEditProfile(p.id) ? lockToggle() : ''}
     ${dayTable(p, null) || ''}
     <p class="sub" style="margin-top:14px">เลขหน้ายา เช่น ${esc(medPrefix(p.id))}1 ${esc(medPrefix(p.id))}2 เรียงต่อเนื่องของแต่ละคน — ตั้งรหัสได้ในข้อมูลของคนนั้น ${canEditProfile(p.id) && ownsProfile(p.id) ? `<button class="linkbtn" data-act="edit-person" data-id="${p.id}">✏️ ตั้งรหัส "${esc(medPrefix(p.id)) || '-'}"</button>` : ''}</p>
@@ -320,7 +326,8 @@ function viewLogin(mode = 'in', msg = '') {
     return;
   }
   $('#app').innerHTML = `
-    <div class="login">
+    <div class="login plain">
+      <div class="login-deco" aria-hidden="true"><i class="lc lc1"></i><i class="lc lc2"></i><i class="lc lc3"></i><i class="lc lc4"></i><b class="ls ls1">✱</b><b class="ls ls2">✱</b></div>
       <img src="icon.svg" alt="" class="login-logo"><h1>สุขใจ</h1><p class="sub">${mode === 'in' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิกใหม่'}</p>
       <form id="loginForm" class="card">
         <label class="f"><span>อีเมล</span><input type="email" name="email" required autocomplete="email" inputmode="email"></label>
@@ -365,6 +372,7 @@ function render() {
   if (!S) return;
   document.body.classList.remove('auth');
   if (typeof relockOnPageChange === 'function') relockOnPageChange();
+  updateInviteDot();
   let ob = document.getElementById('offbar');
   if (DB.offline) {
     if (!ob) { ob = document.createElement('div'); ob.id = 'offbar'; ob.setAttribute('role', 'status'); document.body.appendChild(ob); }
@@ -374,34 +382,60 @@ function render() {
   const views = { today: viewToday, meds: viewMeds, calendar: viewCalendar, family: viewMembers, settings: viewSettings };
   $('#app').innerHTML = views[ui.tab]();
   hydrateImgs($('#app'));
+  { const fb = $('#tabbar [data-tab="family"]'); if (fb && typeof pendingInvites === 'function') fb.classList.toggle('has-badge', pendingInvites().length > 0); } // จุดแดงที่แท็บสมาชิกเมื่อมีคำเชิญ
   $$('#tabbar button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
   navSync();
 }
 
-// ---------- ปุ่มย้อนกลับของมือถือ/เบราว์เซอร์ ใช้ถอยทีละหน้าในแอพ (ไม่ออกจากแอพทันที) ----------
-// เก็บเฉพาะ "หน้า" (ไม่รวมคนที่เลือก/เดือนที่ดู) เพื่อไม่ให้การกดเปลี่ยนคนหรือเลื่อนเดือนกลายเป็นหน้าใหม่ในประวัติ
+// ---------- การนำทาง + ปุ่มย้อนกลับ (ใช้ร่วมกันทั้งปุ่ม ← ในแอพและปุ่มย้อนกลับของมือถือ/เบราว์เซอร์) ----------
+// หลักการ: เก็บ "กองหน้า" (navStack) เอง — กดแท็บล่าง = เริ่มกองใหม่ที่หน้าแรกของแท็บนั้น (ข้างหลังคือ "วันนี้") · กดลิงก์เข้าหน้าย่อย = ซ้อนเพิ่ม · ย้อนกลับ = ถอยทีละชั้นตามที่เข้ามาจริง
+// ไม่ปล่อยให้ประวัติเบราว์เซอร์ตัดสินเอง จึงไม่กระโดดข้ามแท็บ · เก็บเฉพาะ "หน้า" (ไม่รวมคนที่เลือก/เดือนที่ดู)
 const navSnap = () => ({ tab: ui.tab, medsPage: ui.medsPage, todayPage: ui.todayPage, memberPage: ui.memberPage });
-let navKey = null, navDepth = 0, navPopping = false, navIgnore = 0; const navHist = [];
+const navRoot = (tab) => ({ tab, medsPage: 'hub', todayPage: 'home', memberPage: null });
+const navSame = (a, b) => a.tab === b.tab && (a.medsPage || 'hub') === (b.medsPage || 'hub') && (a.todayPage || 'home') === (b.todayPage || 'home') && (a.memberPage || null) === (b.memberPage || null);
+let navStack = [], navKey = null, navPopping = false, navFromTab = false, navGuard = false;
+/** กดแท็บล่าง: ไปหน้าแรกของแท็บนั้นเสมอ (ไม่จำหน้าย่อยที่เปิดค้างไว้) */
+function navTab(tab) { navFromTab = true; ui.medsPage = 'hub'; ui.todayPage = 'home'; ui.memberPage = null; go(tab); navFromTab = false; }
+function navReset() { navStack = []; navKey = null; ui.medsPage = 'hub'; ui.todayPage = 'home'; ui.memberPage = null; }
 function navSync() {
   if (navPopping) return;
-  const s = navSnap(); const k = JSON.stringify(s); if (k === navKey) return;
-  const first = navKey === null; navKey = k;
-  if (first) navDepth = 0; else navDepth++;
-  navHist[navDepth] = s; navHist.length = navDepth + 1;
-  try { if (first) history.replaceState({ n: 0, s }, '', location.href); else history.pushState({ n: navDepth, s }, '', location.href); }
-  catch { /* ไม่รองรับ history — ใช้ปุ่มย้อนกลับในแอพแทน */ }
+  const s = navSnap(); const k = JSON.stringify(s);
+  if (navKey === null) { navStack = [s]; navKey = k; navGuardInit(); return; }
+  if (k === navKey) return;
+  navKey = k;
+  if (navFromTab) navStack = navSame(s, navRoot('today')) ? [s] : [navRoot('today'), s]; // แท็บล่าง: ถอยจากแท็บอื่นจะกลับ "วันนี้" ก่อน
+  else { const i = navStack.findIndex((x) => navSame(x, s)); if (i >= 0) navStack.length = i + 1; else navStack.push(s); } // เข้าหน้าที่เคยผ่านแล้ว = ถอยกลับไปที่นั่น ไม่ซ้อนวน
 }
-/** หน้าที่เพิ่งมาจาก (ใช้บอกบนปุ่มย้อนกลับว่ากลับไปหน้าไหน) */
-function navPrevSnap() { const synced = JSON.stringify(navSnap()) === navKey; return navHist[synced ? navDepth - 1 : navDepth] || null; }
+/** หน้าที่จะกลับไป (ใช้เขียนบนปุ่มย้อนกลับ) */
+const navPrevSnap = () => { // ถูกเรียกตอนวาดหน้า (ก่อน navSync) จึงต้องคาดการณ์กองหน้าที่จะเกิดขึ้นเอง
+  const s = navSnap();
+  if (JSON.stringify(s) === navKey) return navStack[navStack.length - 2] || null;
+  const i = navStack.findIndex((x) => navSame(x, s)); if (i >= 0) return navStack[i - 1] || null;
+  if (navFromTab) return navSame(s, navRoot('today')) ? null : navRoot('today');
+  return navStack[navStack.length - 1] || null;
+};
+/** ถอย 1 ชั้น — คืน true ถ้าถอยได้ */
+function navBack() {
+  if (navStack.length < 2) return false;
+  navStack.pop(); const s = navStack[navStack.length - 1];
+  navPopping = true; Object.assign(ui, s); navKey = JSON.stringify(s);
+  try { render(); window.scrollTo(0, 0); } finally { navPopping = false; }
+  return true;
+}
+/** ประวัติเบราว์เซอร์ = [ยามเฝ้า][แอพ] เสมอ: กดย้อนกลับของเครื่อง → ตกมาที่ยามเฝ้า → เราถอยในแอพแล้วดันหน้าแอพกลับขึ้นมาใหม่ · ถ้าอยู่หน้าแรกแล้วค่อยปล่อยให้ออกจากแอพ */
+function navGuardInit() {
+  if (navGuard) return; navGuard = true;
+  try { history.replaceState({ guard: 1 }, '', location.href); history.pushState({ app: 1 }, '', location.href); } catch { /* ไม่รองรับ history — ใช้ปุ่ม ← ในแอพแทน */ }
+}
 window.addEventListener('popstate', (e) => {
-  if (navIgnore > 0) { navIgnore--; return; }
-  if (!S || !e.state || !e.state.s) return;
+  if (!S || !navGuard || (e.state && e.state.app)) return;
   const modal = document.getElementById('modal');
-  if (modal && !modal.classList.contains('hidden')) { closeSheet(); navIgnore++; history.go(1); return; } // มีหน้าต่างเด้งเปิดอยู่ → ปิดหน้าต่างก่อน
-  navPopping = true; Object.assign(ui, e.state.s); navDepth = e.state.n; navKey = JSON.stringify(e.state.s);
-  render(); window.scrollTo(0, 0); navPopping = false;
+  try {
+    if (modal && !modal.classList.contains('hidden')) { closeSheet(); history.pushState({ app: 1 }, '', location.href); return; } // มีหน้าต่างเด้งเปิดอยู่ → ปิดหน้าต่างก่อน
+    if (navBack()) { history.pushState({ app: 1 }, '', location.href); return; }
+    navGuard = false; history.back(); // อยู่หน้าแรกสุดแล้ว → ออกจากแอพตามปกติ
+  } catch { /* ignore */ }
 });
-
 // ---------- โลโก้เคลื่อนไหว ----------
 // ใช้ assets/logo.gif (ยาเม็ด+แคปซูลขยับ) แทนโลโก้ภาพนิ่ง ในหน้าต้อนรับ/เข้าสู่ระบบ/วันนี้
 // ผู้ใช้ที่ตั้งเครื่องให้ "ลดการเคลื่อนไหว" หรือโหลดไฟล์ไม่ได้ จะเห็น icon.svg ตามเดิม
@@ -439,6 +473,48 @@ async function migrateColors() {
   if (jobs.length) await Promise.allSettled(jobs);
 }
 
+// ---------- คำเชิญเข้ากลุ่มผู้ดูแลที่รอตอบ: จุดแดงบนแท็บ "สมาชิก" ----------
+function updateInviteDot() { // ใช้ pendingInvites() จาก pages.js · จุดแดงใช้คลาส has-badge
+  const b = document.querySelector('#tabbar button[data-tab="family"]'); if (!b || !S) return;
+  const n = pendingInvites().length; b.classList.toggle('has-badge', n > 0);
+  b.setAttribute('aria-label', n > 0 ? `สมาชิก มี ${n} คำเชิญรอตอบ` : 'สมาชิก');
+}
+let lastInviteCheck = 0;
+async function refreshInvites() { // กลับมาเปิดแอพ/สลับกลับมาที่แอพ → ดูว่ามีคำเชิญใหม่ไหม (ไม่ทับหน้าที่กำลังกรอก)
+  if (!S || DB?.mode !== 'supabase' || DB.offline || Date.now() - lastInviteCheck < 30000) return;
+  lastInviteCheck = Date.now();
+  try {
+    const rows = await DB.fetchInvites(); const old = JSON.stringify((S.circle_invites || []).map((i) => i.id).sort());
+    S.circle_invites = rows;
+    if (JSON.stringify(rows.map((i) => i.id).sort()) !== old) { updateInviteDot(); const m = document.getElementById('modal'); if (ui.tab === 'family' && (!m || m.classList.contains('hidden'))) render(); }
+  } catch (e) { console.warn('refreshInvites', e); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refreshInvites(); } });
+
+// ---------- โหลดบันทึกกินยาของเดือนนี้ใหม่ (ใช้หลังกดปุ่ม "กินแล้ว" จากการแจ้งเตือน ซึ่งบันทึกที่เซิร์ฟเวอร์ ไม่ผ่านหน้าจอ) ----------
+let logsBusy = false;
+async function refreshLogs() {
+  if (!S || DB?.mode !== 'supabase' || DB.offline || logsBusy) return;
+  logsBusy = true;
+  try {
+    const ym = ymOf(new Date()); const r = await DB.loadMonthLogs(ym);
+    const key = (l) => `${l.medication_id}|${l.log_date}|${l.slot}`;
+    const before = S.med_logs.filter((l) => String(l.log_date).startsWith(ym)).map(key).sort().join(',');
+    if (before !== r.med_logs.map(key).sort().join(',')) {
+      S.med_logs = S.med_logs.filter((l) => !String(l.log_date).startsWith(ym)).concat(r.med_logs);
+      const m = document.getElementById('modal'); if (!m || m.classList.contains('hidden')) render();
+    }
+  } catch (e) { console.warn('refreshLogs', e); } finally { logsBusy = false; }
+}
+// ---------- ตัวอักษรใหญ่ (ตั้งต่อเครื่อง เก็บใน localStorage) ----------
+const bigTextOn = () => { try { return localStorage.getItem('sukjai-bigtext') === '1'; } catch { return false; } };
+const applyBigText = () => document.documentElement.classList.toggle('bigtext', bigTextOn());
+applyBigText();
+document.addEventListener('change', (ev) => {
+  const t = ev.target; if (!t || t.dataset?.bigtext === undefined) return;
+  try { localStorage.setItem('sukjai-bigtext', t.checked ? '1' : '0'); } catch { /* ไม่รองรับ */ }
+  applyBigText(); toast(t.checked ? 'เปิดตัวอักษรใหญ่แล้ว' : 'ปิดตัวอักษรใหญ่แล้ว');
+});
 // ---------- เริ่มทำงาน ----------
 async function boot() {
   const useSupa = CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase;
@@ -458,7 +534,7 @@ async function boot() {
       if (!DB.offline) await migrateColors();
       sortProfiles();
       if (!DB.offline) setTimeout(() => purgeOldSlips(), 3000); // ทำเบื้องหลังหลังเปิดแอพ ไม่รบกวนการใช้งาน
-      ui.tab = 'today'; // รีเซ็ตแท็บ
+      ui.tab = 'today'; navReset(); // รีเซ็ตแท็บและกองหน้า
       showSplash(); // หน้า intro แสดงก่อนเสมอ (ทับหน้าที่โหลดอยู่ด้านล่าง แล้วจางหายไป)
       // PDPA: ต้องยินยอมการเก็บข้อมูลสุขภาพก่อนใช้งานครั้งแรก (และเมื่อเนื้อหาความยินยอมเปลี่ยน)
       if (DB.mode === 'supabase' && S.settings.pdpa_version !== PDPA_VERSION) return consentView(() => { render(); Notifier.start(); showSplash(); });

@@ -14,28 +14,41 @@ function stockLeft(m, key = todayKey()) {
   for (let d = parseDk(stockBase(m)); dk(d) < key; d = addDays(d, 1)) if (dueOn(m, dk(d))) used += per;
   return Math.max(0, Math.round((stock - used) * 100) / 100);
 }
+const isLowStock = (m) => tracksStock(m) && !m.as_needed && (stockLeft(m) <= LOW_STOCK_QTY || daysLeft(m) <= LOW_STOCK_DAYS);
 const qtyText = (n) => String(Math.round(num(n) * 100) / 100);
 
 function viewStock() {
   const back = backBar('ยาและการดูแล', 'meds-go', 'hub');
-  const people = S.profiles.filter((p) => medsOf(p.id).length);
-  if (!people.length) return `${back}<h1>จำนวนยาที่เหลือ</h1><div class="card empty"><div class="e">💊</div>ยังไม่มีข้อมูลยา</div>`;
-  if (!people.some((p) => p.id === ui.stockPid)) ui.stockPid = (people.find((p) => p.id === ui.medsPerson) || people[0]).id;
-  const p = profileById(ui.stockPid); const today = todayKey();
-  const chips = `<div class="chips">${people.map((x) => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-act="stock-person" data-id="${x.id}" style="--pc:${x.color};--pt:${inkOn(x.color)}"><span class="av xs">${avatarSVG(x.avatar, x.color)}</span>${esc(x.name)}</button>`).join('')}</div>`;
+  // แสดงเฉพาะของคนที่กดเข้ามาจากโปรไฟล์ (ไม่มีตัวเลือกคนอื่น และไม่สลับไปคนอื่นแม้คนนี้ยังไม่มียา)
+  if (!S.profiles.length) return `${back}<h1>จำนวนยาที่เหลือ</h1><div class="card empty">ยังไม่มีสมาชิก</div>`;
+  // ใช้การตั้งค่า "เลือกคนที่จะแสดง" ชุดเดียวกับหน้าวันนี้และหน้ายาที่ต้องทาน
+  const vis = todayProfiles(); const nHidden = todayHidden().filter((id) => S.profiles.some((x) => x.id === id)).length;
+  const visBtn = `<div class="tool-row"><button class="pill-btn" data-act="today-visibility">เลือกคนที่จะแสดง${nHidden ? ` (ซ่อน ${nHidden})` : ''}</button></div>`;
+  if (!vis.length) return `${back}<h1>จำนวนยาที่เหลือ</h1>${visBtn}<div class="card empty"><div class="e">👁️</div>ซ่อนทุกคนอยู่ — กด "เลือกคนที่จะแสดง" ด้านบน</div>`;
+  const p = vis.find((x) => x.id === ui.stockPid) || vis.find((x) => x.id === ui.medsPerson) || vis[0];
+  ui.stockPid = p.id; const today = todayKey();
+  if (!medsOf(p.id).length) return `${back}<h1>จำนวนยาที่เหลือ</h1>${visBtn}<div class="chips">${vis.map((x) => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-act="stock-person" data-id="${x.id}" style="--pc:${x.color};--pt:${inkOn(x.color)}"><span class="av xs">${avatarSVG(x.avatar, x.color)}</span>${esc(x.name)}</button>`).join('')}</div><h2 class="ad-title">ยาของ${esc(p.name)}</h2><div class="card empty"><div class="e">💊</div>${esc(p.name)} ยังไม่มีข้อมูลยา</div>`;
   const meds = medsOf(p.id); const tracked = meds.filter(tracksStock); const other = meds.length - tracked.length;
   const qkey = (m) => norm(`${medNo(m)} ${m.name} ${m.purpose || ''} ${m.prescriber || ''} ${m.prescribed_dept || ''}`); const q = norm(ui.stockQ || ''); const hit = (m) => !q || qkey(m).includes(q);
   const rows = tracked.map((m) => {
-    const left = stockLeft(m); const use = dailyUse(m); const dl = use ? Math.floor(left / use) : Infinity; const low = !m.as_needed && use && dl <= LOW_STOCK_DAYS;
-    return `<div class="stk-row ${low ? 'low' : ''}" data-q="${esc(qkey(m))}" ${hit(m) ? '' : 'hidden'}><b class="stk-no">${esc(medNo(m))}</b>
-      <div class="stk-main"><b>${esc(m.name)}</b><small>${esc(m.purpose || 'ไม่ได้ระบุว่ารักษาอะไร')}</small>${m.prescriber || m.prescribed_dept ? `<small class="muted">👨‍⚕️ ${esc([m.prescriber, m.prescribed_dept].filter(Boolean).join(' · '))}</small>` : ''}
-        ${use && !m.as_needed ? `<small class="${low ? 'red-t' : 'muted'}">หมดประมาณ ${thDate(dk(addDays(new Date(), dl)))} (อีก ${dl} วัน)</small>` : ''}</div>
-      <div class="stk-left"><b class="${low ? 'red-t' : ''}">${qtyText(left)}</b><small>${esc(unitOf(m))}</small></div></div>`;
+    const left = stockLeft(m); const use = dailyUse(m); const dl = use ? Math.floor(left / use) : Infinity; const low = isLowStock(m);
+    const doc = [m.prescriber, m.prescribed_dept].filter(Boolean).join(' · ');
+    return `<tr class="stk-row ${low ? 'low' : ''}" data-q="${esc(qkey(m))}" ${hit(m) ? '' : 'hidden'}><td><b class="stk-no">${esc(medNo(m))}</b></td>
+      <td><b>${esc(m.name)}</b>${doc ? `<small class="muted">👨‍⚕️ ${esc(doc)}</small>` : ''}</td>
+      <td class="stk-pur">${esc(m.purpose || '-')}</td>
+      <td class="${low ? 'red-t' : ''}">${use && !m.as_needed ? `${thDate(dk(addDays(new Date(), dl)))}<small>อีก ${dl} วัน</small>` : '-'}</td>
+      <td class="stk-left"><b class="${low ? 'red-t' : ''}">${qtyText(left)}</b><small>${esc(unitOf(m))}</small></td></tr>`;
   }).join('');
-  return `${back}<h1>จำนวนยาที่เหลือ</h1>${chips}
+  const lowOf = (pid) => medsOf(pid).filter((m) => m.status === 'active' && isLowStock(m)).length;
+  const chips = `<div class="chips">${vis.map((x) => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-act="stock-person" data-id="${x.id}" style="--pc:${x.color};--pt:${inkOn(x.color)}"><span class="av xs">${avatarSVG(x.avatar, x.color)}</span>${esc(x.name)}${lowOf(x.id) ? `<span class="low-badge sm"><i>!</i>${lowOf(x.id)}</span>` : ''}</button>`).join('')}</div>`;
+  const lowList = tracked.filter((m) => m.status === 'active' && isLowStock(m));
+  const lowBox = lowList.length ? `<div class="alert red low-box"><div class="ic"><svg class="ex-svg" viewBox="0 0 36 36" width="36" height="36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#fff" stroke="#E5332A" stroke-width="3"/><rect x="16" y="8" width="4" height="13" rx="2" fill="#E5332A"/><circle cx="18" cy="26.5" r="2.5" fill="#E5332A"/></svg></div><div><b>ยาใกล้หมด ${lowList.length} รายการ</b><span class="small">เหลือไม่เกิน ${LOW_STOCK_QTY} เม็ด ควรไปพบแพทย์เพื่อรับยาเพิ่ม</span>
+    <ul class="low-list">${lowList.map((m) => `<li><b>${esc(medNo(m))}</b> ${esc(m.name)} <span class="red-t">เหลือ ${qtyText(stockLeft(m))} ${esc(unitOf(m))}</span></li>`).join('')}</ul></div></div>` : '';
+  return `${back}<h1>จำนวนยาที่เหลือ</h1>${visBtn}${chips}
+    ${lowBox}
     <h2 class="ad-title">ยาของ${esc(p.name)} ณ วันที่ ${thDate(today)}</h2>
     ${rows ? `<input type="search" id="stkQ" class="stk-search" placeholder="🔍 ค้นหาชื่อยา / แพทย์ / แผนก / รหัส" value="${esc(ui.stockQ || '')}" autocomplete="off" aria-label="ค้นหาชื่อยาหรือชื่อแพทย์">
-      <div class="card stk-card"><div class="stk-head"><span>รหัส</span><span>ชื่อยา · รักษา</span><span>เหลือ</span></div>${rows}<p class="small muted center stk-none" ${tracked.some(hit) ? 'hidden' : ''}>ไม่พบยาที่ค้นหา</p></div>` : '<div class="card empty"><div class="e">📦</div>ยังไม่มียาที่นับจำนวนคงเหลือ<br><span class="small">กรอก "จำนวนคงเหลือ" ในฟอร์มยา แล้วจะคำนวณให้</span></div>'}
+      <div class="card stk-card"><table class="stk-t"><thead><tr><th>รหัส</th><th>ชื่อยา</th><th>รักษา</th><th>หมดประมาณ</th><th>เหลือ</th></tr></thead><tbody>${rows}</tbody></table><p class="small muted center stk-none" ${tracked.some(hit) ? 'hidden' : ''}>ไม่พบยาที่ค้นหา</p></div>` : '<div class="card empty"><div class="e">📦</div>ยังไม่มียาที่นับจำนวนคงเหลือ<br><span class="small">กรอก "จำนวนคงเหลือ" ในฟอร์มยา แล้วจะคำนวณให้</span></div>'}
     <p class="small muted center">คำนวณจากจำนวนคงเหลือที่กรอกไว้ หักตามตารางกินยาทุกวัน นับตั้งแต่วันที่กรอก${other ? `<br>ยาหน่วยหยด/ครั้ง/ช้อนชา/มล. ${other} รายการ ไม่นับจำนวนคงเหลือ` : ''}<br>ถ้าตัวเลขไม่ตรงกับของจริง แก้ "จำนวนคงเหลือ" ในฟอร์มยา ระบบจะเริ่มนับใหม่จากวันนั้น</p>`;
 }
 
@@ -73,7 +86,7 @@ function viewHistory() {
   if (!S.profiles.some((p) => p.id === ui.histPid)) ui.histPid = (S.profiles.find((p) => p.id === ui.medsPerson) || S.profiles[0]).id;
   const p = profileById(ui.histPid); const items = historyItems(p.id);
   const chips = `<div class="chips">${S.profiles.map((x) => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-act="hist-person" data-id="${x.id}" style="--pc:${x.color};--pt:${inkOn(x.color)}"><span class="av xs">${avatarSVG(x.avatar, x.color)}</span>${esc(x.name)}</button>`).join('')}</div>`;
-  return `${back}<h1>ประวัติการรักษา</h1>${chips}
+  return `${back}<h1>ประวัติการรักษา</h1>${ui.histOnly ? '' : chips}
     <h2 class="ad-title">การไปโรงพยาบาลของ${esc(p.name)}</h2>
     <p class="small muted" style="margin:4px 0 12px">สรุปจากใบนัดหมอ และบันทึกติดตามอาการที่เลือก "ไป รพ." — สามารถดูได้อย่างเดียว ถ้าจะเพิ่มหรือแก้ ให้ไปที่ > ติดตามอาการ</p>
     ${items.length ? items.map(historyCard).join('') : '<div class="card empty"><div class="e">🏥</div>ยังไม่มีประวัติการรักษา</div>'}`;
@@ -117,7 +130,7 @@ document.addEventListener('click', async (ev) => {
   switch (act) {
     case 'hist-person': ui.histPid = id; render(); break;
     case 'stock-person': ui.stockPid = id; render(); break;
-    case 'member-history': ui.tab = 'meds'; ui.medsPage = 'history'; ui.histPid = id; render(); window.scrollTo(0, 0); break;
+    case 'member-history': ui.tab = 'meds'; ui.medsPage = 'history'; ui.histPid = id; ui.histOnly = true; render(); window.scrollTo(0, 0); break;
     case 'member-stock': ui.tab = 'meds'; ui.medsPage = 'stock'; ui.stockPid = id; render(); window.scrollTo(0, 0); break;
     case 'tr-add': if (canEditProfile(ui.histPid)) treatmentForm(ui.histPid); break;
     case 'tr-edit': { const r = (S.treatment_records || []).find((x) => x.id === id); if (r && canEditProfile(r.profile_id)) treatmentForm(r.profile_id, r); break; }

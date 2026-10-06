@@ -2,11 +2,11 @@
 /* สุขใจ — Service Worker: เปิดแอพได้แม้ไม่มีอินเทอร์เน็ต (เก็บตัวแอพไว้ในเครื่อง) + รับ Web Push และเปิดแอพเมื่อแตะการแจ้งเตือน
  * ข้อมูลสุขภาพไม่ถูกเก็บที่นี่ — แอพเก็บสำเนาข้อมูลล่าสุดเองในเครื่อง (ดู SupaDB.saveSnapshot) · คำขอไป Supabase ไม่ผ่านแคชนี้
  */
-const CACHE = 'sukjai-app-v3';
+const CACHE = 'sukjai-app-v5';
 const SHELL = ['./', 'index.html', 'styles.css', 'config.js', 'manifest.json', 'icon.svg?v=2', 'icon-192.png?v=2', 'icon-180.png?v=2',
-  'js/util.js', 'js/avatars.js', 'js/db.js', 'js/app.js', 'js/forms.js', 'js/care.js', 'js/more.js', 'js/pages.js', 'js/history.js', 'js/premium.js', 'js/notify.js',
+  'js/util.js', 'js/avatars.js', 'js/db.js', 'js/app.js', 'js/forms.js', 'js/care.js', 'js/more.js', 'js/pages.js', 'js/history.js', 'js/stickers.js', 'js/health.js', 'js/report.js', 'js/premium.js', 'js/notify.js',
   'assets/icons/medicine.png', 'assets/icons/schedule.png', 'assets/icons/home.png', 'assets/icons/family.png', 'assets/icons/settings.png',
-  'assets/icons/bandaid.png', 'assets/icons/summary.png', 'assets/icons/history.png', 'assets/icons/stock.png'];
+  'assets/icons/bandaid.png', 'assets/icons/summary.png', 'assets/icons/history.png', 'assets/icons/stock.png', 'assets/icons/blood-pressure.png', 'assets/icons/report-notes.png', 'assets/slots/morning.png', 'assets/slots/day.png', 'assets/slots/evening.png', 'assets/slots/night.png'];
 const EXTRA_HOSTS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', (e) => {
@@ -31,7 +31,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     try {
-      const res = await fetch(req);
+      const res = await fetch(req, same ? { cache: 'no-cache' } : undefined); // ตรวจกับเซิร์ฟเวอร์ทุกครั้ง ไม่ใช้ไฟล์เก่าจากแคชเบราว์เซอร์
       if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone()).catch(() => {});
       return res;
     } catch (err) {
@@ -46,15 +46,36 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch { d = { title: 'สุขใจ', body: event.data && event.data.text() }; }
-  event.waitUntil(self.registration.showNotification(d.title || 'สุขใจ', {
-    body: d.body || '', tag: d.tag, icon: 'icon-192.png?v=2', badge: 'icon-192.png?v=2', renotify: !!d.tag, data: { url: d.url || '/' },
-  }));
+  const opt = { body: d.body || '', tag: d.tag, icon: 'icon-192.png?v=2', badge: 'icon-192.png?v=2', renotify: !!d.tag, data: { url: d.url || '/', token: d.token, fn: d.fn, med: d.med } };
+  if (Array.isArray(d.actions) && d.actions.length) opt.actions = d.actions.slice(0, 2); // ปุ่ม "กินแล้ว" / "เตือนอีก 15 นาที" (Android/Chrome — iPhone ไม่แสดงปุ่ม)
+  event.waitUntil(self.registration.showNotification(d.title || 'สุขใจ', opt));
 });
 
+/** กดปุ่มในการแจ้งเตือน: ส่งคำสั่งไปที่ Edge Function (notification-action) โดยตรง ไม่ต้องเปิดแอพ · ถ้าทำไม่ได้ ให้แอพทำแทน */
+async function handleAction(d, act) {
+  const ack = async (title) => {
+    await self.registration.showNotification(title, { tag: 'sukjai-ack', icon: 'icon-192.png?v=2', badge: 'icon-192.png?v=2', silent: true });
+    await new Promise((r) => setTimeout(r, 3500));
+    (await self.registration.getNotifications({ tag: 'sukjai-ack' })).forEach((x) => x.close());
+  };
+  const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  if (d.token && d.fn) {
+    try {
+      const r = await fetch(d.fn, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: d.token, action: act }) });
+      if (r.ok) { all.forEach((c) => c.postMessage({ type: 'refresh' })); return ack(act === 'taken' ? '✓ บันทึกแล้วว่ากินยาแล้ว' : '⏰ จะเตือนอีกครั้งใน 15 นาที'); }
+    } catch { /* ไปทางสำรองด้านล่าง */ }
+  }
+  const msg = { type: 'notif-action', action: act, ...(d.med || {}) };
+  if (all.length) { all[0].postMessage(msg); return all[0].focus(); }
+  const q = new URLSearchParams({ nact: act, p: (d.med && d.med.p) || '', s: (d.med && d.med.s) || '', d: (d.med && d.med.d) || '' });
+  return self.clients.openWindow('/?' + q.toString());
+}
+
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  const n = event.notification; const d = n.data || {}; const act = event.action; n.close();
   event.waitUntil((async () => {
+    if ((act === 'taken' || act === 'snooze') && d.med) return handleAction(d, act);
+    const url = d.url || '/';
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of all) if ('focus' in c) return c.focus();
     return self.clients.openWindow(url);

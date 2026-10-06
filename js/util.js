@@ -24,7 +24,7 @@ const weekdaysText = (m) => (m.weekdays?.length && m.weekdays.length < 7 ? 'เ�
 
 const RELATIONS = ['ปู่', 'ย่า', 'ตา', 'ยาย', 'พ่อ', 'แม่', 'ตัวเอง', 'พี่สาว', 'พี่ชาย', 'น้องสาว', 'น้องชาย'];
 const BLOOD_TYPES = ['A', 'B', 'AB', 'O'];
-const DEPARTMENTS = ['อายุรกรรม', 'จักษุแพทย์', 'สูตินรีเวช', 'ศัลยกรรม', 'กระดูกและข้อ', 'หัวใจ', 'ผิวหนัง', 'หู คอ จมูก', 'ทันตกรรม'];
+const DEPARTMENTS = ['ตรวจโรคทั่วไป', 'อายุรกรรม', 'จักษุแพทย์', 'สูตินรีเวช', 'ศัลยกรรม', 'กระดูกและข้อ', 'หัวใจ', 'ผิวหนัง', 'หู คอ จมูก', 'ทันตกรรม'];
 const VISIT_REASONS = ['ติดตามอาการ', 'รับยาต่อเนื่อง', 'ตรวจสุขภาพประจำปี', 'มีอาการผิดปกติ', 'ผ่าตัด/หัตถการ'];
 const MED_STATUS = { active: 'กำลังทาน', paused: 'งดชั่วคราว', stopped: 'หยุดแล้ว' };
 const PRESET_COLORS = ['#4D55F5', '#CA7FFE', '#DAFF7C', '#5CC8FF', '#FF7AD9', '#FFB347', '#3DDC97', '#FFE45C']; // สีประจำตัว: สดใส สว่าง เข้าชุดกับสีหลัก (น้ำเงิน ลิลลี เขียวมะนาว + สีคู่)
@@ -32,7 +32,7 @@ const LEGACY_COLORS = { '#3FA796': '#3DDC97', '#EF5B4C': '#FF7AD9', '#7C6CF2': '
 /** สีตัวหนังสือที่อ่านออกบนพื้นสีนั้น (พื้นสว่างใช้น้ำเงินเข้ม พื้นเข้มใช้ขาว) */
 const inkOn = (hex) => { const n = parseInt(String(hex).slice(1), 16); const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; const L = .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255); return L > .4 ? '#161A4D' : '#fff'; };
 const REMIND_DAYS = [5, 2, 1];
-const LOW_STOCK_DAYS = 7;
+const LOW_STOCK_DAYS = 7; const LOW_STOCK_QTY = 5; // ใกล้หมด = เหลือไม่เกิน 5 หน่วย หรือพอกินอีกไม่เกิน 7 วัน
 
 const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const MONTHS_S = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -55,7 +55,7 @@ const isOralMed = (m) => { const u = String(m.unit || ''); return !(['หยด'
 // รหัสเลขลำดับยาเริ่มต้น = พยัญชนะตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ) เช่น ปู่หวาน → ป, แม่ → ม
 const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
 const defaultPrefix =(name) => String(name || '').trim().replace(/^[เแโใไ]+/, '').charAt(0);
-const PDPA_VERSION = '2026-10b';
+const PDPA_VERSION = '2026-10c';
 const MOODS = [
   { k: 'happy', icon: '😊', label: 'มีความสุข', color: '#F7B731' },
   { k: 'calm', icon: '😌', label: 'สบายใจ', color: '#3FA796' },
