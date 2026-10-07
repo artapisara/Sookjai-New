@@ -1616,3 +1616,215 @@ details.every-box #evNote { display: block; width: fit-content; max-width: 100%;
 .member-row.is-shared { background: #F7F0FF; border: 1.5px dashed #D3B5F5; }
 .member-row .mr-share { margin-bottom: 4px; } .member-row .mr-share .share-tag { font-size: 13px; }
 .grp-input { display: flex; align-items: stretch; border: 1.5px solid #DCDFF5; border-radius: 14px; background: #F5F4F1; overflow: hidden; } .grp-input b { display: flex; align-items: center; padding: 0 4px 0 14px; font-size: 17px; color: var(--brand, #4D55F5); } .grp-input input { border: 0; background: transparent; box-shadow: none; flex: 1; min-width: 0; padding-left: 4px; }
+
+.member-row { text-align: left; } .member-row .info { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.member-row .mr-share { margin: 6px 0 0; text-align: left; }
+
+/* รูปที่ยังไม่มี/โหลดไม่ได้ = ไอคอนกล้อง + คำอธิบายสั้น (ไม่โชว์ alt เป็นตัวหนังสือ) */
+img[data-path]:not([src]) { visibility: hidden; }
+.img-ph { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; height: 100%; min-height: 64px; color: #8A8FB8; text-align: center; line-height: 1.15; }
+.img-ph small { font-size: 11px; }
+.thumb.nopic { background: #F1F2FA; border: 1.5px dashed #CDD1EE; border-radius: 12px; }
+
+/* v1.17 ปรับข้อความ/ไอคอนตามรายการ */
+.plan-sum { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 12px; padding: 10px 12px; border-radius: 14px; background: #F3F4FF; border: 1.5px solid #D5D9FF; } .plan-sum b { font-size: 16px; } .plan-sum span { font-size: 15px; font-weight: 600; color: var(--brand, #4D55F5); } .plan-sum small { font-size: 12.5px; color: var(--muted, #6B7090); }
+.tile-star { font-size: 14px; margin-left: 4px; vertical-align: 1px; }
+.lock-toggle .lt-ic { color: currentColor; display: grid; place-items: center; font-size: 0; } .lock-toggle .lt-ic svg { width: 36px; height: 36px; }
+.lock-toggle .lt-st i { font-style: normal; font-weight: 800; padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 255, .75); }
+.lock-toggle.on .lt-st i { color: #1E7B2E; } .lock-toggle.off .lt-st i { color: #8A4B00; }
+/* รหัสยาในแอพ (ไม่รวม PDF): ใช้ฟอนต์ Sarabun ตัวหนา อักษรไทยนำ เช่น พ ด อ่านไม่สับสนกับตัวอักษรอังกฤษ + กล่องขยายตามความยาวรหัส */
+.ordnum { font-family: Sarabun, 'Leelawadee UI', sans-serif; font-weight: 700; font-size: 20px; line-height: 1; width: auto; min-width: 34px; height: 34px; padding: 0 5px; white-space: nowrap; box-sizing: border-box; }
+.dtable .onum, .dtable .onum .pfx { font-family: Sarabun, 'Leelawadee UI', sans-serif; font-weight: 700; }
+.dtable .onum { font-size: 36px; }
+
+/* PDF ตารางรหัสยา + รายการยา (ตัวหนังสือจริงจากหน้าพิมพ์) — ใช้เฉพาะ .mp-* แยกจากสไตล์ .pr-* เดิมของสรุปการกินยา */
+@media print {
+  .mp-root, .mp-root * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .mp-root { font-family: Sarabun, 'TH Sarabun New', sans-serif; font-size: 11pt; line-height: 1.3; color: #111; letter-spacing: 0; word-spacing: 0; text-align: left;
+    font-feature-settings: "ccmp" 0; /* ให้วรรณยุกต์/สระบนแต่ละตัวเป็นอักขระเดิมในไฟล์ PDF — ก๊อปข้อความแล้วไม่หายเป็นช่องว่าง/อักขระว่าง (ภาพที่เห็นเหมือนเดิม) */ }
+  .mp-sec { break-after: page; } .mp-sec:last-of-type { break-after: auto; }
+  .mp-t { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .mp-t thead { display: table-header-group; }
+  .mp-t tr { break-inside: avoid; page-break-inside: avoid; }
+  .mp-t th, .mp-t td { border: .3mm solid #333; }
+  .mp-t .mp-ttl > td { border: 0; padding: 0 0 2.5mm; }
+  .mp-t tfoot { display: table-footer-group; } .mp-t .mp-sp > td { border: 0; padding: 0; height: 6mm; } /* กันที่ท้ายหน้าไว้ให้ท้ายกระดาษ */
+  .mp-foot { position: fixed; left: 0; right: 0; bottom: 0; padding-top: 1mm; border-top: .2mm solid #999; background: #fff; font-size: 8pt; font-weight: 500; line-height: 1.3; color: #333; }
+  .mp-top { display: flex; justify-content: space-between; align-items: center; gap: 4mm; border-bottom: 1.2mm solid var(--pcd, #4D55F5); padding-bottom: 2mm; }
+  .mp-top h1 { margin: 0; font-size: 20pt; font-weight: 700; color: #000; line-height: 1.25; }
+  .mp-boxes { display: flex; align-items: stretch; font-size: 10.5pt; flex: none; }
+  .mp-boxes span { border: .3mm solid #666; padding: 1.2mm 3mm; } .mp-boxes span + span { border-left: 0; }
+  .mp-red { color: #C62828; }
+  .mp-leg { display: block; margin-top: .6mm; font-size: 9pt; font-weight: 600; color: #333; }
+  .mp-leg i { display: inline-block; width: 3mm; height: 3mm; border: .2mm solid #777; vertical-align: -.5mm; margin: 0 1mm 0 2mm; }
+  .mp-leg i.y { background: #FFF3B0; } .mp-leg i.p { background: #FDE7F1; }
+  /* ตารางรหัสยา */
+  .mp-grid th { padding: 2mm 1mm; font-size: 12.5pt; font-weight: 700; line-height: 1.3; text-align: center; background: var(--pcs, #fff); color: #000; }
+  .mp-grid th.aft { background: var(--pcl, #6FC9FF); }
+  .mp-grid th u { text-decoration-thickness: .4mm; text-underline-offset: 1mm; }
+  .mp-grid th small { display: block; font-size: 9.5pt; font-weight: 600; color: #222; }
+  .mp-grid td { padding: 2mm 1.5mm; text-align: center; vertical-align: middle; }
+  .mp-grid td.wr { background: #FFF3B0; } .mp-grid td.pn { background: #FDE7F1; }
+  .mp-grid td.mp-e { background: #fff; }
+  .mp-main { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 1.5mm; }
+  /* กล่องรหัสยา = หน้าตาเดียวกับ .ordnum ในแอพ (Sarabun ตัวหนา พื้นสีประจำตัว มุมโค้ง) */
+  .mp-cb { display: inline-block; padding: 0; background: none; color: #000; font-family: Sarabun, 'TH Sarabun New', sans-serif; font-weight: 700; font-size: 18pt; line-height: 1.15; white-space: nowrap; }
+  .mp-st { font-size: 16pt; font-weight: 700; color: #B0407E; line-height: 1; }
+  .mp-dz { color: #C62828; font-weight: 700; font-size: 10.5pt; white-space: nowrap; }
+  .mp-sn { width: 3.4mm; height: 3.4mm; vertical-align: -.6mm; margin-right: 1mm; flex: none; }
+  .mp-main .mp-sn { margin: 0; width: 4.2mm; height: 4.2mm; }
+  .mp-nm { margin-top: 1mm; font-size: 12.5pt; font-weight: 600; line-height: 1.25; color: #111; overflow-wrap: break-word; }
+  .mp-as { margin-top: .4mm; font-size: 9.5pt; font-weight: 600; color: #B0407E; line-height: 1.2; }
+  .mp-w { margin-top: 1mm; font-size: 9.5pt; font-weight: 600; line-height: 1.25; color: #C62828; overflow-wrap: break-word; }
+  .mp-w i, .mp-r.is-warn i { display: inline-block; width: 2mm; height: 2mm; border-radius: 50%; background: #C62828; margin-right: 1mm; vertical-align: .1mm; }
+  .mp-h { margin-top: 1mm; font-size: 9pt; line-height: 1.25; color: #555; overflow-wrap: break-word; }
+  .mp-loose { margin: 3mm 0 0; font-size: 10pt; color: #444; }
+  .mp-loose .mp-cb { font-size: 12pt; margin-left: 1mm; }
+  /* รายการยา */
+  .mp-list th { padding: 2mm; font-size: 12.5pt; font-weight: 700; text-align: left; background: var(--pcl, #6FC9FF); color: #000; }
+  .mp-list th:first-child { text-align: center; }
+  .mp-list td { padding: 1.8mm 2mm; vertical-align: top; font-size: 11.5pt; line-height: 1.35; overflow-wrap: break-word; }
+  .mp-list td.mp-no { text-align: center; vertical-align: top; background: #fff; }
+  .mp-list td.mp-name { font-size: 12.5pt; font-weight: 600; color: #000; }
+  .mp-r { display: block; margin: 0 0 .8mm; }
+  .mp-r:last-child { margin-bottom: 0; }
+  .mp-r.is-warn { color: #C62828; font-weight: 600; }
+  .mp-r.is-grey { color: #555; }
+}
+
+/* ปุ่มคู่ "สติกเกอร์ / ป้องกันลบ": หน้าตาเดียวกัน สูงเท่ากัน ไอคอนซ้าย ข้อความชิดซ้ายเหมือนกัน น้ำหนักซ้าย-ขวาสมดุล */
+.tool-pair > .btn, .tool-pair > .lock-toggle { display: flex; align-items: center; justify-content: flex-start; gap: 10px; text-align: left; min-height: 72px; padding: 10px 12px; border-radius: 16px; border-width: 1.5px; }
+.tool-pair > .btn { border: 1.5px solid #D5D9FF; background: #fff; }
+.tool-pair .tp-ic { flex: none; width: 36px; text-align: center; font-size: 30px; line-height: 1; }
+.tool-pair .tp-tx { font-size: 15px; font-weight: 700; line-height: 1.3; color: #1B1F4D; }
+.tool-pair .lock-toggle .lt-ic { width: 36px; flex: none; }
+.tool-pair .lock-toggle .lt-tx b { font-size: 15px; line-height: 1.3; }
+.tool-pair .lock-toggle .lt-st { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 3px; font-size: 12.5px; }
+.tool-pair .lock-toggle .lt-st i { padding: 0 8px; }
+.tool-pair .tp-tx, .tool-pair .lock-toggle .lt-tx b { text-wrap: balance; }
+
+/* ช่อง "กรอกหลังพบแพทย์" ในฟอร์มนัดหมอ: กรอบพื้นหลังแยกจากช่องที่กรอกก่อนพบแพทย์ */
+.post-visit { background: #EEF0FF; border: 1.5px solid #D5D9FF; border-radius: 16px; padding: 12px 12px 4px; margin: 4px 0 14px; }
+.post-visit .f { margin-bottom: 8px; }
+.post-visit textarea { background: #fff; }
+
+/* v1.3 — โควตา Free/Premium + โครงสร้างโปรไฟล์ */
+.owner-lock { opacity: 1; background: #F1F2F7 !important; color: #4A4D5E !important; border: 1.5px dashed #C9CCDA !important; cursor: not-allowed; text-align: center; }
+.owner-lock small, .tool-pair .tp-tx small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: #6B6E82; line-height: 1.3; }
+.rp-dl.owner-lock { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tool-pair > .owner-lock { text-align: left; }
+.lim-btns { flex-direction: column; align-items: stretch; }
+.lim-btns .btn { width: 100%; }
+.ap-pick { max-height: 80vh; overflow: auto; }
+.ap-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 12px; text-align: left; }
+.ap-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #F6F5F1; border-radius: 12px; padding: 8px 10px; }
+.ap-row small { display: block; color: #5A6080; font-size: 12.5px; }
+.plan-invited { margin-top: 12px; background: #EEF0FF; border: 1.5px solid #D5D9FF; }
+.plan-invited h4 { margin: 0 0 6px; }
+.plan-inv { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.55; }
+.owner-lock:disabled, .btn.owner-lock:disabled { opacity: 1 !important; }
+.owner-lock .ol-t, .owner-lock .tp-tx { color: #4A4D5E; }
+
+/* หน้าการแจ้งเตือน: ป้ายใต้ชื่อโปรไฟล์ที่แชร์มา · วิธีเปิดสิทธิ์เมื่อถูกบล็อก · ปุ่มทดลองส่งเป็นสีรองกันกดผิด */
+.nt-nm { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.nt-nm small { font-size: 12.5px; }
+.nt-help { margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: #FFF4DB; border: 1.5px solid #F1D79A; font-size: 14px; line-height: 1.5; }
+.nt-help b { color: #7A4A00; } .nt-help ul { margin: 4px 0 0; padding-left: 18px; }
+.btn.nt-test { margin-top: 14px; font-size: 14px; color: #5A6080; border-style: dashed; background: transparent; }
+
+/* v1.3.3 — หน้าสมาชิก: การ์ดแบบเดิม (แถบสีตามสีประจำตัวแต่ละคน) · โปรไฟล์ของฉันใหญ่เด่นกว่า · หัวข้อแบ่งกลุ่ม */
+.rs { margin: 8px 0 18px; }
+.rs > .card { margin-bottom: 10px; }
+.rs-h { display: flex; align-items: center; gap: 7px; margin: 20px 0 8px; font-size: 16px; font-weight: 800; }
+.rs-h:first-child { margin-top: 4px; }
+.rs-h i { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.rs-h.o { color: #9A5B00; } .rs-h.o i { background: #FFB347; }
+.rs-h.g { color: #1E7B4A; } .rs-h.g i { background: #2FB26B; }
+.rs-h.v { color: #5B4A99; } .rs-h.v i { background: #8A6FD6; }
+.rs-h.s { color: #3F4A6B; margin-top: 24px; } .rs-h.s i { background: #6B7BA8; }
+.member-row.mr-big { padding: 28px 16px; gap: 18px; background: #FFF8EC; border-left-width: 12px; box-shadow: 0 4px 14px rgba(120, 80, 0, .14); }
+.member-row.mr-big .av { width: 100px; height: 100px; }
+.member-row.mr-big .mr-name { font-size: 26px; }
+.member-row.mr-big .small { font-size: 15px; }
+.rs-add { display: block; width: 100%; margin: 10px 0 2px; padding: 11px 12px; border-radius: 14px; background: transparent; font: inherit; font-size: 14.5px; font-weight: 800; cursor: pointer; }
+.rs-add small { display: block; font-size: 12.5px; font-weight: 600; opacity: .8; }
+.rs-add.g { border: 2px dashed #2FB26B; color: #1E7B4A; }
+.rs-add.o { border: 2px dashed #FFB347; color: #7A4A00; padding: 18px 12px; }
+.rs-add.v { border: 2px dashed #8A6FD6; color: #5B4A99; margin-top: 14px; font-size: 14px; padding: 9px 12px; }
+/* การ์ดหมวดอื่น (คนที่ฉันดูแล / แชร์มาให้) เล็กกว่าโปรไฟล์ของฉัน เพื่อให้โปรไฟล์ของฉันเด่นกว่า */
+body:not(.auth) .rs .member-row:not(.mr-big) { padding: 9px 12px; gap: 12px; border-left-width: 6px; min-height: 0; }
+.rs .member-row:not(.mr-big) .av { width: 46px; height: 46px; }
+.rs .member-row:not(.mr-big) .mr-name { font-size: 17px; }
+.rs .member-row:not(.mr-big) .small { font-size: 13px; line-height: 1.35; }
+.rs .member-row:not(.mr-big) .chev { font-size: 22px; }
+.rs .member-row.is-shared:not(.mr-big) { padding: 7px 12px; }
+.rs .member-row.is-shared:not(.mr-big) .av { width: 36px; height: 36px; }
+.rs .member-row.is-shared:not(.mr-big) .mr-name { font-size: 16px; }
+.rs .member-row:not(.mr-big) .mr-share .share-tag { font-size: 12px; }
+.rs .member-row.is-shared:not(.mr-big) .mr-share { margin-top: 2px; } .rs .member-row.is-shared:not(.mr-big) .share-tag { padding: 2px 8px; }
+/* หัวข้อหน้าสมาชิก: ไซส์และสีเดียวกันทุกหัวข้อ (ตามที่เลือก) */
+.rs-h, .rs-h.o, .rs-h.g, .rs-h.v, .rs-h.s { display: block; margin: 22px 0 8px; font-size: 22px; font-weight: 700; line-height: 1.3; color: #161A4D; }
+.rs-h:first-child { margin-top: 4px; }
+.rs-h i { display: none; }
+.grp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; } .grp-head > b { font-size: 19px; line-height: 1.3; padding-top: 4px; min-width: 0; overflow-wrap: anywhere; } .grp-head .btn { flex: none; margin: 0; }
+.rs .card.circle .grp-head { margin-bottom: 0; } .rs .card.circle .grp-sub { margin: -6px 0 10px; line-height: 1.3; } .rs .card.circle .grp-sub:empty { display: none; }
+.rs .card.circle.shared { padding-bottom: 16px; } .rs .card.circle.shared .grp-sub { margin: -2px 0 0; } .rs .card.circle > b + .grp-sub { margin: 2px 0 10px; }
+
+/* ===== v1.3.4 มาตรฐานตัวอักษร (ขนาด · ความหนา · ระยะบรรทัด) — ใช้ตัวแปรชุดเดียวทั้งแอพ ===== */
+:root {
+  --fs-h1: 28px; --fs-h2: 22px; --fs-title: 18px; --fs-body: 17px; --fs-btn: 16px; --fs-sub: 15px; --fs-cap: 13px;
+  --fw-regular: 400; --fw-semi: 600; --fw-bold: 700;
+  --lh-head: 1.25; --lh-title: 1.3; --lh-sub: 1.4; --lh-body: 1.5; --lh-tight: 1.1;
+}
+body:not(.auth) h1:not(.gem-text) { font-size: var(--fs-h1); font-weight: var(--fw-bold); line-height: var(--lh-head); }
+body:not(.auth) h2 { font-size: var(--fs-h2); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) h3 { font-size: var(--fs-title); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) h4 { font-size: var(--fs-body); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) .today-h { font-size: var(--fs-h2); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) .rs-h { font-size: var(--fs-h2); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+/* ชื่อในการ์ด */
+body:not(.auth) .mr-name, body:not(.auth) .rc-name, body:not(.auth) .grp-head > b, body:not(.auth) .card.circle > b { font-size: var(--fs-title); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) .member-row.mr-big .mr-name { font-size: 26px; line-height: var(--lh-head); }
+/* ข้อความรอง */
+body:not(.auth) .small, body:not(.auth) .rc-line, body:not(.auth) .header .sub, body:not(.auth) p.sub { font-size: var(--fs-sub); font-weight: var(--fw-regular); line-height: var(--lh-sub); }
+body:not(.auth) .rs .member-row:not(.mr-big) .small, body:not(.auth) .rs .member-row.is-shared:not(.mr-big) .small { font-size: var(--fs-sub); line-height: var(--lh-sub); }
+/* ป้าย / ตัวเล็ก */
+body:not(.auth) .tag, body:not(.auth) .share-tag, body:not(.auth) .rs .member-row .mr-share .share-tag { font-size: var(--fs-cap); font-weight: var(--fw-semi); line-height: var(--lh-title); }
+/* ปุ่ม */
+body:not(.auth) .btn { font-size: var(--fs-btn); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) .btn.sm { font-size: var(--fs-sub); }
+body:not(.auth) .rs-add, body:not(.auth) .rs-add.v, body:not(.auth) .rs-add.g, body:not(.auth) .rs-add.o { font-size: var(--fs-sub); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) .pill-btn { font-size: var(--fs-sub); font-weight: var(--fw-semi); }
+/* ตกค้างที่ตรวจพบ → ปรับเข้ามาตรฐาน */
+body:not(.auth) .tile-tx b, body:not(.auth) .h-mood { font-size: var(--fs-title); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) .low-badge, body:not(.auth) .low-badge i { font-weight: var(--fw-bold); }
+body:not(.auth) .dow { font-size: var(--fs-cap); font-weight: var(--fw-semi); }
+body:not(.auth) .dn { font-weight: var(--fw-bold); }
+body:not(.auth) .countdown { font-size: var(--fs-cap); font-weight: var(--fw-semi); line-height: var(--lh-title); }
+body:not(.auth) small.muted, body:not(.auth) .sc-line, body:not(.auth) .set-foot, body:not(.auth) .set-foot .small { font-size: var(--fs-cap); line-height: var(--lh-sub); }
+
+body:not(.auth) .cal-nav b { font-size: var(--fs-h2); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) .sos-btn small, body:not(.auth) .hos-call small { font-size: var(--fs-sub); font-weight: var(--fw-regular); line-height: var(--lh-sub); }
+body:not(.auth) .set-copy, body:not(.auth) p.small.set-copy { font-size: var(--fs-cap); line-height: var(--lh-sub); }
+body:not(.auth) .rc-line, body:not(.auth) .small, body:not(.auth) .rs-m { text-wrap: pretty; }
+body:not(.auth) .mr-name, body:not(.auth) h1, body:not(.auth) h2, body:not(.auth) h3 { text-wrap: balance; }
+
+/* ระยะห่างมาตรฐาน (ขั้นเดียวกันทั้งแอพ) — ใช้ตัวแปรเหล่านี้เท่านั้น */
+:root { --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; }
+/* รายการนัดหมอ: การ์ดชิดกันขึ้น */
+body:not(.auth) .card.appt { padding: var(--sp-3) 14px; margin-bottom: var(--sp-2); gap: var(--sp-3); }
+body:not(.auth) .appt .info { display: flex; flex-direction: column; gap: 2px; }
+body:not(.auth) .appt .info .line, body:not(.auth) .appt .info .small { line-height: var(--lh-title); margin: 0; }
+
+/* ปฏิทิน: ตัวเลขวันที่ใช้ตัวบาง (400) · วันที่มีนัด/วันที่เลือก ใช้ 600 */
+body:not(.auth) .cal .d .dn { font-weight: var(--fw-regular); }
+body:not(.auth) .cal .d:has(.appt-flag) .dn, body:not(.auth) .cal .d.sel .dn, body:not(.auth) .cal .d.today .dn { font-weight: var(--fw-semi); }
+/* กล่องแพ้ยาในฟอร์มยา: ชื่อยาเรียงต่อท้ายคำว่า แพ้ยา (บรรทัดเดียว ตัดบรรทัดเมื่อยาวเกิน) */
+.alert .al-inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+.alert .al-inline > b { margin-right: var(--sp-1); }
+
+/* การ์ดสวิตช์ในฟอร์มยา (ทานเฉพาะบางวัน / ทานยาเฉพาะเมื่อมีอาการ): หัวข้อสีเข้มตามโทนการ์ด */
+body:not(.auth) .sw-pair .switch-row > span:first-child { font-size: var(--fs-btn); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+body:not(.auth) .sw-pair .wd-sw > span:first-child { color: #2E2268; }
+body:not(.auth) .sw-pair .asn-box > span:first-child { color: #7A1744; }
+body:not(.auth) .sw-pair .switch-row small { font-weight: var(--fw-regular); }

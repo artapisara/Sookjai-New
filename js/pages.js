@@ -2,7 +2,7 @@
 /* สุขใจ v1.2 — หน้าจอตามดีไซน์ใหม่: ภาพรวมวันนี้ · เมนูยา · สรุปการกินยา/อารมณ์ (ดูย้อนหลังได้) · สมาชิก · ตั้งค่า */
 'use strict';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.1';
 // โลโก้: ขวดยาสี 4 สีหลัก (เขียว มิ้นต์ ส้ม เหลือง) วาดเป็น SVG — ขยับด้วย CSS (ปิดอัตโนมัติถ้าผู้ใช้ตั้งลดการเคลื่อนไหว)
 const LOGO_MARK = '<g class="lg-bottle"><path class="lg-star s1" d="M98 24l2.6 6.4 6.4 2.6-6.4 2.6L98 42l-2.6-6.4L89 33l6.4-2.6z" fill="#fff"/><path class="lg-star s2" d="M20 38l1.9 4.6 4.6 1.9-4.6 1.9L20 51l-1.9-4.6-4.6-1.9 4.6-1.9z" fill="#fff"/><rect x="39" y="12" width="42" height="20" rx="6" fill="#DAFF3A"/><rect x="39" y="20" width="42" height="5" fill="#4D55F5"/><rect x="45" y="31" width="30" height="9" rx="2" fill="#fff"/><rect class="lg-body" x="26" y="38" width="68" height="72" rx="18" fill="#fff"/><path d="M26 76q17-9 34 0t34 0v16q0 18-18 18H44q-18 0-18-18z" fill="#CA7FFE"/><rect x="32" y="46" width="5" height="30" rx="2.5" fill="#DDE0FF"/><g class="lg-cross"><rect x="53" y="46" width="14" height="34" rx="4" fill="#4D55F5"/><rect x="43" y="56" width="34" height="14" rx="4" fill="#4D55F5"/></g></g>';
 const logoSvg = () => `<svg viewBox="0 0 120 120" aria-hidden="true">${LOGO_MARK}</svg>`;
@@ -27,8 +27,11 @@ let delTimer = null;
 function lockToggle() {
   const lk = delLocked();
   return `<button type="button" class="lock-toggle ${lk ? 'on' : 'off'}" data-act="toggle-dellock" aria-pressed="${lk}">
-    <span class="lt-ic">${lk ? '🔒' : '🔓'}</span><span class="lt-tx"><b>${lk ? 'ล็อกข้อมูล' : 'ปลดล็อกอยู่'}</b><small>${lk ? 'ป้องกันลบข้อมูล แตะเพื่อปลดล็อก' : 'จะล็อกกลับเองใน 2 นาที'}</small></span></button>`;
+    <span class="lt-ic">${lk ? SHIELD_ON : SHIELD_OFF}</span><span class="lt-tx"><b>ป้องกันแก้ไขข้อมูล</b><small class="lt-st"><i>${lk ? 'เปิดอยู่' : 'ปิดอยู่'}</i><span>${lk ? 'แตะเพื่อปิดชั่วคราว' : 'เปิดกลับเองใน 2 นาที'}</span></small></span></button>`;
 }
+// ไอคอนโล่แบบเส้นเรียบ (วาดเอง): มีเครื่องหมายถูก = เปิดอยู่ · โล่เปล่า = ปิดอยู่
+const SHIELD_ON = '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 2.8v5.6c0 4.6-3.1 8.1-7.5 9.6-4.4-1.5-7.5-5-7.5-9.6V5.8L12 3z"/><path d="M8.7 12.2l2.3 2.3 4.4-4.6"/></svg>';
+const SHIELD_OFF = '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 2.8v5.6c0 4.6-3.1 8.1-7.5 9.6-4.4-1.5-7.5-5-7.5-9.6V5.8L12 3z" stroke-dasharray="3 3"/></svg>';
 // เข้าหน้าใหม่ทุกครั้ง = ล็อกกลับเป็นค่าเริ่มต้นเสมอ (เปลี่ยนคน/เลื่อนเดือนในหน้าเดิมไม่นับ)
 let lockPageKey = null;
 function relockOnPageChange() {
@@ -38,8 +41,8 @@ function relockOnPageChange() {
 }
 function setDelLock(unlock) {
   clearTimeout(delTimer);
-  if (unlock) { ui.delUnlockUntil = Date.now() + 120000; delTimer = setTimeout(() => { ui.delUnlockUntil = 0; refreshLockUi(); toast('🔒 ล็อกการลบกลับแล้ว'); }, 120000); toast('🔓 ปลดล็อกการลบ 2 นาที'); }
-  else { ui.delUnlockUntil = 0; toast('🔒 ล็อกการลบแล้ว'); }
+  if (unlock) { ui.delUnlockUntil = Date.now() + 120000; delTimer = setTimeout(() => { ui.delUnlockUntil = 0; refreshLockUi(); toast('เปิดการป้องกันลบกลับแล้ว'); }, 120000); toast('ปิดการป้องกันลบ 2 นาที'); }
+  else { ui.delUnlockUntil = 0; toast('เปิดการป้องกันลบแล้ว'); }
   refreshLockUi();
 }
 function refreshLockUi() {
@@ -66,7 +69,7 @@ function ensureMonth(ym) {
 
 const praise = (pct) => (pct >= 90 ? { icon: '🌟', head: 'ยอดเยี่ยมมาก!', msg: 'มีวินัยสุดๆ กินยาครบแทบทุกมื้อ ทำต่อไปแบบนี้นะ' }
   : pct >= 70 ? { icon: '👍', head: 'ดีมากเลย!', msg: 'ทำได้ดีแล้ว อีกนิดเดียวก็ครบทุกมื้อ' }
-  : { icon: '💛', head: 'พยายามอีกนิดนะ', msg: 'ไม่เป็นไรเลย ลืมกันได้ ค่อยๆ ไปด้วยกัน เป็นกำลังใจให้เสมอ' });
+  : { icon: '💛', head: 'ช่วงนี้ยังไม่ได้บันทึกการกิน', msg: 'ผู้ใหญ่อาจไม่ได้กดบันทึก ไม่ได้แปลว่าไม่ได้กินยา ลองกดติ๊กหลังกินยาทุกครั้งนะ' });
 
 const monthNav = (ym, act) => `<div class="cal-nav"><button class="iconbtn" data-act="${act}" data-id="-1" ${ym <= minYm() ? 'disabled' : ''} aria-label="เดือนก่อน">‹</button>
   <b>${monthLabel(ym)}</b><button class="iconbtn" data-act="${act}" data-id="1" ${ym >= ymOf(new Date()) ? 'disabled' : ''} aria-label="เดือนถัดไป">›</button></div>`;
@@ -125,9 +128,9 @@ function viewToday() {
     const d = personDay(p.id); const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
     return `<button type="button" class="card ring-card" data-act="meds-open" data-id="${p.id}" style="--pc:${p.color}">
       ${ring(d.done, d.total)}
-      <div class="rc-info"><div class="rc-name">${esc(p.name)}${selfProfile()?.id === p.id ? ' <span class="tag">คุณ</span>' : ''}</div>
-        <div class="rc-line">${d.total ? `กินแล้ว ${d.done} / ${d.total} รายการ` : 'ยังไม่มียาในตาราง'}</div>
-        <div class="small muted">${!d.total ? '' : d.done === d.total ? 'ครบแล้ววันนี้ เก่งมาก 🎉' : d.next ? `ช่วงถัดไป: ${esc(d.next.label)} ${slotTime(d.next.key)}` : `เหลืออีก ${d.total - d.done} รายการ`}</div></div>
+      <div class="rc-info"><div class="rc-name">${esc(p.name)}${selfProfile()?.id === p.id ? ' <span class="tag">ตัวคุณ</span>' : ''}</div>
+        <div class="rc-line">${d.total ? `ต้องกิน ${d.total} ครั้งวันนี้ · กินแล้ว ${d.done}` : 'ยังไม่มียาในตาราง'}</div>
+        <div class="small muted">${!d.total ? '' : d.done === d.total ? 'ครบแล้ววันนี้ เก่งมาก 🎉' : d.next ? `ช่วงถัดไป: ${esc(d.next.label)} ${slotTime(d.next.key)}` : `เหลืออีก ${d.total - d.done} ครั้ง`}</div></div>
       <span class="muted chev">›</span></button>`;
   }).join('');
   return `
@@ -150,15 +153,15 @@ function viewMeds() {
   if (ui.medsPage === 'history') return viewHistory();
   if (ui.medsPage === 'health') return viewHealth();
   if (ui.medsPage === 'stock') return viewStock();
-  const tile = (go, ic, bg, title, sub, badge = 0) => `<button type="button" class="card tile" data-act="meds-go" data-id="${go}"><span class="tile-ic" style="background:${bg}">${ic}</span>
-    <span class="tile-tx"><b>${title}</b><small>${sub}</small></span>${badge ? `<span class="low-badge" role="img" aria-label="ยาใกล้หมด ${badge} รายการ"><i>!</i>${badge}</span>` : ''}<span class="muted chev">›</span></button>`;
+  const tile = (go, ic, bg, title, sub, badge = 0, star = false) => `<button type="button" class="card tile" data-act="meds-go" data-id="${go}"><span class="tile-ic" style="background:${bg}">${ic}</span>
+    <span class="tile-tx"><b>${title}${star ? ' <span class="tile-star" title="มีส่วนที่เป็น Premium" aria-label="มีส่วนที่เป็น Premium">⭐</span>' : ''}</b><small>${sub}</small></span>${badge ? `<span class="low-badge" role="img" aria-label="ยาใกล้หมด ${badge} ตัว"><i>!</i>${badge}</span>` : ''}<span class="muted chev">›</span></button>`;
   const lowN = S.medications.filter((m) => m.status === 'active' && S.profiles.some((p) => p.id === m.profile_id) && isLowStock(m)).length;
   return `<h1>ยาและการดูแล</h1><p class="sub">เลือกสิ่งที่ต้องการดู</p>
     ${tile('list', '<span class="mi" style="--ic:url(assets/icons/medicine.png)"></span>', 'var(--sky-soft)', 'ยาที่ต้องทาน', 'ตารางยาประจำวัน · เพิ่ม/แก้ยา')}
-    ${tile('stock', '<span class="mi" style="--ic:url(assets/icons/stock.png)"></span>', 'var(--meadow)', 'จำนวนยาที่เหลือ', lowN ? `ยาใกล้หมด ${lowN} รายการ ควรเตรียมรับยาเพิ่ม` : 'ดูว่ายาแต่ละตัวเหลือเท่าไร หมดเมื่อไร', lowN)}
-    ${tile('summary', '<span class="mi" style="--ic:url(assets/icons/summary.png)"></span>', 'var(--pink-soft)', 'สรุปการกินยา', 'ดูว่ากินครบไหม แสดงผล 7 วันฟรี, แสดงผลรายเดือนใน Premium')}
+    ${tile('stock', '<span class="mi" style="--ic:url(assets/icons/stock.png)"></span>', 'var(--meadow)', 'จำนวนยาที่เหลือ', lowN ? `ยาใกล้หมด ${lowN} ตัว` : 'ดูว่ายาแต่ละตัวเหลือเท่าไร หมดเมื่อไร', lowN)}
+    ${tile('summary', '<span class="mi" style="--ic:url(assets/icons/summary.png)"></span>', 'var(--pink-soft)', 'สรุปการกินยา', 'ดูว่ากินครบแค่ไหนในแต่ละวัน', 0, true)}
     ${tile('care', '<span class="mi" style="--ic:url(assets/icons/bandaid.png)"></span>', 'var(--meadow)', 'ติดตามอาการ', 'ถ่ายรูปแผล เทียบอาการ')}
-    ${tile('health', '<span class="mi" style="--ic:url(assets/icons/blood-pressure.png)"></span>', '#FFE9EC', 'ความดัน / น้ำตาล', 'บันทึกค่าที่วัด ดูแนวโน้มกราฟ แสดงผล 7 วันฟรี, แสดงผลรายเดือนใน Premium')}`;
+    ${tile('health', '<span class="mi" style="--ic:url(assets/icons/blood-pressure.png)"></span>', '#FFE9EC', 'ความดัน / น้ำตาล', 'บันทึกค่าที่วัด และดูแนวโน้ม', 0, true)}`;
 }
 
 // ---------- สรุปการกินยา (หน้าเต็ม ดูย้อนหลังได้ทุกเดือน) ----------
@@ -192,8 +195,8 @@ function viewAdherence() {
     <div class="card"><b>แต่ละช่วงเวลา</b>
       ${SLOTS.filter((s) => D.perSlot[s.key]).map((s) => { const r = D.perSlot[s.key]; const v = Math.round((r.got / r.exp) * 100);
         return `<div class="ad-bar"><span>${s.icon} ${s.short}</span><div><i style="width:${v}%"></i></div><b>${v}%</b></div>`; }).join('')}</div>
-    ${missed.length ? `<div class="card soft"><b>💡 ยาที่ลืมบ่อย</b>
-      <div class="miss-list">${missed.map((r) => `<div class="miss-item"><b class="miss-no">${esc(medNo(r.m))}</b><span class="miss-nm">${esc(r.m.name)}</span><span class="miss-n">ลืม ${r.exp - r.got} ครั้ง</span></div>`).join('')}</div>
+    ${missed.length ? `<div class="card soft"><b>💡 ยาที่ยังไม่มีบันทึกบ่อย</b>
+      <div class="miss-list">${missed.map((r) => `<div class="miss-item"><b class="miss-no">${esc(medNo(r.m))}</b><span class="miss-nm">${esc(r.m.name)}</span><span class="miss-n">ยังไม่มีบันทึก ${r.exp - r.got} ครั้ง</span></div>`).join('')}</div>
       <p class="small" style="margin:8px 0 0">ลองวางยาไว้ใกล้ที่ที่เห็นทุกวัน หรือเปิดแจ้งเตือนช่วงนั้นดูนะ</p></div>` : ''}
 
     <p class="small muted center">ข้อมูลเก็บไว้ถาวร ย้อนดูได้สูงสุด ${HISTORY_MONTHS} เดือน · ยาที่กินเมื่อมีอาการไม่นับ</p>`;
@@ -215,7 +218,7 @@ function viewAdherenceFree() {
   const byKey = {}; yms.forEach((ym) => adherenceData(p.id, ym).days.forEach((x) => { byKey[x.key] = x; }));
   const days = keys.map((k) => { const x = byKey[k.key] || {}; return { ...k, exp: x.exp || 0, got: x.got || 0 }; });
   const exp = days.reduce((a, x) => a + x.exp, 0), got = days.reduce((a, x) => a + x.got, 0);
-  const upsell = `<div class="card soft"><b>⭐ อยากดูย้อนหลังและกราฟรายเดือน?</b><p class="small" style="margin:6px 0 10px">Premium ดูสรุปได้ทั้งเดือน แยกตามช่วงเวลา และดูยาที่ลืมบ่อย</p><button class="btn block" data-act="premium-info" data-id="summary">ดูรายละเอียด Premium</button></div>`;
+  const upsell = `<div class="card soft"><b>⭐ อยากดูย้อนหลังและกราฟรายเดือน?</b><p class="small" style="margin:6px 0 10px">Premium ดูสรุปได้ทั้งเดือน แยกตามช่วงเวลา และดูยาที่ยังไม่มีบันทึกบ่อย</p><button class="btn block" data-act="premium-info" data-id="summary">ดูรายละเอียด Premium</button></div>`;
   if (!exp) return `${head}<div class="card empty"><div class="e">🗓️</div>ยังไม่มีข้อมูลการกินยาใน ${FREE_LIMITS.adherenceDays} วันนี้</div>${upsell}`;
   const pct = Math.round((got / exp) * 100); const pr = praise(pct);
   return `${head}
@@ -253,43 +256,46 @@ function viewMoodSummary() {
 }
 
 // ---------- แท็บสมาชิก ----------
-function viewMembers() {
-  if (ui.memberPage && S.profiles.some((p) => p.id === ui.memberPage)) return memberDetail(profileById(ui.memberPage));
-  ui.memberPage = null;
+function circleData() {
   const myCircles = S.circles.filter((c) => c.user_id === DB.user.id);
   const myCircleIds = new Set(myCircles.map((c) => c.id));
   const myEmail = String(DB.user?.email || '').toLowerCase();
   const myInvites = DB.mode === 'supabase' ? (S.circle_invites || []).filter((i) => i.email.toLowerCase() === myEmail && !S.circle_members.some((m) => m.circle_id === i.circle_id && m.user_id === DB.user.id)) : [];
   const sharedCircles = S.circle_members.filter((m) => m.user_id === DB.user.id && !myCircleIds.has(m.circle_id)).map((m) => S.circles.find((c) => c.id === m.circle_id)).filter(Boolean);
-  const me = selfProfile();
+  return { myCircles, myInvites, sharedCircles };
+}
+/** หน้า "สมาชิก" แบบเรซูเม่: ซ้าย = โปรไฟล์ของฉัน · ขวา = คนที่ฉันดูแล + แชร์มาให้ฉัน (สีบอกหัวข้อ ไม่ใช่สีของแต่ละคน) · กลุ่มผู้ดูแลเป็นแค่ป้ายบนการ์ด + ปุ่มจัดการกลุ่มท้ายหน้า */
+function viewMembers() {
+  if (ui.memberPage && S.profiles.some((p) => p.id === ui.memberPage)) return memberDetail(profileById(ui.memberPage));
+  ui.memberPage = null;
+  const { myInvites } = circleData();
+  const selfP = S.profiles.find((p) => ownsProfile(p.id) && isSelfProfile(p));
+  const cared = caredProfiles(); const shared = S.profiles.filter((p) => !ownsProfile(p.id));
+  // การ์ดสมาชิกแบบเดิม (แถบสีตามสีประจำตัวของแต่ละคน) · โปรไฟล์ของฉันใหญ่และเด่นกว่า (big)
+  const card = (p, big = false) => {
+    const n = medsOf(p.id).filter(isOralMed).length; const other = medsOf(p.id).length - n; const isMe = selfP?.id === p.id; const age = ageOf(p.birth_year); const own = ownsProfile(p.id);
+    const sub = [isMe ? '' : relOf(p), age ? `อายุ ${age} ปี` : ''].filter(Boolean).join(' · '); // ป้าย "ตัวคุณ" บอกอยู่แล้ว ไม่ซ้ำคำว่า "ตัวเอง"
+    return `<button type="button" class="card member-row ${own ? '' : 'is-shared'} ${big ? 'mr-big' : ''}" data-act="member-open" data-id="${p.id}" style="--pc:${p.color}">
+      ${avatarHtml(p, 'lg')}
+      <div class="info"><div class="mr-name">${esc(p.name)}${isMe ? ' <span class="tag">ตัวคุณ</span>' : ''}</div>
+        ${sub ? `<div class="small muted">${esc(sub)}</div>` : ''}
+        <div class="small muted">💊 ยาทาน ${n} ตัว${other ? ` · ยาอื่นๆ ${other} ตัว` : ''}</div>
+        ${p.drug_allergies?.length ? `<div class="small red-t">⚠️ แพ้ยา: ${p.drug_allergies.map(esc).join(', ')}</div>` : ''}${own ? '' : `<div class="mr-share">${shareTag(p.id)}</div>`}</div>
+      <span class="muted chev">›</span></button>`;
+  };
+  const me = selfP ? card(selfP, true) : '<button type="button" class="rs-add o" data-act="add-self">+ เพิ่มโปรไฟล์ของฉัน<small>เพื่อบันทึกอารมณ์และดูแลตัวเองด้วย</small></button>';
   return `
-    <header class="header between"><div><h1>สมาชิก</h1><p class="sub">แตะที่ชื่อเพื่อดูข้อมูลส่วนตัว</p></div><button class="btn sm" data-act="add-person">+ เพิ่มคน</button></header>
-    ${myInvites.length ? `<div class="alert sun"><div class="ic">🔔</div><div><b>มี ${myInvites.length} คำเชิญเข้ากลุ่มผู้ดูแล</b><span class="small">เลื่อนลงไปที่ "กลุ่มผู้ดูแล" เพื่อรับคำเชิญหรือปฏิเสธ</span></div></div>` : ''}
-    ${me ? '' : '<button class="alert sun" data-act="add-self"><div class="ic">🙋</div><div><b>ยังไม่มีข้อมูลของคุณ</b><span class="small">เพิ่ม "ตัวฉัน" เพื่อบันทึกอารมณ์และดูแลตัวเองด้วย</span></div></button>'}
-    ${(() => {
-      const card = (p) => {
-        const n = medsOf(p.id).filter(isOralMed).length; const other = medsOf(p.id).length - n; const isMe = me?.id === p.id; const age = ageOf(p.birth_year); const own = ownsProfile(p.id);
-        // ความสัมพันธ์เก็บจากมุมของเจ้าของข้อมูล — ถ้าเป็นของที่แชร์มาและเป็น "ตัวเอง" (ของเจ้าของ) ไม่แสดงคำนี้ เพราะไม่ใช่ตัวผู้ดู
-        const rel = relOf(p);
-        const sub = [rel, age ? `อายุ ${age} ปี` : ''].filter(Boolean).join(' · ');
-        return `<button type="button" class="card member-row ${own ? '' : 'is-shared'}" data-act="member-open" data-id="${p.id}" style="--pc:${p.color}">
-        ${avatarHtml(p, 'lg')}
-        <div class="info">${own ? '' : `<div class="mr-share">${shareTag(p.id)}</div>`}<div class="mr-name">${esc(p.name)}${isMe ? ' <span class="tag">ตัวคุณ</span>' : ''}</div>
-          ${sub ? `<div class="small muted">${esc(sub)}</div>` : ''}
-          <div class="small muted">💊 จำนวนยาที่ทาน ${n} รายการ${other ? ` · ยาอื่นๆ ${other}` : ''}</div>
-          ${p.drug_allergies?.length ? `<div class="small red-t">⚠️ แพ้ยา: ${p.drug_allergies.map(esc).join(', ')}</div>` : ''}</div>
-        <span class="muted chev">›</span></button>`;
-      };
-      const mine = S.profiles.filter((p) => ownsProfile(p.id)); const shared = S.profiles.filter((p) => !ownsProfile(p.id));
-      if (!S.profiles.length) return '<div class="card empty"><div class="e">👨‍👩‍👧</div>ยังไม่มีสมาชิก</div>';
-      return `${mine.length ? `<h3 class="mb-sec">ของฉัน</h3>${mine.map(card).join('')}` : ''}${shared.length ? `<h3 class="mb-sec">แชร์มาให้ฉัน</h3>${shared.map(card).join('')}` : ''}`;
-    })()}
-
-    <h2>กลุ่มผู้ดูแล</h2>
-    ${myCircles.map((c) => { const shared = (S.circle_care_for || []).filter((cf) => cf.circle_id === c.id).map((cf) => S.profiles.find((p) => p.id === cf.profile_id)).filter(Boolean); const nm = S.circle_members.filter((m) => m.circle_id === c.id).length; return `<div class="card circle"><b>${esc(circleLabel(c.name))}</b><p class="small muted">${esc(c.description || '')}${nm ? ` · สมาชิก ${nm} คน` : ''}</p><div class="shared-row">${shared.length ? `${shared.map((p) => `<span class="shared-av" title="${esc(p.name)}">${avatarHtml(p, 'xs')}<small>${esc(p.name)}</small></span>`).join('')}` : '<span class="small muted">ยังไม่ได้เลือกข้อมูลที่แชร์</span>'}</div><button class="btn ghost sm" data-act="manage-circle" data-id="${c.id}">✏️ แก้ไข</button></div>`; }).join('')}
-    ${myInvites.map((i) => `<div class="card circle"><b>คำเชิญ: ${esc(i.circle_name || 'กลุ่มผู้ดูแล')}</b><p class="small muted">สิทธิ์: ${i.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขข้อมูลได้'}</p><div class="row"><button class="btn sm" data-act="accept-invite" data-id="${i.id}">✓ รับคำเชิญ</button><button class="btn ghost sm" data-act="decline-invite" data-id="${i.id}">ปฏิเสธ</button></div></div>`).join('')}
-    ${sharedCircles.map((c) => { const mm = S.circle_members.find((m) => m.circle_id === c.id && m.user_id === DB.user.id); return `<div class="card circle shared"><b>${esc(circleLabel(c.name))}</b><p class="small muted">แชร์มาให้ · สิทธิ์ของฉัน: ${mm?.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้'}</p><button class="btn ghost sm danger" data-act="leave-circle" data-id="${c.id}">👋 ออกจากกลุ่ม</button></div>`; }).join('')}
-    <button class="btn ghost block" data-act="new-circle">+ สร้างกลุ่มผู้ดูแล</button>
+    <header class="header"><div><h1>สมาชิก</h1><p class="sub">แตะที่ชื่อเพื่อดูข้อมูลส่วนตัว</p></div></header>
+    ${myInvites.length ? `<button type="button" class="alert sun invite-alert" data-act="open-invites"><div class="ic">🔔</div><div><b>มี ${myInvites.length} คำเชิญเข้ากลุ่มผู้ดูแล</b><span class="small">แตะเพื่อตอบรับหรือปฏิเสธ</span></div></button>` : ''}
+    <div class="rs">
+      <h3 class="rs-h o"><i></i>โปรไฟล์ของฉัน</h3>
+      ${me}
+      <h3 class="rs-h g"><i></i>คนที่ฉันดูแล</h3>
+      ${cared.map((p) => card(p)).join('')}
+      <button type="button" class="rs-add g" data-act="add-person">+ เพิ่มคน</button>
+      ${shared.length ? `<h3 class="rs-h v"><i></i>แชร์มาให้ฉัน</h3>${shared.map((p) => card(p)).join('')}` : ''}
+      ${groupSection()}
+    </div>
 
     <h2>📞 เบอร์ฉุกเฉิน</h2>
     <div class="card sos-card">
@@ -297,6 +303,17 @@ function viewMembers() {
       ${(S.emergency_contacts || []).map((h) => `<div class="hos-row"><a class="hos-call" data-call-name="${esc(h.name)}" href="tel:${esc(h.phone.replace(/[^\d+]/g, ''))}"><span>🏥</span><b>${esc(h.name)}</b><small>${esc(h.phone)}</small></a><button type="button" class="hos-rm" data-act="del-contact" data-id="${h.id}" aria-label="ลบ ${esc(h.name)}">×</button></div>`).join('')}
       <button class="btn ghost block" data-act="add-contact">+ เพิ่มเบอร์โรงพยาบาล</button>
     </div>`;
+}
+/** ส่วน "กลุ่มผู้ดูแล" ท้ายหน้าสมาชิก: การ์ดกลุ่มของฉัน (เห็นว่ามีข้อมูลใครแชร์อยู่ในกลุ่ม) · คำเชิญที่รอ · กลุ่มที่แชร์มาให้ · ปุ่มสร้างกลุ่ม */
+function groupSection() {
+  const { myCircles, myInvites, sharedCircles } = circleData();
+  const mine = myCircles.map((c) => { const shared = (S.circle_care_for || []).filter((cf) => cf.circle_id === c.id).map((cf) => S.profiles.find((p) => p.id === cf.profile_id)).filter(Boolean); const nm = S.circle_members.filter((m) => m.circle_id === c.id).length;
+    return `<div class="card circle"><div class="grp-head"><b>${esc(circleLabel(c.name))}</b><button class="btn ghost sm" data-act="manage-circle" data-id="${c.id}">✏️ แก้ไข</button></div><p class="small muted grp-sub">${[c.description ? esc(c.description) : '', nm ? `สมาชิก ${nm} คน` : ''].filter(Boolean).join(' · ')}</p><div class="shared-row">${shared.length ? shared.map((p) => `<span class="shared-av" title="${esc(p.name)}">${avatarHtml(p, 'xs')}<small>${esc(p.name)}</small></span>`).join('') : '<span class="small muted">ยังไม่ได้เลือกข้อมูลที่แชร์</span>'}</div></div>`; }).join('');
+  const inv = myInvites.map((i) => `<div class="card circle"><b>คำเชิญ: ${esc(i.circle_name || 'กลุ่มผู้ดูแล')}</b><p class="small muted grp-sub">สิทธิ์: ${i.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขข้อมูลได้'}</p><div class="row"><button class="btn sm" data-act="accept-invite" data-id="${i.id}">✓ รับคำเชิญ</button><button class="btn ghost sm" data-act="decline-invite" data-id="${i.id}">ปฏิเสธ</button></div></div>`).join('');
+  const sh = sharedCircles.map((c) => { const mm = S.circle_members.find((m) => m.circle_id === c.id && m.user_id === DB.user.id); return `<div class="card circle shared"><div class="grp-head"><b>${esc(circleLabel(c.name))}</b><button class="btn ghost sm danger" data-act="leave-circle" data-id="${c.id}">👋 ออกจากกลุ่ม</button></div><p class="small muted grp-sub">แชร์มาให้ · สิทธิ์ของฉัน: ${mm?.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้'}</p></div>`; }).join('');
+  return `<h3 class="rs-h s" id="grpSec"><i></i>กลุ่มผู้ดูแล</h3>
+    ${mine}${inv}${sh}${mine || inv || sh ? '' : '<p class="small muted" style="margin:0 0 8px">ยังไม่มีกลุ่มผู้ดูแล</p>'}
+    <button type="button" class="rs-add v" data-act="new-circle">+ สร้างกลุ่มผู้ดูแล</button>`;
 }
 
 function memberDetail(p) {
@@ -307,15 +324,15 @@ function memberDetail(p) {
   const kv = (k, v) => (v ? `<div class="kv"><span>${k}</span><b>${v}</b></div>` : '');
   const nA = '<span class="muted" style="font-weight:400">ยังไม่ได้ระบุ</span>'; // ข้อมูลร่างกายแสดงเสมอ แม้ยังไม่กรอก (แก้ได้ที่ "แก้ไขข้อมูล")
   return `${backBar('สมาชิก', 'member-back')}
-    <div class="profile-top" style="--pc:${p.color}">${avatarHtml(p, 'lg')}<h1>${esc(p.name)}${isMe ? ' <span class="tag">คุณ</span>' : ''}</h1>
-      <div class="small muted">${esc(relOf(p))}${relOf(p) && age ? ' · ' : ''}${age ? `อายุ ${age} ปี` : ''}</div>${ownsProfile(p.id) ? '' : `<div class="tags">${shareTag(p.id)}</div>`}</div>
+    <div class="profile-top" style="--pc:${p.color}">${avatarHtml(p, 'lg')}<h1>${esc(p.name)}${isMe ? ' <span class="tag">ตัวคุณ</span>' : ''}</h1>
+      <div class="small muted">${esc(isMe && p.relation === 'ตัวเอง' ? '' : relOf(p))}${(isMe && p.relation === 'ตัวเอง' ? '' : relOf(p)) && age ? ' · ' : ''}${age ? `อายุ ${age} ปี` : ''}</div>${ownsProfile(p.id) ? '' : `<div class="tags">${shareTag(p.id)}</div>`}</div>
     ${p.drug_allergies?.length ? `<div class="alert red allergy-box"><div class="ic">⚠️</div><div><b>แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <div class="card kv-card">
       ${ownsProfile(p.id) ? '' : `<div class="kv"><span>ความสัมพันธ์ของฉัน</span><b>${esc(relOf(p)) || nA} <button type="button" class="linkbtn" data-act="rel-label" data-id="${p.id}">✏️ ${relOf(p) ? 'แก้' : 'ตั้ง'}</button></b></div>`}
       ${kv('โรคประจำตัว', p.chronic_diseases?.length ? p.chronic_diseases.map(esc).join(', ') : '')}
       ${kv('น้ำหนัก', p.weight_kg ? `${num(p.weight_kg)} กก.` : nA)}${kv('ส่วนสูง', p.height_cm ? `${num(p.height_cm)} ซม.` : nA)}${kv('รอบเอว', p.waist_cm ? `${num(p.waist_cm)} ซม.` : nA)}${kv('กรุ๊ปเลือด', p.blood_type ? esc(p.blood_type) : nA)}
-      ${kv('จำนวนยาที่ทาน', `${n} รายการ (รหัส "${esc(medPrefix(p.id)) || '-'}")`)}
-      ${kv('ยาอื่นๆ (ไม่ใช่ยาทาน)', `${other} รายการ`)}
+      ${kv('ยา', `${n} ตัว (รหัส "${esc(medPrefix(p.id)) || '-'}")`)}
+      ${kv('ยาอื่นๆ (ไม่ใช่ยาทาน)', `${other} ตัว`)}
       ${kv('นัดถัดไป', next ? thDate(next.appt_date) : '')}
       ${kv('ใบนัด', `${slips} ใบ`)}
     </div>
@@ -358,30 +375,30 @@ const ICON_CREDITS = [['ยา', 'Magnific'], ['นัดพบแพทย์',
 /** ตั้งค่า > การแจ้งเตือน: รวมสวิตช์แจ้งเตือนทุกรายการไว้ที่เดียว แยกเป็นหมวด (พับเก็บไว้ กดเพื่อเปิด) */
 function notifCategories() {
   const sw = (attr, on, dis) => `<span class="switch"><input type="checkbox" ${attr} ${on ? 'checked' : ''} ${dis ? 'disabled' : ''}><i></i></span>`;
-  const who = (p) => `<span class="nt-who">${avatarHtml(p, 'xs')}<b>${esc(p.name)}</b></span>`;
+  const who = (p, note) => `<span class="nt-who">${avatarHtml(p, 'xs')}<span class="nt-nm"><b>${esc(p.name)}</b>${note && !ownsProfile(p.id) ? `<small class="muted">${note}</small>` : ''}</span></span>`; // โปรไฟล์ที่แชร์มา: ใส่ป้ายอธิบายว่าทำไมสวิตช์จาง (ตั้งค่าได้เฉพาะเจ้าของ)
   const cat = (ic, title, sub, body) => `<details class="set-det nt-cat"><summary class="set-row"><span class="sr-ic">${ic}</span><span class="sr-l">${title}<small class="muted" style="display:block">${sub}</small></span><span class="muted chev">›</span></summary><div class="nt-body">${body}</div></details>`;
   const none = '<p class="small muted">ยังไม่มีข้อมูล</p>';
-  const meds = S.profiles.map((p) => `<label class="nt-row">${who(p)}${sw(`data-toggle-reminder="${p.id}"`, reminderOn(p), !ownsProfile(p.id))}</label>`).join('');
+  const meds = S.profiles.map((p) => `<label class="nt-row">${who(p, 'แชร์มาให้ · เจ้าของโปรไฟล์ตั้งเตือนที่เครื่องของเขา')}${sw(`data-toggle-reminder="${p.id}"`, reminderOn(p), !ownsProfile(p.id))}</label>`).join('');
   const lowNow = lowStockQty();
   const lowBox = `<div class="nt-days"><b>แจ้งเตือนเมื่อยาเหลือจำนวน</b><div class="nt-low"><button type="button" class="stk-b" data-low-step="-1" aria-label="ลด">−</button><input type="number" id="lowQty" data-low-qty min="0" max="999" step="1" inputmode="numeric" value="${lowNow}" aria-label="จำนวนเม็ด"><span>เม็ด</span><button type="button" class="stk-b" data-low-step="1" aria-label="เพิ่ม">+</button></div>
     <small class="muted">จะขึ้นแจ้งเตือน "ยาใกล้หมด" ตามจำนวนที่คุณระบุ (ยาที่ทานเฉพาะเมื่อมีอาการและยาที่ไม่ใช่เม็ดไม่นับ)</small></div>`;
   const daysOn = remindDays();
   const daysBox = `<div class="nt-days"><b>เตือนล่วงหน้า</b><div class="nt-chips">${REMIND_DAY_OPTIONS.map((d) => `<label class="nt-chip"><input type="checkbox" data-appt-day="${d}" ${daysOn.includes(d) ? 'checked' : ''}><span>${d === 0 ? 'วันนัด' : `${d} วัน`}</span></label>`).join('')}</div><small class="muted">เลือกได้หลายวัน</small>
     <b class="nt-tl">เวลาแจ้งเตือน</b><div class="t24 nt-time"><select data-appt-hh aria-label="ชั่วโมง">${Array.from({ length: 24 }, (_, h) => pad(h)).map((h) => `<option ${h === apptRemindTime().slice(0, 2) ? 'selected' : ''}>${h}</option>`).join('')}</select><b>:</b><select data-appt-mm aria-label="นาที">${[...new Set(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', apptRemindTime().slice(3)])].sort().map((m) => `<option ${m === apptRemindTime().slice(3) ? 'selected' : ''}>${m}</option>`).join('')}</select><small>น.</small></div></div>`;
-  const appts = S.profiles.map((p) => `<label class="nt-row">${who(p)}${sw(`data-toggle-appt="${p.id}"`, p.appt_reminder !== false, !ownsProfile(p.id))}</label>`).join('');
+  const appts = S.profiles.map((p) => `<label class="nt-row">${who(p, 'แชร์มาให้ · เปิด/ปิดได้เฉพาะเจ้าของโปรไฟล์')}${sw(`data-toggle-appt="${p.id}"`, p.appt_reminder !== false, !ownsProfile(p.id))}</label>`).join('');
   const plans = S.care_plans.filter((c) => c.status === 'active').map((c) => { const p = profileById(c.profile_id); return `<label class="nt-row"><span class="nt-who"><b>${esc(c.title)}</b><small class="muted">${esc(p?.name || '')}</small></span>${sw(`data-toggle-care="${c.id}"`, c.remind !== false, !canEditProfile(c.profile_id))}</label>`; }).join('');
   const desc = (t) => `<p class="small muted nt-desc">${t}</p>`;
   return `<div class="nt-cats">
-    ${cat('💊', 'เตือนกินยา', ntMedSub(), desc('เลือกคนที่จะให้เตือน แอพจะเด้งตอนถึงเวลากินยาของทุกตัวที่คนนั้นมี (ปรับเวลาที่ ตั้งค่า › กำหนดช่วงเวลาทานยา) ในการแจ้งเตือนมีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที"') + (meds || none))}
+    ${cat('💊', 'เตือนกินยา', ntMedSub(), desc('เลือกโปรไฟล์ที่จะให้เตือน แอพจะเด้งตอนถึงเวลากินยาของทุกตัวที่โปรไฟล์นั้นมี (ปรับเวลาที่ ตั้งค่า › กำหนดช่วงเวลาทานยา) ในการแจ้งเตือนมีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที"') + (meds || none))}
     ${cat('📅', 'เตือนนัดพบแพทย์', ntApptSub(), desc('เด้งเตือนก่อนวันนัดหมอตามจำนวนวันที่เลือก ในเวลาที่ตั้ง') + daysBox + (appts || none))}
-    ${cat('🩹', 'เตือนติดตามอาการ', ntCareSub(), desc('เลือกเรื่องที่ต้องการให้เด้งเตือนในวันที่ถึงรอบติดตาม') + (plans || '<p class="small muted">ยังไม่มีเรื่องที่ติดตามอาการ</p>'))}
+    ${cat('🩹', 'เตือนติดตามอาการ', ntCareSub(), desc('เลือกแผนติดตามที่ต้องการให้เด้งเตือนในวันที่ถึงรอบติดตาม') + (plans || '<p class="small muted">ยังไม่มีแผนติดตามอาการ</p>'))}
     ${cat('📦', 'ยาใกล้หมด', `แจ้งเตือนเมื่อยาเหลือจำนวน ${lowStockQty()} เม็ด`, lowBox)}</div>
-    <p class="nt-note"><b>ใครจะได้รับการเตือน?</b> การเตือนจะเด้งที่เครื่องของเจ้าของโปรไฟล์ ส่วนผู้ดูแลในกลุ่มที่ได้รับแชร์จะได้รับเฉพาะ "ยังไม่ได้กินยา" เมื่อเลยเวลาไปแล้ว 1 ชั่วโมง</p>`;
+    <p class="nt-note"><b>ใครจะได้รับการเตือน?</b> การเตือนจะเด้งที่เครื่องของเจ้าของโปรไฟล์ ส่วนผู้ดูแลในกลุ่มที่ได้รับแชร์จะได้รับเฉพาะ "ยังไม่มีบันทึกการกินยา" เมื่อเลยเวลาไปแล้ว 1 ชั่วโมง</p>`;
 }
 /** บรรทัดสรุปใต้ชื่อแต่ละหมวด (อัปเดตสดตอนผู้ใช้เปลี่ยนค่า) */
-const ntMedSub = () => `เด้งตอนถึงเวลากินยา · เปิดให้ ${S.profiles.filter((p) => reminderOn(p)).length} จาก ${S.profiles.length} คน`;
+const ntMedSub = () => { const on = S.profiles.filter((p) => reminderOn(p)); const nm = on.slice(0, 3).map((p) => p.name).join(', ') + (on.length > 3 ? ` และอีก ${on.length - 3}` : ''); return `เด้งตอนถึงเวลากินยา · เปิดให้ ${on.length} จาก ${S.profiles.length} โปรไฟล์${on.length ? ` · เปิด: ${nm}` : ''}`; };
 const ntApptSub = () => { const d = remindDays(); return `ก่อนวันนัดหมอ ${d.length ? d.join(', ') + ' วัน' : 'ปิดอยู่'} · เวลา ${apptRemindTime()} น.`; };
-const ntCareSub = () => `เด้งวันที่ถึงรอบติดตาม · เปิดให้ ${S.care_plans.filter((c) => c.status === 'active' && c.remind !== false).length} เรื่อง`;
+const ntCareSub = () => `เด้งวันที่ถึงรอบติดตาม · เปิดให้ ${S.care_plans.filter((c) => c.status === 'active' && c.remind !== false).length} แผนติดตาม`;
 function viewSettings() {
   const pushOk = 'serviceWorker' in navigator && 'PushManager' in window;
   const supa = DB.mode === 'supabase';
@@ -403,9 +420,10 @@ function viewSettings() {
             <select data-slot-hh="${s.key}" aria-label="ชั่วโมง">${Array.from({ length: 24 }, (_, h) => pad(h)).map((h) => `<option ${h === hh ? 'selected' : ''}>${h}</option>`).join('')}</select><b>:</b>
             <select data-slot-mm="${s.key}" aria-label="นาที">${mmOpts.map((m) => `<option ${m === mm ? 'selected' : ''}>${m}</option>`).join('')}</select><small>น.</small></div></div>`; }).join('')}</div></details>
       <details class="set-det"><summary class="set-row"><span class="sr-ic">🔔</span><span class="sr-l">การแจ้งเตือน</span><span class="muted chev">›</span></summary>
-        <div class="nt-step"><span class="nt-no">1</span><div><b>เปิดการแจ้งเตือนบนเครื่องนี้</b><small class="muted">${'Notification' in window ? ({ granted: '✅ เปิดอยู่แล้ว', denied: '❌ ถูกบล็อก — ไปเปิดที่การตั้งค่าของเบราว์เซอร์', default: 'ยังไม่ได้เปิด — กดปุ่มด้านล่าง' }[Notification.permission] || '') : 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน'}</small></div></div>
+        <div class="nt-step"><span class="nt-no">1</span><div><b>เปิดการแจ้งเตือนบนเครื่องนี้</b><small class="muted">${'Notification' in window ? ({ granted: '✅ เปิดอยู่แล้ว', denied: '❌ ถูกบล็อก — ต้องไปเปิดสิทธิ์ที่เครื่องก่อน (ดูวิธีด้านล่าง)', default: 'ยังไม่ได้เปิด — กดปุ่มด้านล่าง' }[Notification.permission] || '') : 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน'}</small></div></div>
+        ${'Notification' in window && Notification.permission === 'denied' ? `<div class="nt-help"><b>เปิดสิทธิ์การแจ้งเตือนที่ไหน?</b><ul><li><b>iPhone:</b> ตั้งค่า › การแจ้งเตือน › สุขใจ แล้วเปิด "อนุญาตการแจ้งเตือน" (ต้องเพิ่มแอพไปยังหน้าจอโฮมและเปิดจากไอคอนก่อน)</li><li><b>Android:</b> ตั้งค่า › แอป › สุขใจ (หรือ Chrome) › การแจ้งเตือน › เปิด · หรือแตะไอคอนแม่กุญแจข้างชื่อเว็บ › สิทธิ์ › การแจ้งเตือน › อนุญาต</li><li><b>คอมพิวเตอร์:</b> แตะไอคอนแม่กุญแจข้างชื่อเว็บ › การแจ้งเตือน › อนุญาต แล้วโหลดหน้าใหม่</li></ul></div>` : ''}
         <button class="btn block" data-act="enable-push" ${pushOk ? '' : 'disabled'}>🔔 เปิดการแจ้งเตือนบนเครื่องนี้</button>
-        <button class="btn ghost block" data-act="test-push" style="margin-top:8px">ทดลองส่งแจ้งเตือน</button>
+        <button class="btn ghost sm block nt-test" data-act="test-push">ทดลองส่งแจ้งเตือน</button>
         <p class="small muted">${pushOk ? (supa && CFG.VAPID_PUBLIC_KEY ? 'ใช้ Web Push — เตือนได้แม้ปิดแอพ' : 'เตือนได้เฉพาะตอนเปิดแอพค้างไว้') : 'เบราว์เซอร์นี้ไม่รองรับ Web Push'}
           ${/iPhone|iPad/.test(navigator.userAgent) ? '<br>iPhone: ต้อง "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดจากไอคอนก่อน จึงจะเปิดแจ้งเตือนได้' : ''}</p>
         <div class="nt-step"><span class="nt-no">2</span><div><b>เลือกเรื่องที่จะให้เตือน</b><small class="muted">แตะแต่ละหมวดเพื่อตั้งค่า</small></div></div>
@@ -418,8 +436,8 @@ function viewSettings() {
     <div class="card set-group">${row('📱', 'เวอร์ชันปัจจุบัน', APP_VERSION)}
       ${row('🧹', 'ล้างแคชและโหลดเวอร์ชันล่าสุด', '', 'clear-cache')}
       ${row('👩‍💻', 'ผู้พัฒนา', CFG.DEVELOPER_NAME ? esc(CFG.DEVELOPER_NAME) : unset)}
-      ${row('📧', 'ติดต่อเรา', mail)}
-      ${row('💬', 'ช่องทางการสนับสนุน', support)}
+      ${CFG.CONTACT_EMAIL ? row('📧', 'ติดต่อเรา', mail) : ''}
+      ${CFG.SUPPORT_URL ? row('💬', 'ช่องทางการสนับสนุน', support) : ''}
       <details class="set-det"><summary class="set-row"><span class="sr-ic">🎨</span><span class="sr-l">เครดิตไอคอน</span><span class="muted chev">›</span></summary>
         <table class="credits"><thead><tr><th>ไอคอน</th><th>designed by … from <a href="https://www.flaticon.com" target="_blank" rel="noopener">Flaticon</a></th></tr></thead><tbody>${ICON_CREDITS.map(([use, who]) => `<tr><td>${esc(use)}</td><td>${esc(who)}</td></tr>`).join('')}</tbody></table>
         <p class="credits-note">ไอคอนจาก Flaticon ตามสัญญาอนุญาตแบบ Free (with attribution)</p></details></div>
@@ -437,7 +455,7 @@ document.addEventListener('click', (ev) => {
     case 'nav-back': if (!navBack()) { const to = el.dataset.to; if (to === 'meds-go') ui.medsPage = id; else if (to === 'today-go') ui.todayPage = id; else if (to === 'member-back') ui.memberPage = null; render(); top(); } break;
     case 'toggle-dellock': setDelLock(delLocked()); break;
     case 'clear-cache': clearAppCache(); break;
-    case 'open-invites': ui.memberPage = null; go('family'); top(); break;
+    case 'open-invites': ui.memberPage = null; go('family'); setTimeout(() => document.getElementById('grpSec')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 150); break;
     case 'meds-go': ui.medsPage = id; ui.histOnly = false; if (id === 'summary') { ui.adYm = null; } render(); top(); break;
     case 'meds-open': ui.tab = 'meds'; ui.medsPage = 'list'; ui.medsPerson = id; render(); top(); break;
     case 'member-open': ui.memberPage = id; render(); top(); break;
@@ -454,7 +472,7 @@ document.addEventListener('click', (ev) => {
     case 'print-meds': downloadMedsPdf(id); break;
     case 'stickers': stickerSheet(id); break;
     case 'print-page': downloadSummaryPdf(); break;
-    case 'add-self': personForm(null, { relation: 'ตัวเอง', name: 'ฉัน', avatar: 'f-adult-smile' }); break;
+    case 'add-self': personForm(null, { relation: 'ตัวเอง', name: 'ฉัน', avatar: 'f-adult-smile', isSelf: true }); break;
     case 'language': openSheet(`<h3>ภาษา</h3>
       <div class="set-group card"><div class="set-row"><span class="sr-l">ไทย</span><span class="sr-v">✓ ใช้อยู่</span></div>
       <div class="set-row" style="opacity:.55"><span class="sr-l">English</span><span class="sr-v">เร็วๆ นี้</span></div></div>
@@ -493,18 +511,21 @@ function maybeOnboard() {
   const m = document.getElementById('modal'); if (m && !m.classList.contains('hidden')) return; // มีหน้าต่างอื่นเปิดอยู่ → ไม่แทรก
   if (document.getElementById('splash') || document.querySelector('.ask-ov')) return;
   onboardShown = true; // เด้งครั้งเดียวต่อการเปิดแอพ — ถ้ากดยกเลิก ยังมีปุ่ม "เพิ่มคน" ในหน้าสมาชิกและแถบเตือนบนหน้าวันนี้
-  personForm(null, { welcome: true });
+  personForm(null, { relation: 'ตัวเอง', name: 'ฉัน', avatar: 'f-adult-smile', isSelf: true, welcome: true }); // ผู้ใช้ใหม่: เริ่มจากสร้างโปรไฟล์ของฉัน
 }
 // iOS Safari ต้องมี touchstart ถึงจะแสดงสถานะ :active (สีขึ้นที่กรอบที่กด)
 document.addEventListener('touchstart', () => {}, { passive: true });
 
 // ---------- ดาวน์โหลด PDF (แบบฟอร์มเดียวกันทุกไฟล์ · ถ้าสร้างไฟล์ไม่ได้จะใช้ "พิมพ์ → บันทึกเป็น PDF" แทน) ----------
-function printNow(cls, orient = 'portrait') {
+function printNow(cls, orient = 'portrait', opts = {}) {
   let st = document.getElementById('printPage');
   if (!st) { st = document.createElement('style'); st.id = 'printPage'; document.head.appendChild(st); }
-  st.textContent = `@page { size: A4 ${orient}; margin: ${orient === 'landscape' ? '10mm' : '14mm'}; }`;
+  // opts.pageNo = ใส่เลขหน้า "หน้า X/Y" มุมขวาล่างทุกหน้า (กล่องขอบกระดาษ @page) · opts.title = ชื่อไฟล์ที่เบราว์เซอร์เสนอตอนบันทึก PDF
+  const pageNo = opts.pageNo ? `@bottom-right { content: "หน้า " counter(page) "/" counter(pages); font: 700 9pt Sarabun, sans-serif; color: #000; vertical-align: middle; }` : '';
+  st.textContent = `@page { size: A4 ${orient}; margin: ${orient === 'landscape' ? (opts.pageNo ? '10mm 10mm 12mm' : '10mm') : '14mm'}; ${pageNo} }`;
   document.body.classList.add(cls);
-  const done = () => { document.body.classList.remove(cls); window.removeEventListener('afterprint', done); };
+  const oldTitle = document.title; if (opts.title) document.title = opts.title;
+  const done = () => { document.body.classList.remove(cls); document.title = oldTitle; window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);
   setTimeout(() => { window.print(); setTimeout(done, 1500); }, 150);
 }
@@ -545,38 +566,52 @@ function prSection(p, kind, title, box1, bodyHtml, note = '') {
     <p class="pr-foot"><span>${PDF_APP_NOTE} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)</span><span class="pr-pg"></span></p></section>`;
 }
 
-/** แบบที่ 1: ตารางเลขรหัส (7 ช่วงเวลา) + ชื่อยาตัวเล็ก · ช่วงที่ไม่มียาแคบ */
-function printGridHtml(p, meds) {
-  const cols = SLOTS.map((s) => ({ s, list: meds.filter((m) => m.slots.includes(s.key)) }));
-  const nRows = Math.max(1, ...cols.map((c) => c.list.length));
-  const odd = meds.filter((m) => num(m.dose, 1) !== 1).map(medNo);
-  const head = cols.map(({ s, list }) => { const pr = s.short.startsWith('ก่อน') ? 'ก่อน' : s.short.startsWith('หลัง') ? 'หลัง' : '';
-    if (!list.length) return `<th class="off" title="${esc(s.label)} (ไม่มียา)">${s.icon}</th>`;
-    return `<th class="${pr === 'หลัง' ? 'aft' : 'bef'}">${pr ? `<u>${pr}</u>${esc(s.short.slice(pr.length))}` : esc(s.short)}<small>${slotTime(s.key)}</small></th>`; }).join('');
-  const nUsed = cols.filter((c) => c.list.length).length; const wOff = 4.5; const wUsed = ((100 - wOff * (cols.length - nUsed)) / Math.max(1, nUsed)).toFixed(2);
-  const colgroup = `<colgroup>${cols.map((c) => `<col style="width:${c.list.length ? wUsed : wOff}%">`).join('')}</colgroup>`;
-  const body = Array.from({ length: nRows }, (_, r) => `<tr>${cols.map(({ list }) => {
-    if (!list.length) return '<td class="off"></td>'; const m = list[r]; if (!m) return '<td></td>';
-    const parts = remarkParts(m); const tag = parts.filter((x) => x.kind === 'warn').map((x) => x.t).join(' · '); const hint = parts.filter((x) => x.kind === 'hint').map((x) => x.t).join(' · ');
-    return `<td class="${tag ? 'wr' : ''} ${m.as_needed ? 'pn' : ''}">${tag ? `<div class="pr-wn"><i></i>${esc(tag)}</div>` : ''}<div class="pr-main"><b class="pr-no">${m.as_needed ? '*' : ''}${esc(medNo(m))}</b>${num(m.dose, 1) !== 1 ? `<span class="pr-dz">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>` : ''}${hasFridge(parts) ? '<span class="pr-fr">❄️</span>' : ''}</div><div class="pr-nm">${esc(medShort(m))}</div>${m.as_needed ? '<div class="pr-as">เมื่อมีอาการ</div>' : ''}${hint ? `<em>${esc(hint)}</em>` : ''}</td>`; }).join('')}</tr>`).join('');
-  return prSection(p, 'grid', `ตารางการกินยาใน 1 วัน (${esc(p.name)})`,
-    `ทานครั้งละ 1 เม็ด${odd.length ? ` <b class="pr-red">(ยกเว้นลำดับที่ ${odd.map(esc).join(' และ ')})</b>` : ''}<small class="pr-leg">สัญลักษณ์:<i class="y"></i>เหลือง = ข้อควรระวัง<i class="p"></i>ชมพู * = กินเฉพาะเมื่อมีอาการ</small>`,
-    `<table class="pr-grid">${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`,
-    meds.some((m) => m.as_needed) ? '<span class="pr-star">* กินเฉพาะเมื่อมีอาการ</span>' : '');
+/** ===== PDF ตารางกินยา + รายการยา: ตัวหนังสือจริง (vector) สร้างจากหน้าพิมพ์ของเบราว์เซอร์ + ฟอนต์ Sarabun ที่ฝังในแอพ — ไม่ถ่ายภาพหน้าจอ ===== */
+/** ชื่อยาสำหรับพิมพ์: ช่องว่างทุกชนิด (รวม nbsp / ตัวกว้างศูนย์) เหลือช่องเดียว ไม่มีช่องว่างแปลกในชื่อ */
+const printName = (s) => String(s ?? '').replace(/[​-‍﻿]/g, '').replace(/[\s ]+/g, ' ').trim();
+/** รหัสยาใน PDF: ตัวหนังสือหนาสีดำ ไม่มีสีพื้นหลัง (อ่านง่ายตอนพิมพ์) — ฟอนต์ Sarabun ตัวหนาเดียวกับในแอพ */
+const mpBox = (p, m) => `<span class="mp-cb">${esc(medNo(m))}</span>`;
+const MP_SNOW = '<svg class="mp-sn" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .6v10.8M1.3 3.3l9.4 5.4M10.7 3.3L1.3 8.7" stroke="#2A7FC9" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>';
+
+/** โครงตารางของทั้ง 2 แบบ: หัวเรื่อง + กล่องข้อมูล 2 ช่อง (อยู่ใน thead จึงซ้ำทุกหน้าที่ตารางยาวต่อ) */
+function mpSection(p, meds, kind, title, box1, ncols, headRow, bodyHtml, after = '') {
+  return `<section class="mp-sec" data-kind="${kind}"><table class="mp-t mp-${kind}"><thead>
+    <tr class="mp-ttl"><td colspan="${ncols}"><div class="mp-top"><h1>${title}</h1><div class="mp-boxes"><span>${box1}</span><span>UPD: ${updDate(meds)}</span></div></div></td></tr>
+    <tr class="mp-hd">${headRow}</tr></thead><tbody>${bodyHtml}</tbody><tfoot><tr class="mp-sp"><td colspan="${ncols}"></td></tr></tfoot></table>${after}</section>`;
 }
 
-/** แบบที่ 2: รายการยามีชื่อยา — ลำดับ ชื่อยา ใช้รักษา จำนวน เวลา หมายเหตุ */
-function printListHtml(p, meds) {
-  const oral = meds.filter(isOralMed).length;
-  return prSection(p, 'list', `รายการยา (${esc(p.name)})`,
-    `${esc(p.relation || '')}${ageOf(p.birth_year) ? ` · อายุ ${ageOf(p.birth_year)} ปี` : ''} · ยาทาน ${oral} รายการ · ยาอื่นๆ ${meds.length - oral} รายการ`,
-    `<table class="pr-list"><colgroup><col style="width:8%"><col style="width:20%"><col style="width:19%"><col style="width:11%"><col style="width:19%"><col style="width:23%"></colgroup>
-    <thead><tr><th>ลำดับ</th><th>ชื่อยา</th><th>ใช้รักษา</th><th>จำนวน</th><th>เวลา</th><th>หมายเหตุ</th></tr></thead><tbody>
-      ${meds.map((m) => { const parts = remarkParts(m); return `<tr class="${parts.some((x) => x.kind === 'warn') ? 'wr' : ''}"><td class="no">${esc(medNo(m))}</td><td>${esc(m.name)}</td><td>${esc(m.purpose || '')}</td>
-        <td>${doseLabel(m.dose)} ${esc(unitOf(m))}</td><td>${esc(medWhen(m))}</td>
-        <td>${parts.map((x) => `<span class="pr-r pr-${x.kind}">${x.kind === 'warn' ? '<i></i>' : ''}${/ตู้เย็น/.test(x.t) ? '❄️ ' : ''}${esc(x.t)}</span>`).join('')}</td></tr>`; }).join('')}
-    </tbody></table>`);
+/** แบบที่ 1: ตารางรหัสยา — แสดงเฉพาะช่วงเวลาที่มียา · ความสูงแถวตามเนื้อหา */
+function mpGridHtml(p, meds) {
+  const cols = SLOTS.map((s) => ({ s, list: meds.filter((m) => m.slots.includes(s.key)) })).filter((c) => c.list.length);
+  const loose = meds.filter((m) => !m.slots.length);
+  const odd = meds.filter((m) => num(m.dose, 1) !== 1).map(medNo);
+  const nRows = Math.max(1, ...cols.map((c) => c.list.length));
+  const head = cols.length ? cols.map(({ s }) => { const pr = s.short.startsWith('ก่อน') ? 'ก่อน' : s.short.startsWith('หลัง') ? 'หลัง' : '';
+    return `<th class="${pr === 'หลัง' ? 'aft' : 'bef'}">${pr ? `<u>${pr}</u>${esc(s.short.slice(pr.length))}` : esc(s.short)}<small>${slotTime(s.key)}</small></th>`; }).join('') : '<th>ช่วงเวลา</th>';
+  const cell = (m) => {
+    const parts = remarkParts(m); const warn = parts.filter((x) => x.kind === 'warn'); const hint = parts.filter((x) => x.kind === 'hint');
+    return `<td class="${warn.length ? 'wr' : ''} ${m.as_needed ? 'pn' : ''}"><div class="mp-main">${m.as_needed ? '<b class="mp-st">*</b>' : ''}${mpBox(p, m)}${num(m.dose, 1) !== 1 ? `<span class="mp-dz">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>` : ''}${hasFridge(parts) ? MP_SNOW : ''}</div>
+      <div class="mp-nm">${esc(printName(medShort(m)))}</div>${m.as_needed ? '<div class="mp-as">เมื่อมีอาการ</div>' : ''}${warn.map((x) => `<div class="mp-w"><i></i>${esc(x.t)}</div>`).join('')}${hint.map((x) => `<div class="mp-h">${esc(x.t)}</div>`).join('')}</td>`;
+  };
+  const body = cols.length ? Array.from({ length: nRows }, (_, r) => `<tr>${cols.map(({ list }) => (list[r] ? cell(list[r]) : '<td class="mp-e"></td>')).join('')}</tr>`).join('') : '<tr><td class="mp-e">ไม่มียาที่กำหนดช่วงเวลา</td></tr>';
+  const after = loose.length ? `<p class="mp-loose">ยาที่ไม่ได้กำหนดช่วงเวลา (ไม่อยู่ในตาราง): ${loose.map((m) => `${mpBox(p, m)} ${esc(printName(medShort(m)))}`).join(' &nbsp; ')}</p>` : '';
+  return mpSection(p, meds, 'grid', `ตารางการกินยาใน 1 วัน (${esc(p.name)})`,
+    `ทานครั้งละ 1 เม็ด${odd.length ? ` <b class="mp-red">(ยกเว้นรหัส ${odd.map(esc).join(' และ ')})</b>` : ''}<small class="mp-leg">สัญลักษณ์:<i class="y"></i>เหลือง = ข้อควรระวัง<i class="p"></i>ชมพู * = กินเฉพาะเมื่อมีอาการ</small>`,
+    Math.max(1, cols.length), head, body, after);
 }
+
+/** แบบที่ 2: รายการยา — รหัสยา ชื่อยา ใช้รักษา จำนวน เวลา หมายเหตุ (แดง = ข้อควรระวังเท่านั้น · หมายเหตุทั่วไปเป็นสีเทา) */
+function mpListHtml(p, meds) {
+  const oral = meds.filter(isOralMed).length;
+  const rows = meds.map((m) => { const parts = remarkParts(m);
+    return `<tr><td class="mp-no">${mpBox(p, m)}</td><td class="mp-name">${esc(printName(m.name))}</td><td>${esc(printName(m.purpose || ''))}</td>
+      <td>${doseLabel(m.dose)} ${esc(unitOf(m))}</td><td>${esc(medWhen(m))}</td>
+      <td>${parts.map((x) => `<span class="mp-r ${x.kind === 'warn' ? 'is-warn' : 'is-grey'}">${x.kind === 'warn' ? '<i></i>' : ''}${/ตู้เย็น/.test(x.t) ? MP_SNOW : ''}${esc(x.t)}</span>`).join('')}</td></tr>`; }).join('');
+  return mpSection(p, meds, 'list', `รายการยา (${esc(p.name)})`,
+    `${esc(p.relation || '')}${ageOf(p.birth_year) ? ` · อายุ ${ageOf(p.birth_year)} ปี` : ''} · ยาทาน ${oral} ตัว · ยาอื่นๆ ${meds.length - oral} ตัว`,
+    6, '<th>รหัสยา</th><th>ชื่อยา</th><th>ใช้รักษา</th><th>จำนวน</th><th>เวลา</th><th>หมายเหตุ</th>', rows).replace('<table class="mp-t mp-list">', '<table class="mp-t mp-list"><colgroup><col style="width:9%"><col style="width:23%"><col style="width:17%"><col style="width:10%"><col style="width:16%"><col style="width:25%"></colgroup>');
+}
+const mpDoc = (p, meds) => `<div class="mp-root" style="--pcl:${tint(p.color, .5)};--pcs:${tint(p.color, .18)};--pcd:${p.color}">${mpGridHtml(p, meds)}${mpListHtml(p, meds)}<div class="mp-foot">สร้างไฟล์เมื่อ ${madeAt()} · ${PDF_APP_NOTE} · © 2026 สุขใจ (Sookjai)</div></div>`;
 
 /** แบบที่ 3: สรุปการกินยารายเดือน (ใช้โครงหน้าเดียวกัน) */
 const pctText = (g, e) => (e ? `${Math.round((g / e) * 100)}%` : '–');
@@ -609,18 +644,8 @@ function printSummaryHtml(p, ym) {
       <h2 class="pr-h2">แต่ละช่วงเวลา</h2><table class="pr-list pr-sum"><colgroup><col style="width:46%"><col style="width:30%"><col style="width:24%"></colgroup><thead><tr><th>ช่วงเวลา</th><th>กินแล้ว / ทั้งหมด</th><th>ร้อยละ</th></tr></thead><tbody>${slotRows}</tbody></table></div>
     <div><div class="pr-kpi"><div class="pr-kpi-pct">${N.exp ? pct + '%' : '–'}</div><div><b>${pr.head}</b><br>กินยาตรงเวลา ${N.got} / ${N.exp} ครั้ง</div></div>
       <p class="pr-praise">${esc(pr.msg)}</p>
-      <h2 class="pr-h2">ยาที่ลืมบ่อย</h2>${missRows ? `<table class="pr-list pr-sum"><colgroup><col style="width:20%"><col style="width:56%"><col style="width:24%"></colgroup><thead><tr><th>รหัส</th><th>ชื่อยา</th><th>ลืม</th></tr></thead><tbody>${missRows}</tbody></table>` : '<p class="pr-praise">ไม่มียาที่ขาดในเดือนนี้</p>'}</div></div>`;
+      <h2 class="pr-h2">ยาที่ยังไม่มีบันทึกบ่อย</h2>${missRows ? `<table class="pr-list pr-sum"><colgroup><col style="width:20%"><col style="width:56%"><col style="width:24%"></colgroup><thead><tr><th>รหัส</th><th>ชื่อยา</th><th>ยังไม่มีบันทึก</th></tr></thead><tbody>${missRows}</tbody></table>` : '<p class="pr-praise">ไม่มียาที่ขาดในเดือนนี้</p>'}</div></div>`;
   return prSection(p, 'summary', `สรุปการกินยา (${esc(p.name)})`, `เดือน${monthLabel(ym)}`, body, 'ยาที่กินเมื่อมีอาการไม่นับรวม · คำนวณจากการติ๊กในแอพ');
-}
-
-/** mode: 'grid' | 'list' | 'both' — ทางสำรอง: พิมพ์ผ่านเบราว์เซอร์ */
-function printMeds(pid, mode = 'both') {
-  const p = profileById(pid); const meds = medsOf(pid);
-  if (!meds.length) return toast('ยังไม่มียาให้พิมพ์');
-  let area = document.getElementById('printArea');
-  if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
-  area.innerHTML = (mode !== 'list' ? printGridHtml(p, meds) : '') + (mode !== 'grid' ? printListHtml(p, meds) : '');
-  printNow('printing', 'landscape');
 }
 
 // ---------- กล่องถามยืนยันก่อนแก้ไข/ลบ (ซ้อนทับหน้าที่เปิดอยู่ ถ้ากดไม่ใช่ ก็กลับไปแก้ต่อได้ ข้อมูลที่กรอกไม่หาย) ----------
@@ -723,38 +748,7 @@ function auditFrame(frame, ctx) {
       }
     });
   });
-  if (ctx.kind === 'meds') {
-    const meds = ctx.meds; const grids = pages.filter((s) => s.dataset.kind === 'grid'); const lists = pages.filter((s) => s.dataset.kind === 'list');
-    if (ctx.mode !== 'list') {
-      if (!grids.length) issues.push('ไม่มีหน้าตารางเลขรหัส');
-      SLOTS.forEach((s, ci) => {
-        const exp = meds.filter((m) => m.slots.includes(s.key)).map((m) => `${m.as_needed ? '*' : ''}${medNo(m)}|${nz(medShort(m))}`);
-        const got = grids.flatMap((g) => [...g.querySelectorAll('tbody tr')].map((tr) => { const c = tr.children[ci]; const no = c?.querySelector('.pr-no')?.textContent.trim(); return no ? `${no}|${nz(c.querySelector('.pr-nm')?.textContent)}` : null; }).filter(Boolean));
-        if (JSON.stringify(exp) !== JSON.stringify(got)) issues.push(`ตารางเลขรหัส ช่วง ${s.label}: ในแอพ [${exp}] แต่ใน PDF [${got}]`);
-        const hd = grids[0]?.querySelectorAll('thead th')[ci]; const tw = grids[0]?.querySelector('table')?.getBoundingClientRect().width || 1; const cw = ((hd?.getBoundingClientRect().width || 0) / tw) * 100;
-        if (exp.length === 0 && cw > 8) issues.push(`ช่วง ${s.label}: ไม่มียาแต่ช่องกว้าง ${cw.toFixed(1)}% (ต้องแคบ)`);
-        if (exp.length > 0 && cw < 10) issues.push(`ช่วง ${s.label}: มียาแต่ช่องแคบเกินไป ${cw.toFixed(1)}%`);
-      });
-      grids.forEach((g, gi) => { const n = [...g.querySelectorAll('thead th')].length; if (n !== SLOTS.length) issues.push(`ตารางเลขรหัส หน้า ${gi + 1}: ต้องมี ${SLOTS.length} ช่วงเวลา (มี ${n})`); });
-    }
-    if (ctx.mode !== 'grid') {
-      if (!lists.length) issues.push('ไม่มีหน้ารายการมีชื่อยา');
-      const rows = lists.flatMap((g) => [...g.querySelectorAll('tbody tr')]);
-      if (rows.length !== meds.length) issues.push(`รายการมีชื่อยา: ในแอพ ${meds.length} ตัว แต่ใน PDF ${rows.length} แถว`);
-      meds.forEach((m, i) => {
-        const tds = rows[i] ? [...rows[i].children].map((c) => nz(c.textContent)) : [];
-        const want = [medNo(m), nz(m.name), nz(m.purpose), nz(`${doseLabel(m.dose)} ${unitOf(m)}`), nz(medWhen(m))];
-        want.forEach((w, k) => { if ((tds[k] || '') !== w) issues.push(`แถว ${medNo(m)} ${m.name}: คอลัมน์ ${k + 1} ควรเป็น "${w}" แต่เป็น "${tds[k]}"`); });
-        const parts = remarkParts(m).map((x) => x.t); const cell = rows[i]?.children[5];
-        const got = cell ? [...cell.querySelectorAll('.pr-r')].map((e) => nz(e.textContent.replace('❄️', ''))) : [];
-        if (JSON.stringify(parts.map(nz)) !== JSON.stringify(got)) issues.push(`แถว ${medNo(m)}: หมายเหตุไม่ตรง [${parts}] vs [${got}]`);
-        if (new Set(got).size !== got.length) issues.push(`แถว ${medNo(m)}: หมายเหตุมีข้อความซ้ำ [${got}]`);
-        got.forEach((a, x) => got.forEach((b, y) => { if (x !== y && a.includes(b)) issues.push(`แถว ${medNo(m)}: ข้อความ "${b}" ซ้อนอยู่ใน "${a}"`); }));
-      });
-      const oral = meds.filter(isOralMed).length; const sum = lists[0]?.querySelector('.pr-boxes span:first-child')?.textContent || '';
-      if (!sum.includes(`ยาทาน ${oral} รายการ`) || !sum.includes(`ยาอื่นๆ ${meds.length - oral} รายการ`)) issues.push(`หัวกระดาษไม่ระบุจำนวนยาทาน/ยาอื่นๆ ให้ตรง (ยาทาน ${oral}, อื่นๆ ${meds.length - oral}) — "${nz(sum)}"`);
-    }
-  } else if (ctx.kind === 'summary') {
+  if (ctx.kind === 'summary') {
     const D = adherenceData(p.id, ctx.ym); const pg = pages[0]; const txt = nz(pg?.textContent || '');
     if (pages.length !== 1) issues.push(`สรุปการกินยาต้องมี 1 หน้า (มี ${pages.length})`);
     if (!txt.includes(`กินยาตรงเวลา ${D.got} / ${D.exp} ครั้ง`)) issues.push(`สรุป: ยอดรวมไม่ตรง (ควร ${D.got} / ${D.exp})`);
@@ -768,9 +762,9 @@ function auditFrame(frame, ctx) {
       if (r[0] !== s.label || r[1] !== `${v.got} / ${v.exp}` || r[2] !== pctText(v.got, v.exp)) issues.push(`สรุป ช่วง ${s.label}: PDF [${r}] ควรเป็น ${v.got} / ${v.exp} ${pctText(v.got, v.exp)}`); });
     const missTop = D.perMed.filter((x) => x.got < x.exp).map((x) => [x.m.id, x.exp - x.got]).sort((a, b) => b[1] - a[1]).slice(0, 5);
     const missRows = [...(pg?.querySelectorAll('.pr-cols table')[2]?.querySelectorAll('tbody tr') || [])].map((tr) => [...tr.children].map((c) => nz(c.textContent)));
-    if (missRows.length !== missTop.length) issues.push(`สรุป: ยาที่ลืมบ่อย ${missRows.length} แถว ควร ${missTop.length}`);
+    if (missRows.length !== missTop.length) issues.push(`สรุป: ยาที่ยังไม่มีบันทึกบ่อย ${missRows.length} แถว ควร ${missTop.length}`);
     missTop.forEach(([id, c], i) => { const m = S.medications.find((x) => x.id === id); const r = missRows[i] || [];
-      if (r[0] !== medNo(m) || r[1] !== nz(m.name) || r[2] !== `${c} ครั้ง`) issues.push(`สรุป ยาที่ลืมบ่อย อันดับ ${i + 1}: PDF [${r}] ควรเป็น [${medNo(m)}, ${m.name}, ${c} ครั้ง]`); });
+      if (r[0] !== medNo(m) || r[1] !== nz(m.name) || r[2] !== `${c} ครั้ง`) issues.push(`สรุป ยาที่ยังไม่มีบันทึกบ่อย อันดับ ${i + 1}: PDF [${r}] ควรเป็น [${medNo(m)}, ${m.name}, ${c} ครั้ง]`); });
     if (D.exp && !txt.includes(`${Math.round((D.got / D.exp) * 100)}%`)) issues.push('สรุป: ร้อยละรวมไม่ตรง');
   }
   return issues;
@@ -801,12 +795,6 @@ async function renderVerifiedPdf(buildSections, ctx) {
     return { pdf, pages: f1.pages.length };
   } finally { f1.ifr.remove(); }
 }
-const medsSections = (p, meds, mode) => (mode !== 'list' ? printGridHtml(p, meds) : '') + (mode !== 'grid' ? printListHtml(p, meds) : '');
-async function makeMedsPdf(pid, mode = 'both') {
-  await refreshForPdf(); const p = profileById(pid); const meds = medsOf(pid);
-  const r = await renderVerifiedPdf(() => medsSections(p, medsOf(pid), mode), { kind: 'meds', p, meds, mode });
-  return { ...r, name: `ตารางยา-${p.name}-${todayKey()}.pdf` };
-}
 async function makeSummaryPdf(pid, ym) {
   await refreshForPdf(ym); const p = profileById(pid);
   const r = await renderVerifiedPdf(() => printSummaryHtml(p, ym), { kind: 'summary', p, ym });
@@ -817,12 +805,128 @@ function pdfFail(e, fallback) {
   if (e instanceof PdfAuditError) { toast('⚠️ ตรวจพบข้อมูลไม่ตรงในไฟล์ PDF จึงยังไม่บันทึกไฟล์ — กรุณาแจ้งผู้ดูแลระบบ'); return; }
   toast('สร้าง PDF ตรงๆ ไม่ได้ — เปิดหน้าต่างพิมพ์แทน (เลือก "บันทึกเป็น PDF")'); fallback();
 }
+/** ตรวจข้อมูลในเอกสารพิมพ์ (ตารางรหัสยา + รายการยา) ให้ตรงกับข้อมูลยาในแอพทุกช่อง — คืนรายการปัญหา (ว่าง = ผ่าน) */
+function auditMedsDoc(root, p, meds) {
+  const nz = normTxt; const issues = []; const sum = (el) => nz(el?.textContent);
+  const grid = root.querySelector('section[data-kind="grid"]'); const list = root.querySelector('section[data-kind="list"]');
+  if (!grid || !list) return ['ไม่มีตารางรหัสยาหรือรายการยา'];
+  const ft = sum(root.querySelector('.mp-foot'));
+  if (!/สร้างไฟล์เมื่อ .+ เวลา \d{2}:\d{2} น\./.test(ft) || !ft.includes(PDF_APP_NOTE) || !ft.includes('© 2026 สุขใจ (Sookjai)')) issues.push(`ท้ายกระดาษไม่ครบ (เวลาสร้างไฟล์/ข้อความเตือน/ลิขสิทธิ์) "${ft}"`);
+  [grid, list].forEach((sec) => {
+    const k = sec.dataset.kind; const boxes = sec.querySelectorAll('.mp-boxes span');
+    if (!sum(sec.querySelector('h1')).includes(p.name)) issues.push(`${k}: หัวเรื่องไม่มีชื่อ "${p.name}"`);
+    if (boxes.length !== 2) issues.push(`${k}: กล่องหัวกระดาษต้องมี 2 ช่อง`);
+    if (!/^UPD: .+ เวลา \d{2}:\d{2} น\.$/.test(sum(boxes[1]))) issues.push(`${k}: UPD ไม่ครบวันที่/เวลา "${sum(boxes[1])}"`);
+    const want = latestUpdate(meds); if (want && !sum(boxes[1]).includes(thDateTime(want))) issues.push(`${k}: UPD ไม่ตรงกับเวลาแก้ยาล่าสุด`);
+    sec.querySelectorAll('.mp-cb').forEach((b) => { if (b.getAttribute('style')) issues.push(`${k}: รหัส "${sum(b)}" ต้องไม่มีสีพื้นหลัง`); });
+  });
+  // ตารางรหัสยา: แสดงเฉพาะช่วงที่มียา · เนื้อหาทุกช่องตรงกับยา · แดงเฉพาะข้อควรระวัง
+  const used = SLOTS.filter((s) => meds.some((m) => m.slots.includes(s.key)));
+  const ths = [...grid.querySelectorAll('tr.mp-hd th')];
+  if (ths.length !== Math.max(1, used.length)) issues.push(`ตารางรหัสยา: มี ${ths.length} คอลัมน์ ควรเป็น ${Math.max(1, used.length)} (ซ่อนช่วงที่ไม่มียา)`);
+  const trs = [...grid.querySelectorAll('tbody tr')];
+  used.forEach((s, ci) => {
+    const th = ths[ci]; if (!sum(th).includes(nz(s.short.replace(/^(ก่อน|หลัง)/, ''))) || !sum(th).includes(slotTime(s.key))) issues.push(`ตารางรหัสยา: หัวคอลัมน์ ${s.label} ไม่ตรง "${sum(th)}"`);
+    const exp = meds.filter((m) => m.slots.includes(s.key));
+    const cells = trs.map((tr) => tr.children[ci]).filter((c) => c && c.querySelector('.mp-cb'));
+    if (cells.length !== exp.length) { issues.push(`ตารางรหัสยา ช่วง ${s.label}: ในแอพ ${exp.length} ตัว ใน PDF ${cells.length}`); return; }
+    exp.forEach((m, i) => { const c = cells[i]; const parts = remarkParts(m); const lab = `${medNo(m)} (${s.label})`;
+      if (sum(c.querySelector('.mp-cb')) !== medNo(m)) issues.push(`ตารางรหัสยา ${lab}: รหัสไม่ตรง`);
+      if (sum(c.querySelector('.mp-nm')) !== nz(printName(medShort(m)))) issues.push(`ตารางรหัสยา ${lab}: ชื่อไม่ตรง "${sum(c.querySelector('.mp-nm'))}"`);
+      if (!!c.querySelector('.mp-st') !== !!m.as_needed || c.classList.contains('pn') !== !!m.as_needed) issues.push(`ตารางรหัสยา ${lab}: สถานะ "กินเมื่อมีอาการ" ไม่ตรง`);
+      const dz = num(m.dose, 1) !== 1 ? nz(`${doseLabel(m.dose)} ${unitOf(m)}`) : ''; if (sum(c.querySelector('.mp-dz')) !== dz) issues.push(`ตารางรหัสยา ${lab}: จำนวนไม่ตรง`);
+      const w = [...c.querySelectorAll('.mp-w')].map(sum); const h = [...c.querySelectorAll('.mp-h')].map(sum);
+      if (JSON.stringify(w) !== JSON.stringify(parts.filter((x) => x.kind === 'warn').map((x) => x.t))) issues.push(`ตารางรหัสยา ${lab}: ข้อควรระวังไม่ตรง [${w}]`);
+      if (JSON.stringify(h) !== JSON.stringify(parts.filter((x) => x.kind === 'hint').map((x) => x.t))) issues.push(`ตารางรหัสยา ${lab}: คำกำกับไม่ตรง [${h}]`);
+      if (c.classList.contains('wr') !== !!w.length) issues.push(`ตารางรหัสยา ${lab}: สีเหลืองไม่ตรงกับข้อควรระวัง`);
+      if (/\s{2,}|[ ​]/.test(c.querySelector('.mp-nm').textContent.replace(/\n/g, ' '))) issues.push(`ตารางรหัสยา ${lab}: ชื่อมีช่องว่างแปลก`);
+    });
+  });
+  // รายการยา
+  if (sum(list.querySelector('tr.mp-hd th')) !== 'รหัสยา') issues.push('รายการยา: หัวคอลัมน์แรกต้องเป็น "รหัสยา"');
+  const rows = [...list.querySelectorAll('tbody tr')];
+  if (rows.length !== meds.length) issues.push(`รายการยา: ในแอพ ${meds.length} ตัว ใน PDF ${rows.length} แถว`);
+  meds.forEach((m, i) => { const tds = rows[i] ? [...rows[i].children] : []; const t = tds.map(sum); const lab = `${medNo(m)} ${m.name}`;
+    [medNo(m), nz(printName(m.name)), nz(printName(m.purpose || '')), nz(`${doseLabel(m.dose)} ${unitOf(m)}`), nz(medWhen(m))].forEach((w, k) => { if ((t[k] || '') !== w) issues.push(`รายการยา ${lab}: คอลัมน์ ${k + 1} ควรเป็น "${w}" แต่เป็น "${t[k]}"`); });
+    const parts = remarkParts(m); const rs = tds[5] ? [...tds[5].querySelectorAll('.mp-r')] : [];
+    if (JSON.stringify(parts.map((x) => x.t)) !== JSON.stringify(rs.map(sum))) issues.push(`รายการยา ${lab}: หมายเหตุไม่ตรง [${parts.map((x) => x.t)}] vs [${rs.map(sum)}]`);
+    parts.forEach((x, k) => { if (rs[k] && rs[k].classList.contains('is-warn') !== (x.kind === 'warn')) issues.push(`รายการยา ${lab}: สีหมายเหตุ "${x.t}" ไม่ตรง (แดงเฉพาะข้อควรระวัง)`); });
+    const got = rs.map(sum); got.forEach((a, x) => got.forEach((b, y) => { if (x !== y && a.includes(b)) issues.push(`รายการยา ${lab}: ข้อความ "${b}" ซ้อนอยู่ใน "${a}"`); }));
+  });
+  const oral = meds.filter(isOralMed).length; const s1 = sum(list.querySelector('.mp-boxes span'));
+  if (!s1.includes(`ยาทาน ${oral} ตัว`) || !s1.includes(`ยาอื่นๆ ${meds.length - oral} ตัว`)) issues.push(`รายการยา: หัวกระดาษไม่ระบุจำนวนยาทาน/ยาอื่นๆ ให้ตรง "${s1}"`);
+  return issues;
+}
+/** เตรียมข้อมูลยา + ตรวจให้ตรงกับในแอพ — คืน { p, meds } หรือ null (แจ้งผู้ใช้แล้ว) */
+async function prepMedsDoc(pid) {
+  await refreshForPdf(); const p = profileById(pid); const meds = medsOf(pid);
+  if (!p || !meds.length) { toast('ยังไม่มียาให้สร้างไฟล์'); return null; }
+  const box = document.createElement('div'); box.innerHTML = mpDoc(p, meds);
+  const issues = auditMedsDoc(box, p, meds);
+  if (issues.length) { console.error('auditMedsDoc', issues); toast('⚠️ ตรวจพบข้อมูลไม่ตรงในไฟล์ PDF จึงยังไม่สร้างไฟล์ — กรุณาแจ้งผู้ดูแลระบบ'); return null; }
+  return { p, meds };
+}
+/** ปุ่ม "🖨️ พิมพ์": เปิดหน้าพิมพ์ของเบราว์เซอร์ (เลือก "บันทึกเป็น PDF" ได้) — ได้ตัวหนังสือจริง ก๊อปข้อความได้ */
+async function printMedsText(pid) {
+  toast('กำลังเตรียมหน้าพิมพ์…');
+  const d = await prepMedsDoc(pid); if (!d) return;
+  let area = document.getElementById('printArea'); if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+  area.innerHTML = mpDoc(d.p, d.meds);
+  const sample = 'เมื่อมีอาการ ก่อนอาหาร เก็บในที่ทึบแสง 0123456789 Abc';
+  await Promise.race([Promise.all(['400', '600', '700'].map((w) => document.fonts.load(`${w} 16px Sarabun`, sample).catch(() => null))), new Promise((r) => setTimeout(r, 4000))]);
+  printNow('printing', 'landscape', { title: `ตารางยา-${d.p.name}-${todayKey()}`, pageNo: true });
+}
+/** ปุ่ม "📄 ไฟล์ PDF": สร้างไฟล์แล้วดาวน์โหลดทันที (หน้าตาเดียวกับหน้าพิมพ์ — เรนเดอร์เป็นภาพ ความละเอียด 2 เท่า บีบให้ไฟล์เล็ก) */
+const MP_SCALE = 2, MP_JPEG = 0.8;
+async function makeMedsPdf(pid) {
+  const d = await prepMedsDoc(pid); if (!d) return null;
+  const { p, meds } = d; const jsPDF = await loadPdfLibs();
+  const css = await (await fetch('styles.css?v=' + Date.now())).text();
+  const ifr = document.createElement('iframe'); ifr.setAttribute('aria-hidden', 'true'); ifr.style.cssText = `position:fixed;left:-12000px;top:0;width:${PDF_PAGE_W}px;height:1200px;border:0`; document.body.appendChild(ifr);
+  try {
+    const doc = ifr.contentDocument; doc.open();
+    doc.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><link rel="stylesheet" href="${new URL('fonts/fonts.css', location.href).href}"><style>${css.replace(/@media print/g, '@media all').replace(/@page[^{]*\{[^}]*\}/g, '')}</style><style>html,body{margin:0!important;padding:0!important;width:${PDF_PAGE_W}px;background:#fff!important}.mp-sp{display:none!important}.mp-sec{break-after:auto!important}.mp-foot{display:none!important}.rp{position:relative;width:${PDF_PAGE_W}px;height:${PDF_PAGE_H}px;overflow:hidden;background:#fff}.rp .mp-foot{display:flex!important;position:absolute;left:0;right:0;bottom:0;justify-content:space-between;gap:14px}.rp .mp-foot b{flex:none;font-size:10pt;font-weight:700;color:#000;white-space:nowrap}</style></head><body><div id="printArea" style="display:block">${mpDoc(p, meds)}</div></body></html>`);
+    doc.close();
+    await Promise.race([new Promise((r) => { const l = doc.querySelector('link'); if (!l) return r(); l.onload = r; l.onerror = r; }), new Promise((r) => setTimeout(r, 5000))]);
+    await Promise.all(['400', '500', '600', '700'].map((w) => doc.fonts.load(`${w} 16px Sarabun`, 'เมื่อมีอาการ ก่อนอาหาร 0123 Abc').catch(() => null)));
+    await Promise.race([doc.fonts.ready, new Promise((r) => setTimeout(r, 4000))]); await new Promise((r) => setTimeout(r, 300));
+    const root = doc.querySelector('.mp-root'); const foot = root.querySelector('.mp-foot'); const FOOT_H = 36;
+    const pages = [];
+    root.querySelectorAll('.mp-sec').forEach((sec) => {
+      const tb = sec.querySelector('tbody'); const rows = [...tb.rows]; const hs = rows.map((r) => r.getBoundingClientRect().height);
+      const avail = Math.max(120, PDF_PAGE_H - FOOT_H - (sec.getBoundingClientRect().height - tb.getBoundingClientRect().height));
+      const chunks = []; let cur = [], h = 0;
+      rows.forEach((r, i) => { if (cur.length && h + hs[i] > avail) { chunks.push(cur); cur = []; h = 0; } cur.push(i); h += hs[i]; });
+      if (cur.length) chunks.push(cur);
+      chunks.forEach((idx, ci) => { const c = sec.cloneNode(true); [...c.querySelector('tbody').rows].forEach((r, i) => { if (!idx.includes(i)) r.remove(); }); if (ci < chunks.length - 1) c.querySelector('.mp-loose')?.remove(); pages.push(c); });
+    });
+    doc.body.innerHTML = '';
+    const wraps = pages.map((c, i) => { const w = doc.createElement('div'); w.className = 'rp'; const r = root.cloneNode(false); r.appendChild(c); const f = foot.cloneNode(true); f.innerHTML = `<span>${f.innerHTML}</span><b>หน้า ${i + 1}/${pages.length}</b>`; r.appendChild(f); w.appendChild(r); doc.body.appendChild(w); return w; });
+    // ตรวจเค้าโครง: ไม่ล้นช่อง ไม่ชนท้ายกระดาษ ขนาดหน้าเท่ากัน
+    const issues = [];
+    wraps.forEach((w, i) => { const wr = w.getBoundingClientRect(); const fr = w.querySelector('.mp-foot').getBoundingClientRect(); const t = w.querySelector('.mp-t').getBoundingClientRect(); const lo = w.querySelector('.mp-loose')?.getBoundingClientRect();
+      if (Math.abs(wr.height - PDF_PAGE_H) > 1) issues.push(`หน้า ${i + 1}: สูง ${Math.round(wr.height)}`);
+      if (Math.max(t.bottom, lo ? lo.bottom : 0) > fr.top + 1) issues.push(`หน้า ${i + 1}: เนื้อหาชนท้ายกระดาษ`);
+      if (fr.bottom > wr.bottom + 1) issues.push(`หน้า ${i + 1}: ท้ายกระดาษล้นหน้า`);
+      w.querySelectorAll('td, th').forEach((c) => { if (c.scrollWidth > c.clientWidth + 1) issues.push(`หน้า ${i + 1}: ข้อความล้นช่อง "${c.textContent.trim().slice(0, 20)}"`); }); });
+    if (issues.length) throw new PdfAuditError(issues);
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    for (let i = 0; i < wraps.length; i++) {
+      const cv = await window.html2canvas(wraps[i], { scale: MP_SCALE, backgroundColor: '#fff', useCORS: true, windowWidth: PDF_PAGE_W, onclone: preloadCloneFonts });
+      if (cv.width !== PDF_PAGE_W * MP_SCALE || cv.height !== PDF_PAGE_H * MP_SCALE) throw new PdfAuditError([`หน้า ${i + 1}: ภาพ ${cv.width}×${cv.height} ขนาดไม่ถูกต้อง`]);
+      const t = document.createElement('canvas'); t.width = 210; t.height = 144; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 210, 144); const px = tc.getImageData(0, 0, 210, 144).data; let ink = 0;
+      for (let k = 0; k < px.length; k += 4) if (px[k] + px[k + 1] + px[k + 2] < 690) ink++;
+      if (ink / (210 * 144) < 0.02) throw new PdfAuditError([`หน้า ${i + 1}: ภาพแทบว่าง`]);
+      if (i > 0) pdf.addPage('a4', 'landscape');
+      pdf.addImage(cv.toDataURL('image/jpeg', MP_JPEG), 'JPEG', 10, 10, 277, 190);
+    }
+    return { pdf, pages: wraps.length, name: `ตารางยา-${p.name}-${todayKey()}.pdf` };
+  } finally { ifr.remove(); }
+}
 async function downloadMedsPdf(pid) {
-  if (!canUse('pdf')) return premiumSheet('pdf');
-  if (!medsOf(pid).length) return toast('ยังไม่มียาให้สร้างไฟล์');
   toast('กำลังสร้างและตรวจสอบไฟล์ PDF…');
-  try { const { pdf, name } = await makeMedsPdf(pid, 'both'); pdf.save(name); toast('✓ ตรวจสอบ 3 รอบแล้ว บันทึกไฟล์ PDF เรียบร้อย'); }
-  catch (e) { pdfFail(e, () => printMeds(pid, 'both')); }
+  try { const r = await makeMedsPdf(pid); if (!r) return; r.pdf.save(r.name); toast('✓ ตรวจสอบแล้ว บันทึกไฟล์ PDF เรียบร้อย'); }
+  catch (e) { pdfFail(e, () => printMedsText(pid)); }
 }
 async function downloadSummaryPdf() {
   const pid = ui.adPid; const ym = ui.adYm || ymOf(new Date()); if (!pid) return toast('ยังไม่มีข้อมูลให้สร้างไฟล์');
@@ -835,8 +939,8 @@ async function auditAllPdfs(rounds = 3) {
   const out = []; await loadPdfLibs();
   for (let r = 1; r <= rounds; r++) {
     for (const p of S.profiles.filter((x) => medsOf(x.id).length)) {
-      const meds = medsOf(p.id); const f = await buildPdfFrame(medsSections(p, meds, 'both'));
-      try { out.push({ round: r, who: p.name, kind: 'meds', pages: f.pages.length, issues: auditFrame(f, { kind: 'meds', p, meds, mode: 'both' }) }); } finally { f.ifr.remove(); }
+      const meds = medsOf(p.id); const box = document.createElement('div'); box.innerHTML = mpDoc(p, meds);
+      out.push({ round: r, who: p.name, kind: 'meds', pages: 0, issues: auditMedsDoc(box, p, meds) });
       const ym = ymOf(new Date()); const g = await buildPdfFrame(printSummaryHtml(p, ym));
       try { out.push({ round: r, who: p.name, kind: 'summary', pages: g.pages.length, issues: auditFrame(g, { kind: 'summary', p, ym }) }); } finally { g.ifr.remove(); }
     }

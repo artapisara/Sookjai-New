@@ -63,8 +63,10 @@ const takenLog = (medId, slot, day = todayKey()) => S.med_logs.find((l) => l.med
 const slotReminderOn = (m, slot) => true; // เตือนทุกยา/ทุกช่วงเวลาของคนที่เปิดเตือนไว้ (ไม่มีตัวเลือกรายยาแล้ว — ค่า slot_reminders เดิมในฐานข้อมูลไม่มีผล)
 const departmentOf = (a) => a.department || '-';
 const moodLog = (pid, day = todayKey()) => (S.mood_logs || []).find((l) => l.profile_id === pid && l.log_date === day);
-/** โปรไฟล์ "ตัวฉัน" ของบัญชีนี้ (ความสัมพันธ์ = ตัวเอง และเป็นเจ้าของเอง) — อารมณ์รายวันบันทึกได้เฉพาะของตัวเอง */
-const selfProfile = () => S.profiles.find((p) => p.relation === 'ตัวเอง' && ownsProfile(p.id));
+/** โปรไฟล์นี้คือ "โปรไฟล์ของฉัน" หรือไม่ — ใช้คอลัมน์ is_self (limits-v2.sql) · ถ้าฐานข้อมูลยังไม่มีคอลัมน์ (โหมดทดลอง/ยังไม่รัน SQL) ใช้ความสัมพันธ์ "ตัวเอง" แทน */
+const isSelfProfile = (p) => (p.is_self === undefined ? p.relation === 'ตัวเอง' : p.is_self === true);
+/** โปรไฟล์ "ตัวฉัน" ของบัญชีนี้ (เป็นเจ้าของเอง และเป็นโปรไฟล์ของฉัน) — อารมณ์รายวันบันทึกได้เฉพาะของตัวเอง */
+const selfProfile = () => S.profiles.find((p) => ownsProfile(p.id) && isSelfProfile(p));
 /** เรียงคนตามลำดับที่ผู้ใช้ตั้งไว้ (ต่อบัญชี) — "ตัวฉัน" อยู่ลำดับแรกเสมอ คนที่ยังไม่อยู่ในลำดับต่อท้ายตามเดิม */
 function sortProfiles() {
   const order = S.settings.profile_order || [];
@@ -99,7 +101,21 @@ async function fileUrlCached(path) {
   const c = urlCache.get(path); if (c && c.exp > Date.now()) return c.url;
   const url = await DB.fileUrl(path); urlCache.set(path, { url, exp: Date.now() + 50 * 60e3 }); return url;
 }
-function hydrateImgs(root) { $$('img[data-path]', root).forEach(async (img) => { try { img.src = await fileUrlCached(img.dataset.path); } catch {} }); }
+// ไอคอนกล้อง (เส้นเรียบ วาดเอง) ใช้เป็นกรอบแทนรูปที่ยังไม่มี/โหลดไม่ได้ — แทนที่จะโชว์ข้อความ alt เป็นตัวหนังสือ
+const CAM_SVG = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.6-2.4h6.8L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>';
+const noPicHtml = (txt = 'ยังไม่มีรูป') => `<span class="img-ph">${CAM_SVG}<small>${txt}</small></span>`;
+/** โหลดรูปจาก Storage: ลองใหม่ 1 ครั้งด้วยลิงก์ใหม่ (กันลิงก์หมดอายุ) · ถ้ายังไม่ได้ แสดงกรอบ "โหลดรูปไม่ได้" และบันทึกสาเหตุใน console */
+function hydrateImgs(root) {
+  $$('img[data-path]', root).forEach(async (img) => {
+    const path = img.dataset.path; const fail = (why) => { console.warn('โหลดรูปไม่ได้:', path, why); const ph = document.createElement('span'); ph.innerHTML = noPicHtml('โหลดรูปไม่ได้'); img.replaceWith(ph.firstChild); };
+    const load = (url) => new Promise((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error('ไฟล์รูปเปิดไม่ได้ (ลบแล้ว/ไม่มีสิทธิ์/เสียหาย)')); img.src = url; });
+    try { await load(await fileUrlCached(path)); }
+    catch (e1) {
+      try { urlCache.delete(path); await load(await fileUrlCached(path)); }
+      catch (e2) { fail(e2?.message || e1?.message || 'ขอลิงก์รูปไม่สำเร็จ (ไม่มีไฟล์หรือไม่มีสิทธิ์อ่าน)'); }
+    }
+  });
+}
 
 // ---------- องค์ประกอบ UI ----------
 const todayHidden = () => S.settings.today_hidden || [];
@@ -175,12 +191,12 @@ function dayTable(p, nextKey) {
     const m = list[r]; if (!m) return '<td class="blank"></td>';
     const log = takenLog(m.id, s.key);
     const lockedTick = log && locked;
-    const tick = !canTick ? `<span class="tick ${log ? 'on' : ''} ro" aria-label="${log ? 'กินแล้ว' : 'ยังไม่ได้กิน'}">${log ? '✓' : ''}</span>`
-      : `<button type="button" class="tick ${log ? 'on' : ''} ${lockedTick ? 'locked' : ''}" data-act="${lockedTick ? 'locked-tick' : 'take'}" data-id="${m.id}" data-slot="${s.key}" aria-label="${lockedTick ? 'กินแล้ว (ล็อกไว้)' : `ติ๊กว่ากินยาลำดับที่ ${esc(medNo(m))} ${esc(m.name)} แล้ว`}">${log ? '✓' : ''}</button>`;
+    const tick = !canTick ? `<span class="tick ${log ? 'on' : ''} ro" aria-label="${log ? 'กินแล้ว' : 'ยังไม่มีบันทึกการกินยา'}">${log ? '✓' : ''}</span>`
+      : `<button type="button" class="tick ${log ? 'on' : ''} ${lockedTick ? 'locked' : ''}" data-act="${lockedTick ? 'locked-tick' : 'take'}" data-id="${m.id}" data-slot="${s.key}" aria-label="${lockedTick ? 'กินแล้ว (ล็อกไว้)' : `ติ๊กว่ากินยารหัส ${esc(medNo(m))} ${esc(m.name)} แล้ว`}">${log ? '✓' : ''}</button>`;
     return `<td class="${m.warning ? 'warn' : ''} ${m.as_needed ? 'pn' : ''} ${log ? 'done' : ''}">
       <div class="dcell">
         <div class="dtop"><span class="wi">${m.warning ? '⚠️' : ''}</span>${tick}</div>
-        <div class="dmain" data-act="edit-med" data-id="${m.id}" role="button" tabindex="0" aria-label="ดูรายละเอียดยาลำดับที่ ${esc(medNo(m))} ${esc(m.name)}">
+        <div class="dmain" data-act="edit-med" data-id="${m.id}" role="button" tabindex="0" aria-label="ดูรายละเอียดยารหัส ${esc(medNo(m))} ${esc(m.name)}">
           <b class="onum">${m.as_needed ? '*' : ''}<small class="pfx">${esc(pre)}</small>${m.sort_order}</b>
           <span class="mname">${esc(medShort(m))}</span>${m.as_needed ? '<small class="asn">เมื่อมีอาการ</small>' : ''}
         </div>
@@ -192,9 +208,9 @@ function dayTable(p, nextKey) {
   const warns = meds.filter((m) => m.warning);
   const upd = latestUpdate(meds);
   return `<section class="dtable" style="--pc:${p.color}">
-    <div class="dt-head">${avatarHtml(p, 'sm')}<div><b>ตารางการกินยาใน 1 วัน (${esc(p.name)})</b>
+    <div class="dt-head">${avatarHtml(p, 'sm')}<div><b>ตารางการกินยาใน 1 วัน</b><br><b>(${esc(p.name)})</b>
       <div class="small muted">อัปเดต ${upd ? thDateTime(upd) : '-'}</div></div><button class="btn ghost sm dt-pdf" data-act="print-meds" data-id="${p.id}">📄 ไฟล์ PDF</button></div>
-    <div class="dt-note">ทานยาครั้งละ 1 เม็ด${odd.length ? ` <b>ยกเว้นลำดับที่ ${odd.map(esc).join(', ')}</b> <span>(ดูจำนวนในช่อง)</span>` : ' ทุกรายการ'}</div>
+    <div class="dt-note">ทานยาครั้งละ 1 เม็ด${odd.length ? ` <b>ยกเว้นรหัส ${odd.map(esc).join(', ')}</b> <span>(ดูจำนวนในช่อง)</span>` : ' ทุกรายการ'}</div>
     <table>${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${meds.some((m) => m.as_needed) ? '<p class="small muted dt-star">* กินเฉพาะตอนมีอาการเท่านั้น (ช่องสีชมพู)</p>' : ''}
     ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b>${warns.map((m) => `<div>${esc(medNo(m))}. ${esc(m.name)} → ${esc(m.warning)}</div>`).join('')}</div>` : ''}
@@ -211,7 +227,7 @@ function medCard(m) {
   const stock = tracksStock(m) ? kv('จำนวนที่เหลือ', `<span class="${isLowStock(m) ? 'red-t' : ''}">${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? `<br><small>หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)</small>` : ''}</span>`) : '';
   return `<div class="mrow ${open ? 'open' : ''}" data-id="${m.id}">
     <button type="button" class="mr-main" data-act="med-toggle" data-id="${m.id}" aria-expanded="${open}">
-      <span class="mr-no">${m.status === 'paused' ? '' : `<span class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="ยาลำดับที่ ${esc(medNo(m))}">${esc(medNo(m))}</span>`}</span>
+      <span class="mr-no">${m.status === 'paused' ? '' : `<span class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="รหัสยา ${esc(medNo(m))}">${esc(medNo(m))}</span>`}</span>
       <span class="mr-nm"><b class="name">${esc(m.name)}</b>${m.as_needed ? ' <span class="tag pn-tag">ทานเฉพาะเมื่อมีอาการ</span>' : ''}<span class="tags">${slotsTxt}<span class="tag dose-tag">ครั้งละ <b>${doseLabel(m.dose)} ${esc(unitOf(m))}</b></span></span>${m.purpose ? `<small class="muted">รักษา: ${esc(m.purpose)}</small>` : ''}${m.status !== 'active' ? `<small><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</small>` : ''}</span>
       <span class="mr-chev">${open ? '▴' : '▾'}</span>
     </button>
@@ -238,18 +254,17 @@ function viewMedList() {
     <h1>ยาที่ต้องทาน</h1>
     ${visBtn}
     ${personChips(ui.medsPerson, 'meds-person', false, false, vis)}
-    
-    <div class="tool-pair"><button class="btn ghost" data-act="stickers" data-id="${p.id}">⭐ สติกเกอร์ช่วงเวลา<br>และรหัสยา (PDF)</button>${canEditProfile(p.id) ? lockToggle() : ''}</div>
+    <div class="tool-pair">${ownsProfile(p.id) ? `<button class="btn ghost" data-act="stickers" data-id="${p.id}"><span class="tp-ic">⭐</span><span class="tp-tx">สติกเกอร์ช่วงเวลา<br>และรหัสยา (PDF)</span></button>` : `<button type="button" class="btn ghost owner-lock" disabled aria-disabled="true"><span class="tp-ic">🔒</span><span class="tp-tx">สติกเกอร์ช่วงเวลาและรหัสยา (PDF)<small>ให้เจ้าของโปรไฟล์เป็นคนดาวน์โหลด</small></span></button>`}${canEditProfile(p.id) ? lockToggle() : ''}</div>
     
     ${dayTable(p, null) || ''}
     
     ${shareTag(p.id) ? `<div class="tags">${shareTag(p.id)}</div>` : ''}
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>${esc(p.name)} แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
-    <h2>ยาที่กำลังทาน <span class="small muted">${act.length} รายการ</span></h2>
+    <h2>ยาที่กำลังทาน <span class="small muted">${act.length} ตัว</span></h2>
     <div class="med-group">${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map(medCard).join('')}</div></div>
     ${act.length ? '' : `<div class="card empty"><div class="e">💊</div>ยังไม่มียา กดปุ่ม + เพื่อเพิ่ม</div>`}
     ${canEditProfile(p.id) ? '<button class="fab" data-act="add-med" aria-label="เพิ่มยา">+</button>' : ''}
-    <h2>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} รายการ</span></h2>
+    <h2>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} ตัว</span></h2>
     ${off.length ? `<div class="med-group"><div class="mtable">${off.map(medCard).join('')}</div></div>` : `<div class="card empty small">ไม่มี</div>`}
   `;
 }
@@ -449,22 +464,26 @@ function animateLogos() {
   });
 }new MutationObserver(() => animateLogos()).observe(document.getElementById('app'), { childList: true });
 
-/** รูปใบนัดเก็บ 1 ปีนับจากวันนัด แล้วลบอัตโนมัติ (รูปอื่นๆ เช่นรูปติดตามอาการ เก็บไว้ตลอด) — ลบเฉพาะไฟล์ที่เราอัปโหลดเอง */
-const SLIP_KEEP_DAYS = 365;
+/** รูปใบนัดเก็บ 1 ปี (APPOINTMENT_IMAGE_RETENTION_DAYS) นับจาก "วันนัด" แล้วลบอัตโนมัติ — ใช้กับทุกแพ็กเกจ (รูปอื่นๆ เช่นรูปติดตามอาการ เก็บไว้จนกว่าผู้ใช้จะลบเอง)
+ *  ตัวหลักคือ Edge Function purge-appointment-images + pg_cron (ลบทุกรูป ทุกบัญชี) — ฟังก์ชันนี้เป็นตัวสำรองตอนเปิดแอพ (ลบเฉพาะไฟล์ในโฟลเดอร์ของเรา ของนัดที่เราเป็นเจ้าของ)
+ *  ลบเฉพาะ "ไฟล์รูป" และลิงก์รูป — ตัวนัด (ข้อความ วันที่ แผนก หมอ บันทึกหลังพบหมอ) ไม่ถูกลบ · ลบไฟล์ก่อนแล้วค่อยล้างลิงก์ (ไม่ปล่อยไฟล์ค้าง · รันซ้ำได้) */
 async function purgeOldSlips() {
-  const cutoff = dk(addDays(new Date(), -SLIP_KEEP_DAYS)); let changed = 0;
+  const cutoff = dk(addDays(new Date(), -LIMITS.APPOINTMENT_IMAGE_RETENTION_DAYS)); let changed = 0;
   for (const a of S.appointments) {
     if (!a.attachments?.length || a.appt_date >= cutoff) continue;
+    if (DB.mode === 'supabase' && !ownsProfile(a.profile_id)) continue; // นัดของคนอื่นที่แชร์มา: ให้เจ้าของ/งานฝั่งเซิร์ฟเวอร์ลบ
     const mine = a.attachments.filter((x) => DB.mode !== 'supabase' || String(x).startsWith(`${DB.user.id}/`));
     if (!mine.length) continue;
     const keep = a.attachments.filter((x) => !mine.includes(x));
     try {
-      await DB.update('appointments', a.id, { attachments: keep }); // แก้ข้อมูลก่อน แล้วค่อยลบไฟล์ (กันลิงก์ค้าง)
-      a.attachments = keep; changed++;
-      if (DB.mode === 'supabase') await DB.removeFiles(mine).catch(() => {});
+      if (DB.mode === 'supabase') { const { error } = await DB.sb.storage.from(BUCKET).remove(mine); if (error) throw error; }
+      const patch = { attachments: keep };
+      if (!keep.length && (DB.mode !== 'supabase' || S.ent?.v2)) patch.images_purged_at = new Date().toISOString(); // ใช้แสดง "รูปใบนัดถูกลบแล้ว"
+      await DB.update('appointments', a.id, patch);
+      Object.assign(a, patch); changed++;
     } catch (e) { console.warn('ลบรูปใบนัดเก่าไม่สำเร็จ', e); }
   }
-  if (changed) { console.info(`ลบรูปใบนัดที่เก็บครบ 1 ปีแล้ว ${changed} นัด`); render(); }
+  if (changed) { console.info(`ลบรูปใบนัดที่เก็บครบ ${LIMITS.APPOINTMENT_IMAGE_RETENTION_DAYS} วันแล้ว ${changed} นัด`); render(); }
 }
 /** ย้ายสีประจำตัวชุดเก่าของโปรไฟล์ที่เราเป็นเจ้าของ ไปเป็นชุดใหม่ที่เข้ากับสีหลัก */
 async function migrateColors() {

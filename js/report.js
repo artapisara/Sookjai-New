@@ -15,8 +15,8 @@ function reportButtonHtml(a) {
   const st = reportState(a); if (st.n < 0) return '';
   // กรอบสรุป (สำคัญกว่า) อยู่ก่อน แล้วค่อยปุ่มโหลดไฟล์
   return `<div class="report-box">
-    ${canUse('report') ? `<details class="rp-prev" data-appt="${a.id}"><summary><span class="mi rp-ic" style="--ic:url(assets/icons/report-notes.png)"></span>สรุปก่อนพบแพทย์</summary><div class="rp-prev-body small muted">กำลังเตรียมสรุป…</div></details>` : ''}
-    <button type="button" class="btn ghost rp-dl ${st.ok ? '' : 'rp-dl-off'}" data-act="appt-report" data-id="${a.id}">📄 ไฟล์ PDF ⭐</button>
+    <details class="rp-prev" data-appt="${a.id}"><summary><span class="mi rp-ic" style="--ic:url(assets/icons/report-notes.png)"></span>สรุปก่อนพบแพทย์</summary><div class="rp-prev-body small muted">กำลังเตรียมสรุป…</div></details>
+    ${ownsProfile(a.profile_id) ? `<button type="button" class="btn ghost rp-dl ${st.ok ? '' : 'rp-dl-off'}" data-act="appt-report" data-id="${a.id}">📄 ไฟล์ PDF</button>` : lockedOwnerBtn('📄 ไฟล์ PDF')}
     ${st.ok ? '' : `<p class="small muted center" style="margin:4px 0 0;flex-basis:100%">สร้างไฟล์ได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)</p>`}</div>`;
 }
 // ---------- เลือกยาที่เกี่ยวกับแผนก ----------
@@ -276,7 +276,7 @@ async function runReport(apptId, opt) {
 }
 async function downloadReport(apptId) {
   const a = S.appointments.find((x) => x.id === apptId); if (!a) return;
-  if (!canUse('report')) return premiumSheet('report');
+  if (!canUse('report', { pid: a.profile_id })) return ownsProfile(a.profile_id) ? premiumSheet('report') : toast('ให้เจ้าของโปรไฟล์เป็นคนดาวน์โหลด'); // ไฟล์ Premium: เฉพาะเจ้าของโปรไฟล์ที่เป็น Premium
   const st = reportState(a); if (!st.ok) return toast(st.n < 0 ? 'นัดนี้ผ่านมาแล้ว' : `สั่งทำรายงานได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)`);
   await refreshForPdf();
   if (!medsOf(a.profile_id).length) return runReport(apptId, {});

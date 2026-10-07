@@ -109,12 +109,15 @@ function compressImage(file, max = 1400, quality = 0.75) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const s = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement('canvas');
-      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(img.src);
-      c.toBlob((b) => (b ? resolve(b) : reject(new Error('ย่อรูปไม่สำเร็จ'))), 'image/jpeg', quality);
+      const w = img.width, h = img.height; URL.revokeObjectURL(img.src);
+      const limit = typeof UPLOAD_MAX_BYTES === 'number' ? UPLOAD_MAX_BYTES : 1048576; // ไม่ให้เกินประมาณ 1 MB ต่อรูป (คุมต้นทุนพื้นที่เก็บไฟล์)
+      const attempt = (m, q, tries) => {
+        const s = Math.min(1, m / Math.max(w, h));
+        const c = document.createElement('canvas'); c.width = Math.round(w * s); c.height = Math.round(h * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob((b) => { if (!b) return reject(new Error('ย่อรูปไม่สำเร็จ')); if (b.size > limit && tries > 0) attempt(Math.round(m * 0.8), Math.max(0.5, q - 0.1), tries - 1); else resolve(b); }, 'image/jpeg', q);
+      };
+      attempt(max, quality, 4);
     };
     img.onerror = () => reject(new Error('เปิดรูปไม่ได้'));
     img.src = URL.createObjectURL(file);

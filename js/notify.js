@@ -64,7 +64,7 @@ const Notifier = (() => {
       if (Date.now() < v.until) continue;
       delete sn[k]; changed = true;
       const left = medsOf(v.p).filter((m) => dueToday(m) && m.slots.includes(v.s) && !takenLog(m.id, v.s));
-      if (left.length) await show(`🔁 ${profileById(v.p).name} ยังไม่ได้ทานยา${slotOf(v.s).label}`, left.map((m, i) => `${i + 1}. ${m.name} (${num(m.dose)} ${unitOf(m)})`).join('\n'), `snz:${k}:${Date.now()}`, { p: v.p, s: v.s, d: v.d });
+      if (left.length) await show(`🔁 ${profileById(v.p).name} ยังไม่มีบันทึกการกินยา${slotOf(v.s).label}`, left.map((m, i) => `${i + 1}. ${m.name} (${num(m.dose)} ${unitOf(m)})`).join('\n'), `snz:${k}:${Date.now()}`, { p: v.p, s: v.s, d: v.d });
     }
     if (changed) saveSnoozes(sn);
   }

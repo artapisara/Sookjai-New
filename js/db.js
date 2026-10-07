@@ -75,10 +75,12 @@ class SupaDB {
   /** สถานะสมาชิก + สวิตช์การจำกัด (ยังไม่ได้รัน premium.sql / อ่านไม่ได้ = ไม่จำกัด ทุกคนใช้ได้ครบ) */
   async loadEntitlement() {
     try {
-      const [f, s] = await Promise.all([this.sb.from('app_flags').select('value').eq('key', 'paywall_enabled').maybeSingle(),
-        this.sb.from('subscriptions').select('premium_until, trial_used').maybeSingle()]);
-      return { paywall: !f.error && !!f.data?.value, premium_until: s.error ? null : (s.data?.premium_until || null), trial_used: s.error ? false : !!s.data?.trial_used };
-    } catch (e) { console.warn('entitlement', e); return { paywall: false, premium_until: null, trial_used: false }; }
+      const [f, s, l] = await Promise.all([this.sb.from('app_flags').select('value').eq('key', 'paywall_enabled').maybeSingle(),
+        this.sb.from('subscriptions').select('premium_until, trial_used').maybeSingle(),
+        this.sb.from('app_limits').select('key, value')]);
+      if (!l.error) applyLimits(l.data); // ค่าโควตาจากตารางเดียว (limits-v2.sql) · ไม่มีตาราง = ใช้ค่าเริ่มต้นใน js/limits.js
+      return { paywall: !f.error && !!f.data?.value, premium_until: s.error ? null : (s.data?.premium_until || null), trial_used: s.error ? false : !!s.data?.trial_used, v2: !l.error };
+    } catch (e) { console.warn('entitlement', e); return { paywall: false, premium_until: null, trial_used: false, v2: false }; }
   }
   async loadAllOnline() {
     const d0 = new Date(); const since = dk(new Date(d0.getFullYear(), d0.getMonth(), 1)); // เริ่มด้วยเดือนนี้ — เดือนก่อนๆ โหลดตอนกดดูย้อนหลัง
@@ -131,9 +133,12 @@ class SupaDB {
     }
     if (error) throw error;
   }
-  async upload(file, apptId) {
+  /** อัปโหลดรูป — เก็บใต้โฟลเดอร์ของ "เจ้าของโปรไฟล์" (ownerId) เพื่อนับเป็นพื้นที่ของเจ้าของและให้งานลบรูปครบกำหนดลบได้ทุกรูป
+   *  (ไม่ส่ง ownerId = โฟลเดอร์ของตัวเอง · ถ้ายังไม่ได้รัน limits-v2.sql นโยบายจะไม่อนุญาตโฟลเดอร์ของคนอื่น จึงใช้โฟลเดอร์ตัวเองแทน) */
+  async upload(file, apptId, ownerId) {
     const blob = await compressImage(file);
-    const path = `${this.user.id}/${apptId}/${uuid()}.jpg`;
+    const folder = ownerId && ownerId !== this.user.id && typeof S !== 'undefined' && S?.ent?.v2 ? ownerId : this.user.id;
+    const path = `${folder}/${apptId}/${uuid()}.jpg`;
     const { error } = await this.sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg' });
     if (error) throw error; return path;
   }

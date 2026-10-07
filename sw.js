@@ -2,9 +2,9 @@
 /* สุขใจ — Service Worker: เปิดแอพได้แม้ไม่มีอินเทอร์เน็ต (เก็บตัวแอพไว้ในเครื่อง) + รับ Web Push และเปิดแอพเมื่อแตะการแจ้งเตือน
  * ข้อมูลสุขภาพไม่ถูกเก็บที่นี่ — แอพเก็บสำเนาข้อมูลล่าสุดเองในเครื่อง (ดู SupaDB.saveSnapshot) · คำขอไป Supabase ไม่ผ่านแคชนี้
  */
-const CACHE = 'sukjai-app-v6';
+const CACHE = 'sukjai-app-v40';
 const SHELL = ['./', 'index.html', 'styles.css', 'fonts/fonts.css', 'fonts/sarabun-thai-400-normal.woff2', 'fonts/sarabun-latin-400-normal.woff2', 'fonts/sarabun-thai-500-normal.woff2', 'fonts/sarabun-latin-500-normal.woff2', 'fonts/sarabun-thai-600-normal.woff2', 'fonts/sarabun-latin-600-normal.woff2', 'fonts/sarabun-thai-700-normal.woff2', 'fonts/sarabun-latin-700-normal.woff2', 'fonts/prompt-thai-300-normal.woff2', 'fonts/prompt-latin-300-normal.woff2', 'fonts/prompt-thai-400-normal.woff2', 'fonts/prompt-latin-400-normal.woff2', 'fonts/prompt-thai-500-normal.woff2', 'fonts/prompt-latin-500-normal.woff2', 'fonts/prompt-thai-600-normal.woff2', 'fonts/prompt-latin-600-normal.woff2', 'fonts/prompt-thai-700-normal.woff2', 'fonts/prompt-latin-700-normal.woff2', 'fonts/prompt-thai-800-normal.woff2', 'fonts/prompt-latin-800-normal.woff2', 'config.js', 'manifest.json', 'icon.svg?v=2', 'icon-192.png?v=2', 'icon-180.png?v=2',
-  'js/util.js', 'js/avatars.js', 'js/db.js', 'js/app.js', 'js/forms.js', 'js/care.js', 'js/more.js', 'js/pages.js', 'js/history.js', 'js/stickers.js', 'js/health.js', 'js/report.js', 'js/premium.js', 'js/notify.js',
+  'js/util.js', 'js/limits.js', 'js/avatars.js', 'js/db.js', 'js/app.js', 'js/forms.js', 'js/care.js', 'js/more.js', 'js/pages.js', 'js/history.js', 'js/stickers.js', 'js/health.js', 'js/report.js', 'js/premium.js', 'js/notify.js',
   'assets/icons/medicine.png', 'assets/icons/schedule.png', 'assets/icons/home.png', 'assets/icons/family.png', 'assets/icons/settings.png',
   'assets/icons/bandaid.png', 'assets/icons/summary.png', 'assets/icons/history.png', 'assets/icons/stock.png', 'assets/icons/blood-pressure.png', 'assets/icons/report-notes.png', 'assets/slots/morning.png', 'assets/slots/day.png', 'assets/slots/evening.png', 'assets/slots/night.png'];
 const EXTRA_HOSTS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];

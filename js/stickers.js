@@ -155,6 +155,7 @@ async function makeStickersPdf(pid, counts) {
 
 function stickerSheet(pid) {
   const p = profileById(pid); if (!p) return;
+  if (!ownsProfile(pid)) return toast('ให้เจ้าของโปรไฟล์เป็นคนดาวน์โหลด');
   const slots = stkSlotsOf(pid);
   if (!slots.length && !medsOf(pid).length) return toast('ยังไม่มียา จึงยังไม่มีสติกเกอร์ให้สร้าง');
   const types = slots.length ? STK_TYPES : STK_TYPES.filter((t) => t.num); // ไม่มียากินประจำ = ทำได้เฉพาะป้ายรหัสยา
@@ -181,7 +182,7 @@ function stickerSheet(pid) {
   sync();
   $('#stk-go', sh).onclick = async () => {
     if (!types.some((t) => counts[t.key] > 0)) return toast('เลือกจำนวนแผ่นอย่างน้อย 1 แผ่น');
-    if (!canUse('pdf')) return premiumSheet('pdf');
+    if (!canUse('sticker', { pid })) return ownsProfile(pid) ? premiumSheet('sticker') : toast('ให้เจ้าของโปรไฟล์เป็นคนดาวน์โหลด'); // ไฟล์ Premium: เฉพาะเจ้าของโปรไฟล์ที่เป็น Premium
     toast('กำลังสร้างไฟล์สติกเกอร์…');
     try { const { pdf, name, pages } = await makeStickersPdf(pid, counts); pdf.save(name); toast(`✓ บันทึกสติกเกอร์แล้ว (${pages} หน้า)`); closeSheet(); }
     catch (e) { console.error(e); toast('สร้างไฟล์สติกเกอร์ไม่สำเร็จ — ลองใหม่อีกครั้ง'); }

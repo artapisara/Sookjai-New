@@ -64,7 +64,7 @@ function careCard(c) {
         ${active ? careBadge(n) : `<span class="small muted">${CARE_STATUS[c.status] || ''}</span>`}
         ${shareTag(c.profile_id)}
       </div>
-      ${photo ? `<div class="thumb sm"><img data-path="${esc(photo)}" alt="รูปล่าสุด"></div>` : ''}
+      ${photo ? `<div class="thumb sm"><img data-path="${esc(photo)}" alt="รูปล่าสุด"></div>` : `<div class="thumb sm nopic">${noPicHtml()}</div>`}
     </div>
     ${active && c.care_steps?.length ? `<div class="steps-box"><b class="small">📋 แนวทางการดูแล</b>${careStepsList(c)}</div>` : ''}
     ${active && canEditProfile(c.profile_id) ? `<button class="btn block sm" data-act="care-log" data-id="${c.id}">📷 บันทึกอาการ${n <= 0 ? 'วันนี้' : ''}</button>` : ''}
@@ -196,7 +196,7 @@ function photoField(root, existing) {
     [...inp.files].forEach((file) => st.pending.push({ file, url: URL.createObjectURL(file) })); inp.value = ''; draw();
   }));
   st.count = () => st.keep.length + st.pending.length;
-  st.save = async (folder) => { const out = []; for (const x of st.pending) out.push(await DB.upload(x.file, folder)); return [...st.keep, ...out]; };
+  st.save = async (folder, ownerUid) => { const out = []; for (const x of st.pending) out.push(await DB.upload(x.file, folder, ownerUid)); return [...st.keep, ...out]; }; // ownerUid = เจ้าของโปรไฟล์ → รูปนับเป็นพื้นที่ของเจ้าของ
   draw();
   return st;
 }
@@ -248,7 +248,7 @@ function careLogForm(c, log) {
     const btn = $('button[type=submit]', f); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try {
       const hv = !!fd.get('hospital_visit');
-      const data = { log_date: fd.get('log_date'), trend, note, photos: await photos.save(c.id), ...(hv || log?.hospital_visit ? { hospital_visit: hv } : {}) }; // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกปกติได้)
+      const data = { log_date: fd.get('log_date'), trend, note, photos: await photos.save(c.id, profileById(c.profile_id).user_id), ...(hv || log?.hospital_visit ? { hospital_visit: hv } : {}) }; // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกปกติได้)
       if (log) { await DB.update('care_logs', log.id, data); Object.assign(log, data); }
       else { const row = { id: uuid(), plan_id: c.id, created_at: new Date().toISOString(), ...data }; await DB.insert('care_logs', row); S.care_logs.push(row); }
       if (photos.removed.length) DB.removeFiles(photos.removed).catch(() => {});

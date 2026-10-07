@@ -42,14 +42,14 @@ function viewStock() {
   const lowOf = (pid) => medsOf(pid).filter((m) => m.status === 'active' && isLowStock(m)).length;
   const chips = `<div class="chips">${vis.map((x) => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-act="stock-person" data-id="${x.id}" style="--pc:${x.color};--pt:${inkOn(x.color)}"><span class="av xs">${avatarSVG(x.avatar, x.color)}</span>${esc(x.name)}${lowOf(x.id) ? `<span class="low-badge sm"><i>!</i>${lowOf(x.id)}</span>` : ''}</button>`).join('')}</div>`;
   const lowList = tracked.filter((m) => m.status === 'active' && isLowStock(m));
-  const lowBox = lowList.length ? `<div class="alert red low-box"><div class="ic"><svg class="ex-svg" viewBox="0 0 36 36" width="36" height="36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#fff" stroke="#E5332A" stroke-width="3"/><rect x="16" y="8" width="4" height="13" rx="2" fill="#E5332A"/><circle cx="18" cy="26.5" r="2.5" fill="#E5332A"/></svg></div><div><b>ยาใกล้หมด ${lowList.length} รายการ</b><span class="low-sub">เหลือไม่เกิน ${lowStockQty()} เม็ด</span>
+  const lowBox = lowList.length ? `<div class="alert red low-box"><div class="ic"><svg class="ex-svg" viewBox="0 0 36 36" width="36" height="36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#fff" stroke="#E5332A" stroke-width="3"/><rect x="16" y="8" width="4" height="13" rx="2" fill="#E5332A"/><circle cx="18" cy="26.5" r="2.5" fill="#E5332A"/></svg></div><div><b>ยาใกล้หมด ${lowList.length} ตัว</b><span class="low-sub">เหลือไม่เกิน ${lowStockQty()} เม็ด</span>
     <table class="low-t"><thead><tr><th>รหัส</th><th>ชื่อยา</th><th>ตอนนี้เหลือ</th></tr></thead><tbody>${lowList.map((m) => `<tr><td><b>${esc(medNo(m))}</b></td><td>${esc(medShort(m))}</td><td class="red-t"><b>${qtyText(stockLeft(m))}</b> ${esc(unitOf(m))}</td></tr>`).join('')}</tbody></table></div></div>` : '';
   return `${back}<h1>จำนวนยาที่เหลือ</h1>${visBtn}${chips}
     ${lowBox}
     <h2 class="ad-title">ยาของ${esc(p.name)} ณ วันที่ ${thDate(today)}</h2>
     ${rows ? `<input type="search" id="stkQ" class="stk-search" placeholder="🔍 ค้นหาชื่อยา / แพทย์ / แผนก / รหัส" value="${esc(ui.stockQ || '')}" autocomplete="off" aria-label="ค้นหาชื่อยาหรือชื่อแพทย์">
       <div class="card stk-card"><table class="stk-t"><thead><tr><th>รหัส</th><th>ชื่อยา</th><th>รักษา</th><th>หมดประมาณ</th><th>เหลือ</th></tr></thead><tbody>${rows}</tbody></table><p class="small muted center stk-none" ${tracked.some(hit) ? 'hidden' : ''}>ไม่พบยาที่ค้นหา</p></div>` : '<div class="card empty"><div class="e">📦</div>ยังไม่มียาที่นับจำนวนคงเหลือ<br><span class="small">กรอก "จำนวนคงเหลือ" ในฟอร์มยา แล้วจะคำนวณให้</span></div>'}
-    <p class="small muted center">คำนวณจากจำนวนคงเหลือที่กรอกไว้ หักตามตารางกินยาทุกวัน นับตั้งแต่วันที่กรอก${other ? `<br>ยาหน่วยหยด/ครั้ง/ช้อนชา/มล. ${other} รายการ ไม่นับจำนวนคงเหลือ` : ''}<br>ถ้าตัวเลขไม่ตรงกับของจริง แก้ "จำนวนคงเหลือ" ในฟอร์มยา ระบบจะเริ่มนับใหม่จากวันนั้น</p>`;
+    <p class="small muted center">คำนวณจากจำนวนคงเหลือที่กรอกไว้ หักตามตารางกินยาทุกวัน นับตั้งแต่วันที่กรอก${other ? `<br>ยาหน่วยหยด/ครั้ง/ช้อนชา/มล. ${other} ตัว ไม่นับจำนวนคงเหลือ` : ''}<br>ถ้าตัวเลขไม่ตรงกับของจริง แก้ "จำนวนคงเหลือ" ในฟอร์มยา ระบบจะเริ่มนับใหม่จากวันนั้น</p>`;
 }
 
 // ---------- ประวัติการรักษา ----------
