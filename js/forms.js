@@ -117,7 +117,7 @@ function medForm(m) {
         <label class="f"><span>ครั้งละกี่เม็ด</span><input type="number" name="dose" min="0" step="0.25" inputmode="decimal" value="${num(e.dose, 1)}"></label>
         <div class="f"><span class="lbl">หน่วย</span>${selectOther('unit', UNITS, unitOf(e), 'เลือกหน่วย')}</div>
       </div>
-      <div class="two dose-row2"><div class="f"><span class="dose-quick" role="group" aria-label="เลือกจำนวนที่ใช้บ่อย">${[0.25, 0.5, 1, 2].map((d) => `<button type="button" data-dose-set="${d}">${doseLabel(d)}</button>`).join('')}</span><details class="every-box"><summary>ทานทุก … ชั่วโมง (ไม่บังคับ)</summary><div class="every-in"><span class="lbl">ทุก <input type="number" id="evHours" class="ev-in" min="1" max="24" step="1" inputmode="numeric" placeholder="8"> ชั่วโมง</span>
+      <div class="two dose-row2"><div class="f"><span class="dose-quick" role="group" aria-label="เลือกจำนวนที่ใช้บ่อย">${[0.25, 0.5, 1, 2].map((d) => `<button type="button" data-dose-set="${d}">${doseLabel(d)}</button>`).join('')}</span><details class="every-box"><summary>ทานทุก .... ชั่วโมง</summary><div class="every-in"><span class="lbl">ทุก <input type="number" id="evHours" class="ev-in" min="1" max="24" step="1" inputmode="numeric" placeholder="8"> ชั่วโมง</span>
         <span class="lbl">เริ่มต้นกินยา <select id="evHH">${Array.from({ length: 24 }, (_, i) => `<option ${i === 6 ? 'selected' : ''}>${pad(i)}</option>`).join('')}</select><b>:</b><select id="evMM"><option>00</option><option>15</option><option>30</option><option>45</option></select> น.</span>
         <div class="every-row"><button type="button" class="btn sm" id="evGo">คำนวณเวลา</button></div>
         <small class="small muted" id="evNote"></small></div></details></div>      <label class="f stock-box"><span>มีกี่เม็ด <small>(ใช้นับวันยาหมด)</small></span><input type="number" name="stock" min="0" step="0.25" inputmode="decimal" value="${num(e.stock)}"></label></div>
@@ -133,7 +133,8 @@ function medForm(m) {
       <div class="f wd-box ${e.weekdays?.length ? '' : 'hidden'}" id="wdBox"><span class="lbl">เลือกวันที่ต้องทาน <small>(เลือกได้หลายวัน)</small></span>
         <div class="wd-pick">${WD_SHORT.map((d, i) => `<label><input type="checkbox" name="wd" value="${i}" ${e.weekdays?.includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
       <div class="purpose-row"><label class="f"><span>รักษาโรคอะไร <b class="req" aria-hidden="true">*</b></span><input type="text" name="purpose" required value="${esc(e.purpose)}" placeholder="เช่น ความดันโลหิตสูง"></label><label class="opq-box"><input type="checkbox" name="opaque" ${/ทึบแสง/.test(e.note || '') ? 'checked' : ''}><span>เก็บยาในที่ทึบแสง</span></label></div>
-      <label class="f warn-box"><span>หมายเหตุ / ข้อควรระวัง</span><textarea name="warning" rows="3" placeholder="เช่น ห้ามทานพร้อมนม · พบแพทย์หากคลื่นไส้หรือหอบเหนื่อย">${esc(mergedRemark(e))}</textarea></label>
+      <label class="f warn-box"><span>หมายเหตุ / ข้อควรระวัง <small>ที่ระบุไว้บนซองยาที่จ่ายโดยแพทย์</small></span><textarea name="warning" rows="3" placeholder="เช่น เก็บยาในที่ทึบแสง · กินเฉพาะเวลานอนไม่หลับ">${esc(mergedRemark(e))}</textarea></label>
+      <label class="f extra-box"><span>บันทึกเพิ่มเติม</span><textarea name="extra_note" rows="3" maxlength="1000" placeholder="เช่น กินยาตัวนี้แล้วยังปวดขาอยู่">${esc(e.extra_note)}</textarea></label>
       <label class="f"><span>แพทย์ที่จ่ายยา <small>(ไม่บังคับ)</small></span><input type="text" name="prescriber" list="docList" maxlength="120" value="${esc(e.prescriber)}" placeholder="ชื่อแพทย์"><datalist id="docList">${S.doctors.map((d) => `<option value="${esc(d.name)}">`).join('')}</datalist></label>
       <div class="f"><span class="lbl">แผนกที่จ่ายยา <small>(ไม่บังคับ)</small></span>${selectOther('prescribed_dept', DEPARTMENTS, e.prescribed_dept, 'เลือกแผนก')}</div>
       <label class="f"><span>รหัสยา <small>(เรียงต่อเนื่องของคนนี้ · อักษรนำ "<b id="noPrefix">${esc(medPrefix(pid0))}</b>")</small></span>
@@ -202,6 +203,7 @@ ${rows.join('\n')}`;
       note: fd.get('opaque') ? 'เก็บในที่ทึบแสง' : '', updated_at: new Date().toISOString(),
       ...(wd.length || m?.weekdays?.length ? { weekdays: wd.length === 7 ? [] : wd } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
       warning: String(fd.get('warning') || '').trim(), as_needed: !!fd.get('as_needed'),
+      ...(String(fd.get('extra_note') || '').trim() || m?.extra_note ? { extra_note: String(fd.get('extra_note') || '').trim() } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
     };
     if (m) {
       const status = fd.get('status'); const reason = String(fd.get('status_reason') || '').trim();
@@ -292,7 +294,7 @@ function apptForm(a, date, pid) {
         <a class="btn call ${h0?.phone ? '' : 'disabled'}" id="callBtn" href="${h0?.phone ? telHref(h0.phone) : '#'}">📞 โทร</a></div></label>
       <label class="f"><span>6. ตึก/ชั้นที่ตรวจ</span><input type="text" name="building" value="${esc(e.building)}" placeholder="เช่น ตึกผู้ป่วยนอก ชั้น 3"></label>
       <label class="f"><span>7. สาเหตุที่มาพบแพทย์</span>${selectOther('visit_reason', VISIT_REASONS, e.visit_reason, 'เลือกสาเหตุ')}</label>
-      <div class="post-visit"><label class="f"><span>8. กรอกหลังพบแพทย์ <small>(จะขึ้นในรายงานนัดครั้งถัดไป)</small></span><textarea name="visit_summary" maxlength="1000" placeholder="เช่น ปรับยาใหม่ / ให้งดอาหารเค็ม / นัดตรวจเลือดอีก 1 เดือน">${esc(e.visit_summary)}</textarea></label></div>
+      <div class="post-visit"><label class="f"><span>8. แพทย์แนะนำว่า <small>(จะขึ้นในสรุปก่อนพบแพทย์ครั้งถัดไป ถ้าเป็นแพทย์คนเดิมและแผนกเดิม)</small></span><textarea name="visit_summary" maxlength="1000" placeholder="เช่น ปรับยาใหม่ / ให้งดอาหารเค็ม / นัดตรวจเลือดอีก 1 เดือน">${esc(e.visit_summary)}</textarea></label></div>
       <label class="f"><span>9. หมายเหตุ</span><textarea name="note" placeholder="เช่น เจาะเลือดต้องงดอาหาร">${esc(e.note)}</textarea></label>
       <div class="f"><span class="lbl">10. แนบรูปภาพ (ใบนัด/เอกสาร)</span>
         <div class="thumbs" id="thumbs"></div>
@@ -414,7 +416,7 @@ async function apptDetail(a) {
     </div>
     ${typeof reportButtonHtml === 'function' ? reportButtonHtml(a) : ''}
     ${a.note ? `<div class="alert sun" style="margin-top:12px"><div class="ic">📝</div><div><b>หมายเหตุ</b><span>${esc(a.note)}</span></div></div>` : ''}
-    ${a.visit_summary ? `<div class="alert" style="margin-top:12px"><div class="ic">🩺</div><div><b>พบแพทย์แล้ว หมอบอกว่า</b><span style="white-space:pre-line">${esc(a.visit_summary)}</span></div></div>` : ''}
+    ${a.visit_summary ? `<div class="alert" style="margin-top:12px"><div class="ic">🩺</div><div><b>แพทย์แนะนำว่า</b><span style="white-space:pre-line">${esc(a.visit_summary)}</span></div></div>` : ''}
     ${!(a.attachments || []).length && a.images_purged_at ? '<p class="small muted purged-note">🗓️ รูปใบนัดถูกลบแล้ว (เก็บไว้ครบ 1 ปี)</p>' : ''}
     ${(a.attachments || []).length ? `<h4>รูปที่แนบ</h4><div class="thumbs" id="dThumbs">${a.attachments.map(() => '<div class="thumb loading"></div>').join('')}</div>` : ''}
     <div class="card flat small"><div class="preview"><b>${esc(apptMessage(a, Math.max(1, Math.min(n, 5))).title)}</b><br>${esc(apptMessage(a, 1).body).replace(/\n/g, '<br>')}</div></div>
@@ -472,7 +474,7 @@ function personForm(p, preset = {}) {
   const e = p || { color: PRESET_COLORS[S.profiles.length % PRESET_COLORS.length], avatar: 'f-elder-smile', reminder_enabled: true, chronic_diseases: [], drug_allergies: [], ...preset };
   const relOther = e.relation && !RELATIONS.includes(e.relation);
   let avatarTouched = !!p;
-  const sheet = openSheet(`<h3>${p ? (isSelfProfile(p) ? 'แก้ไขโปรไฟล์ของฉัน' : 'แก้ไขข้อมูลคน') : preset.isSelf ? 'สร้างโปรไฟล์ของฉัน' : 'เพิ่มคนที่ฉันดูแล'}</h3>
+  const sheet = openSheet(`<h3>${p ? (isSelfProfile(p) ? 'แก้ไขโปรไฟล์ของฉัน' : 'แก้ไขข้อมูลคน') : preset.isSelf ? 'สร้างโปรไฟล์ของฉัน' : 'เพิ่มสมาชิกที่ฉันดูแล'}</h3>
     ${preset.welcome ? '<div class="alert sun welcome-note"><div class="ic">👋</div><div><b>ยินดีต้อนรับสู่สุขใจ</b><span class="small">เริ่มจากสร้างโปรไฟล์ของคุณก่อนนะ ใช้เวลาไม่ถึงนาที · คนที่คุณดูแล (พ่อ แม่ ปู่ ย่า) เพิ่มทีหลังได้</span></div></div>' : ''}
     <form id="f">
       <div class="detail-head" id="pvHead">${avatarHtml(e, 'lg')}<div><b id="pvName">${esc(e.name || 'ชื่อเรียก')}</b><div class="small muted" id="pvRel">${esc(e.relation || '')}</div></div></div>
@@ -590,7 +592,7 @@ document.addEventListener('click', async (ev) => {
     case 'cal-next': ui.calMonth = new Date(ui.calMonth.getFullYear(), ui.calMonth.getMonth() + 1, 1); render(); break;
     case 'cal-today': { const d = new Date(); ui.calMonth = new Date(d.getFullYear(), d.getMonth(), 1); ui.calSel = todayKey(); render(); break; }
     case 'add-person': personForm(); break;
-    case 'edit-person': if (!ownsProfile(id)) { toast('ข้อมูลส่วนตัวนี้แก้ได้เฉพาะเจ้าของ — คุณดูยา นัด และการติดตามอาการได้จากปุ่มด้านล่าง'); break; } personForm(S.profiles.find((p) => p.id === id)); break;
+    case 'edit-person': if (!ownsProfile(id)) { toast('ข้อมูลส่วนตัวนี้แก้ได้เฉพาะเจ้าของ — คุณดูยา นัด และบันทึกติดตามอาการได้จากปุ่มด้านล่าง'); break; } personForm(S.profiles.find((p) => p.id === id)); break;
     case 'new-circle': circleForm(); break;
     case 'manage-circle': { const c = S.circles.find((x) => x.id === id); if (c && c.user_id === DB.user.id) circleForm(c); break; }
     case 'del-circle': confirmSheet('ลบกลุ่มผู้ดูแลนี้?<br><small class="muted">สมาชิกทุกคนจะไม่เห็นข้อมูลที่แชร์อีก (ข้อมูลของคุณไม่ถูกลบ)</small>', async () => {
@@ -652,7 +654,7 @@ document.addEventListener('click', async (ev) => {
       if (ok) { await dbDo(DB.remove('circle_invites', id)); toast('เข้าร่วมกลุ่มแล้ว'); await reload(); }
       break;
     }
-    case 'del-person': confirmSheet('ลบคนนี้ พร้อมยา นัด และการติดตามอาการทั้งหมด?', async () => {
+    case 'del-person': confirmSheet('ลบคนนี้ พร้อมยา นัด และบันทึกติดตามอาการทั้งหมด?', async () => {
       const planIds = S.care_plans.filter((c) => c.profile_id === id).map((c) => c.id);
       const files = [...S.appointments.filter((a) => a.profile_id === id).flatMap((a) => a.attachments || []),
         ...S.care_logs.filter((l) => planIds.includes(l.plan_id)).flatMap((l) => l.photos || [])];
@@ -906,7 +908,7 @@ document.addEventListener('change', async (ev) => {
   if (t.dataset.toggleCare) { // เตือนติดตามอาการรายเรื่อง
     const c = S.care_plans.find((x) => x.id === t.dataset.toggleCare); if (!c) return;
     c.remind = t.checked;
-    if (await dbDo(DB.update('care_plans', c.id, { remind: c.remind }))) toast(`${t.checked ? 'เปิด' : 'ปิด'}เตือนติดตามอาการ "${c.title}"`);
+    if (await dbDo(DB.update('care_plans', c.id, { remind: c.remind }))) toast(`${t.checked ? 'เปิด' : 'ปิด'}เตือนบันทึกติดตามอาการ "${c.title}"`);
   }
 });
 document.addEventListener('toggle', (ev) => {

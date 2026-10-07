@@ -5,8 +5,8 @@
 | ส่วนประกอบ | ใช้ทำอะไร | ใบอนุญาต |
 |---|---|---|
 | @supabase/supabase-js | เชื่อมฐานข้อมูล/ล็อกอิน (โหลดจาก jsDelivr) | MIT |
-| html2canvas 1.4.1 | แปลงหน้าเป็นภาพเพื่อสร้าง PDF (โหลดจาก cdnjs) | MIT |
-| jsPDF 2.5.1 | สร้างไฟล์ PDF (โหลดจาก cdnjs) | MIT |
+| html2canvas 1.4.1 | แปลงหน้าเป็นภาพเพื่อสร้าง PDF (เก็บไว้ในแอพที่ vendor/ — สำรองโหลดจาก cdnjs) | MIT |
+| jsPDF 2.5.1 | สร้างไฟล์ PDF (เก็บไว้ในแอพที่ vendor/ — สำรองโหลดจาก cdnjs) | MIT |
 | ฟอนต์ Prompt | ฟอนต์หลักของแอพ (Google Fonts) | SIL Open Font License 1.1 |
 | ฟอนต์ Sarabun | ฟอนต์หน้าขออนุญาต/เอกสาร (Google Fonts) | SIL Open Font License 1.1 |
 

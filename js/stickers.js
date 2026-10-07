@@ -1,4 +1,4 @@
-/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — สติกเกอร์ช่วงเวลากินยา (PDF A4 แนวนอน) 3 ขนาด · ใช้สีกรอบตามสีประจำตัวของโปรไฟล์
    1) ถุงซิปล็อก 4 × 2.7 ซม.  2) ช่องกล่องยา 2.5 × 1.5 ซม.  3) กล่องยาใหญ่ 6 × 4 ซม. */
 'use strict';
@@ -23,16 +23,18 @@ const stkEsc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;',
 /** ป้ายรหัสยา 1 ดวง: ยาที่กิน = หัว "รหัสยา" + รหัสตัวใหญ่ · ยาที่ไม่ได้กิน = ชื่อยา */
 const STK_NAME_MAX_SPAN = 4; // ป้ายชื่อยายาวได้สูงสุด 4 ช่อง (≈ 12 ซม.) ยาวกว่านั้นขึ้นบรรทัดใหม่
 /** ป้ายยาที่ไม่ได้กิน (หยอดตา ป้ายตา ครีม สเปรย์ แผ่นแปะ) = ชื่อยา ความกว้างขยายเป็นจำนวนเท่าของช่องตามความยาวชื่อ · ยาที่กิน = 1 ช่อง */
-const stkSpanOf = (t, m) => (isOralMed(m) ? 1 : Math.max(1, Math.min(STK_NAME_MAX_SPAN, Math.ceil((String(m.name || '').length * 2.7 + 7) / t.w))));
+/** ชื่อไทยของชนิดยาที่ไม่ได้กิน (เช่น ยาหยอดตา) — เดาจาก "คำกำกับใต้เลข" + หมายเหตุ + รักษาโรคอะไร · ไม่เจอคำที่รู้จัก = ใช้คำกำกับ/ชื่อโรค/"ยาอื่นๆ" */
+const STK_KINDS = [[/หยอดตา/, 'ยาหยอดตา'], [/ป้ายตา/, 'ยาป้ายตา'], [/หยอดหู/, 'ยาหยอดหู'], [/จมูก/, 'ยาพ่นจมูก'], [/พ่น|สูด/, 'ยาพ่น'], [/แผ่นแปะ|แปะ/, 'ยาแผ่นแปะ'], [/ฉีด/, 'ยาฉีด'], [/ครีม|เจล|ขี้ผึ้ง|ทา/, 'ยาทา']];
+const stkKind = (m) => { const src = `${m.table_hint || ''} ${m.note || ''} ${m.purpose || ''}`; const hit = STK_KINDS.find(([re]) => re.test(src)); return hit ? hit[1] : (m.table_hint || m.purpose || 'ยาอื่นๆ'); };
+const stkSpanOf = (t, m) => (isOralMed(m) ? 1 : Math.max(1, Math.min(STK_NAME_MAX_SPAN, Math.ceil((Math.max(stkKind(m).length * 3.4, String(m.name || '').length * 1.9) + 7) / t.w))));
 function stkNumCellHtml(t, p, item) {
   const m = item.m; const w = t.w * item.span;
   if (!m) return `<div class="sx-gap" style="width:${w}mm;height:${t.h}mm"></div>`; // ช่องว่างท้ายแถว (ป้ายยาวถัดไปวางไม่พอ)
   const st = `width:${w}mm;height:${t.h}mm;border:${t.bd}mm solid ${p.color};border-radius:${t.w * .06}mm`;
-  if (!isOralMed(m)) {
-    const nm = String(m.name || ''); const long = item.span >= STK_NAME_MAX_SPAN && nm.length * 2.7 + 7 > w; const fs = long ? 12 : 15;
-    return `<div class="sx sx-n" style="${st}"><span class="sx-nm" style="font-size:${fs}pt;${long ? '' : 'white-space:nowrap'}">${stkEsc(nm)}</span></div>`;
+  if (!isOralMed(m)) { // ยาที่ไม่ได้กิน: ชื่อไทยตัวใหญ่ (ยาหยอดตา) + ชื่อภาษาอังกฤษตัวเล็กด้านล่าง
+    return `<div class="sx sx-n" style="${st}"><span class="sx-th" style="font-size:18pt">${stkEsc(stkKind(m))}</span><small class="sx-en" style="font-size:9pt">${stkEsc(String(m.name || ''))}</small></div>`;
   }
-  const code = medNo(m); const fs = code.length <= 3 ? 32 : code.length === 4 ? 27 : 22;
+  const code = medNo(m); const fs = code.length <= 3 ? 36 : code.length === 4 ? 30 : 24;
   return `<div class="sx sx-n" style="${st}"><small class="sx-cap">รหัสยา</small><b class="sx-code" style="font-size:${fs}pt">${stkEsc(code)}</b></div>`;
 }
 
@@ -111,33 +113,109 @@ function stkLayout(t, slots, meds = [], pageIdx = 0) {
   return { rows, geo };
 }
 
-/** counts: { bag: จำนวนแผ่น, cell: …, box: … } */
-function stkPagesHtml(p, counts) {
-  const slots = stkSlotsOf(p.id); let html = ''; const tot = STK_TYPES.reduce((a, t) => a + stkPageCount(t, counts, p.id), 0); let no = 0;
+/** รายการหน้าทั้งหมดของไฟล์ (ใช้ร่วมกันทั้งวิธีวาดตรงและวิธีสำรอง) */
+function stkPageList(p, counts) {
+  const slots = stkSlotsOf(p.id); const tot = STK_TYPES.reduce((a, t) => a + stkPageCount(t, counts, p.id), 0); let no = 0; const out = [];
   STK_TYPES.forEach((t) => {
     const n = stkPageCount(t, counts, p.id); if (!n) return;
     const setRows = t.num && counts.numMode === 'count' ? stkNumSetRows(t, stkGeom(t), medsOf(p.id)) : null;
     for (let i = 0; i < n; i++) {
       no++; const { rows, geo } = setRows ? { rows: setRows[i % setRows.length], geo: stkGeom(t) } : stkLayout(t, slots, t.num ? medsOf(p.id) : [], i);
-      html += `<section class="sx-page" data-type="${t.key}" data-o="${geo.o}" style="width:${geo.W}mm;height:${geo.H}mm;padding:${STK_PAGE.m}mm"><div class="sx-grid" style="gap:${STK_PAGE.gap}mm">${rows.map((row) => `<div class="sx-row" style="gap:${STK_PAGE.gap}mm">${row.map((s) => stkCellHtml(t, p, s)).join('')}</div>`).join('')}</div>
-        <p class="sx-foot">สติกเกอร์สุขใจ (${stkEsc(p.name)}) · ${t.title} · ขนาด ${t.size} · แผ่น ${no}/${tot} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)</p></section>`;
+      out.push({ t, rows, geo, no, tot, foot: `สติกเกอร์สุขใจ (${p.name}) · ${t.title} · ขนาด ${t.size} · แผ่น ${no}/${tot} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)` });
     }
   });
-  return html;
+  return out;
 }
 
+/** counts: { bag: จำนวนแผ่น, cell: …, box: … } */
+function stkPagesHtml(p, counts) {
+  return stkPageList(p, counts).map(({ t, rows, geo, foot }) => `<section class="sx-page" data-type="${t.key}" data-o="${geo.o}" style="width:${geo.W}mm;height:${geo.H}mm;padding:${STK_PAGE.m}mm"><div class="sx-grid" style="gap:${STK_PAGE.gap}mm">${rows.map((row) => `<div class="sx-row" style="gap:${STK_PAGE.gap}mm">${row.map((s) => stkCellHtml(t, p, s)).join('')}</div>`).join('')}</div>
+        <p class="sx-foot">${stkEsc(foot)}</p></section>`).join('');
+}
 const STK_CSS = `.sx-wrap{position:fixed;left:-12000px;top:0;background:#fff;font-family:Prompt,Sarabun,sans-serif;color:#161A4D}
 .sx-page{box-sizing:border-box;background:#fff;position:relative;overflow:hidden}
 .sx-grid{display:flex;flex-direction:column;align-items:center}.sx-row{display:flex}
 .sx{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;text-align:center;line-height:1.18;overflow:hidden;flex:none}
 .sx img{display:block;object-fit:contain}.sx b{font-weight:700;white-space:nowrap}.sx span{font-weight:500;white-space:nowrap}
-.sx-n .sx-cap{font-size:12pt;font-weight:600;color:#2B3060;line-height:1;margin-bottom:1mm}.sx-n .sx-code{line-height:1;letter-spacing:0;color:#000}.sx-n .sx-nm{white-space:normal;font-weight:700;line-height:1.2;padding:0 2mm;overflow-wrap:anywhere;color:#000}
+.sx-n{font-family:Sarabun,'TH Sarabun New','Leelawadee UI',sans-serif}.sx-n .sx-cap{font-size:12pt;font-weight:600;color:#2B3060;line-height:1;margin-bottom:1mm}.sx-n .sx-code{font-weight:700;line-height:1;letter-spacing:0;color:#000}.sx-n .sx-th{white-space:nowrap;font-weight:700;line-height:1.15;padding:0 2mm;color:#000}.sx-n .sx-en{display:block;white-space:normal;font-weight:600;line-height:1.2;margin-top:.8mm;padding:0 2mm;overflow-wrap:anywhere;color:#2B3060}
 .sx-gap{flex:none}.sx-foot{position:absolute;left:${STK_PAGE.m}mm;right:${STK_PAGE.m}mm;bottom:2mm;margin:0;font:400 6pt Sarabun,sans-serif;color:#5A6080;text-align:center}`;
 
+// ---------- วาดตรงด้วย Canvas 2D (หน่วยวาด = มม.) ----------
+const STK_K = 11.811; // พิกเซลต่อมม. (≈ 300 dpi)
+const STK_PT = 25.4 / 72; // 1 พอยต์ = กี่มม.
+const stkFont = (w, pt, fam = 'Sarabun') => `${w} ${pt * STK_PT}px ${fam}, 'TH Sarabun New', 'Leelawadee UI', sans-serif`;
+function stkRoundPath(ctx, x, y, w, h, r) { r = Math.max(0, Math.min(r, w / 2, h / 2)); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+/** กรอบสติกเกอร์ 1 ดวง (พื้นขาว ขอบสีประจำตัวอยู่ในกรอบ เหมือน box-sizing: border-box) · คืน {x0,y0,x1,y1} พื้นที่ภายในกรอบ */
+function stkFrame(ctx, x, y, w, h, bd, r, color) {
+  stkRoundPath(ctx, x, y, w, h, r); ctx.fillStyle = '#fff'; ctx.fill();
+  stkRoundPath(ctx, x + bd / 2, y + bd / 2, w - bd, h - bd, r - bd / 2); ctx.strokeStyle = color; ctx.lineWidth = bd; ctx.stroke();
+  return { x0: x + bd, y0: y + bd, x1: x + w - bd, y1: y + h - bd };
+}
+/** จัดข้อความ/รูปเป็นแนวตั้งกึ่งกลางพื้นที่ แล้ววาด — items: {h, mt, draw(cx, top)} */
+function stkStack(ctx, a, items, padTop = 0) {
+  const total = items.reduce((s, it) => s + it.h + (it.mt || 0), 0); const top0 = a.y0 + padTop; const areaH = a.y1 - top0;
+  let y = top0 + (areaH - total) / 2; const cx = (a.x0 + a.x1) / 2;
+  ctx.save(); stkRoundPath(ctx, a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0, 0); ctx.clip();
+  for (const it of items) { y += it.mt || 0; it.draw(cx, y); y += it.h; }
+  ctx.restore();
+}
+function stkDrawCell(ctx, t, p, s, x, y, imgs) {
+  if (t.num) {
+    const m = s.m; const w = t.w * s.span; if (!m) return; // ช่องว่างท้ายแถว
+    const a = stkFrame(ctx, x, y, w, t.h, t.bd, t.w * .06, p.color);
+    if (!isOralMed(m)) {
+      const th = stkKind(m); const en = String(m.name || ''); ctx.font = stkFont(600, 9); const enLines = cvWrap(ctx, en, a.x1 - a.x0 - 4);
+      const lhTh = 18 * STK_PT * 1.15, lhEn = 9 * STK_PT * 1.2;
+      const items = [{ h: lhTh, draw: (cx, top) => cvText(ctx, th, cx, top + lhTh / 2, stkFont(700, 18), '#000', 'center') }];
+      enLines.forEach((l, i) => items.push({ h: lhEn, mt: i === 0 ? .8 : 0, draw: (cx, top) => cvText(ctx, l, cx, top + lhEn / 2, stkFont(600, 9), '#2B3060', 'center') }));
+      stkStack(ctx, a, items);
+    } else {
+      const code = medNo(m); const fs = code.length <= 3 ? 36 : code.length === 4 ? 30 : 24; const hc = 12 * STK_PT, hn = fs * STK_PT;
+      stkStack(ctx, a, [{ h: hc, draw: (cx, top) => cvText(ctx, 'รหัสยา', cx, top + hc / 2, stkFont(600, 12), '#2B3060', 'center') }, { h: hn, mt: 1, draw: (cx, top) => cvText(ctx, code, cx, top + hn / 2, stkFont(700, fs), '#000', 'center') }]);
+    }
+    return;
+  }
+  const a = stkFrame(ctx, x, y, t.w, t.h, t.bd, Math.min(t.w, t.h) * .08, p.color); const lab = t.long ? s.label : s.short;
+  const lhL = t.fLabel * STK_PT * 1.18, lhN = t.fName * STK_PT * 1.18; const img = imgs[STK_ICON[s.key]];
+  const items = [{ h: t.icon, draw: (cx, top) => { if (img) ctx.drawImage(img, cx - t.icon / 2, top, t.icon, t.icon); } },
+    { h: lhL, mt: t.gp + (t.lm || 0), draw: (cx, top) => cvText(ctx, lab, cx, top + lhL / 2, stkFont(700, t.fLabel, 'Prompt'), '#161A4D', 'center') }];
+  if (t.name) items.push({ h: lhN, mt: t.gp + t.nm, draw: (cx, top) => cvText(ctx, `(${p.name})`, cx, top + lhN / 2, stkFont(500, t.fName, 'Prompt'), '#161A4D', 'center') });
+  stkStack(ctx, a, items, t.pt || 0);
+}
+/** วาดทีละหน้า → ส่งให้ onPage(canvas, land, i, n) ทันที (ไม่เก็บทุกหน้าไว้ในหน่วยความจำ) */
+async function renderStickerPages(p, counts, onPage) {
+  await waitVisible();
+  await Promise.all([['400', 'Sarabun'], ['500', 'Sarabun'], ['600', 'Sarabun'], ['700', 'Sarabun'], ['500', 'Prompt'], ['700', 'Prompt']].map(([w, f]) => document.fonts.load(`${w} 16px ${f}`, 'ก ภาษาไทย ABC 123 ๑'))); await document.fonts.ready;
+  const imgs = {}; await Promise.all([...new Set(Object.values(STK_ICON))].map((k) => new Promise((res) => { const im = new Image(); im.onload = () => { imgs[k] = im; res(); }; im.onerror = () => res(); im.src = `assets/slots/${k}.png`; })));
+  const list = stkPageList(p, counts); const g = STK_PAGE;
+  for (let i = 0; i < list.length; i++) {
+    const { t, rows, geo, foot } = list[i]; const c = document.createElement('canvas'); c.width = Math.round(geo.W * STK_K); c.height = Math.round(geo.H * STK_K);
+    const ctx = c.getContext('2d'); ctx.scale(STK_K, STK_K); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, geo.W, geo.H);
+    const cw = (row) => row.reduce((s, it) => s + (t.num ? t.w * it.span : t.w), 0) + g.gap * Math.max(0, row.length - 1);
+    let y = g.m;
+    for (const row of rows) { let x = (geo.W - cw(row)) / 2; for (const s of row) { stkDrawCell(ctx, t, p, s, x, y, imgs); x += (t.num ? t.w * s.span : t.w) + g.gap; } y += t.h + g.gap; }
+    cvText(ctx, foot, geo.W / 2, geo.H - 2 - 1.3, stkFont(400, 6), '#5A6080', 'center');
+    await onPage(c, geo.o === 'land', i, list.length);
+  }
+  return list.length;
+}
 async function makeStickersPdf(pid, counts) {
   await refreshForPdf(); const p = profileById(pid);
   const slots = stkSlotsOf(pid); if (!STK_TYPES.some((t) => counts[t.key] > 0)) throw new Error('NO_TYPES'); if (!slots.length && STK_TYPES.some((t) => !t.num && counts[t.key] > 0)) throw new Error('NO_SLOTS'); if (counts.num > 0 && !medsOf(pid).length) throw new Error('NO_MEDS');
-  const jsPDF = await loadPdfLibs();
+  try {
+    const jsPDF = await loadPdfLibs(); let pdf = null;
+    const n = await renderStickerPages(p, counts, (cv, land, i) => {
+      const t = document.createElement('canvas'); t.width = 600; t.height = 424; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 600, 424); const px = tc.getImageData(0, 0, 600, 424).data; let ink = 0;
+      for (let k = 0; k < px.length; k += 4) if (px[k] + px[k + 1] + px[k + 2] < 740) ink++;
+      if (ink < 200) throw new PdfAuditError([`หน้า ${i + 1}: ภาพแทบว่าง`]);
+      const o = land ? 'landscape' : 'portrait'; if (!pdf) pdf = new jsPDF({ orientation: o, unit: 'mm', format: 'a4' }); else pdf.addPage('a4', o);
+      pdf.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, land ? 297 : 210, land ? 210 : 297);
+    });
+    return { pdf, pages: n, name: `สติกเกอร์ยา-${p.name}-${todayKey()}.pdf` };
+  } catch (e) { if (e instanceof PdfAuditError) throw e; console.warn('วาดสติกเกอร์ตรงไม่สำเร็จ ใช้วิธีสำรอง', e); return makeStickersPdfHtml(pid, counts); }
+}
+async function makeStickersPdfHtml(pid, counts) {
+  const p = profileById(pid); const jsPDF = await loadPdfLibs();
   const wrap = document.createElement('div'); wrap.className = 'sx-wrap'; wrap.innerHTML = `<style>${STK_CSS}</style>${stkPagesHtml(p, counts)}`; document.body.appendChild(wrap);
   try {
     await Promise.all([...wrap.querySelectorAll('img')].map((im) => (im.complete ? 1 : new Promise((r) => { im.onload = im.onerror = r; }))));
@@ -145,7 +223,7 @@ async function makeStickersPdf(pid, counts) {
     const pages = [...wrap.querySelectorAll('.sx-page')]; let pdf = null;
     for (let i = 0; i < pages.length; i++) {
       const land = pages[i].dataset.o === 'land'; const o = land ? 'landscape' : 'portrait';
-      const cv = await window.html2canvas(pages[i], { scale: 3, backgroundColor: '#fff', useCORS: true, onclone: preloadCloneFonts });
+      const cv = await capturePage(pages[i], { scale: 3, backgroundColor: '#fff', useCORS: true, onclone: preloadCloneFonts });
       if (!pdf) pdf = new jsPDF({ orientation: o, unit: 'mm', format: 'a4' }); else pdf.addPage('a4', o);
       pdf.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, land ? 297 : 210, land ? 210 : 297);
     }
@@ -155,7 +233,6 @@ async function makeStickersPdf(pid, counts) {
 
 function stickerSheet(pid) {
   const p = profileById(pid); if (!p) return;
-  if (!ownsProfile(pid)) return toast('ให้เจ้าของโปรไฟล์เป็นคนดาวน์โหลด');
   const slots = stkSlotsOf(pid);
   if (!slots.length && !medsOf(pid).length) return toast('ยังไม่มียา จึงยังไม่มีสติกเกอร์ให้สร้าง');
   const types = slots.length ? STK_TYPES : STK_TYPES.filter((t) => t.num); // ไม่มียากินประจำ = ทำได้เฉพาะป้ายรหัสยา
@@ -182,7 +259,7 @@ function stickerSheet(pid) {
   sync();
   $('#stk-go', sh).onclick = async () => {
     if (!types.some((t) => counts[t.key] > 0)) return toast('เลือกจำนวนแผ่นอย่างน้อย 1 แผ่น');
-    if (!canUse('sticker', { pid })) return ownsProfile(pid) ? premiumSheet('sticker') : toast('ให้เจ้าของโปรไฟล์เป็นคนดาวน์โหลด'); // ไฟล์ Premium: เฉพาะเจ้าของโปรไฟล์ที่เป็น Premium
+    if (!canUse('sticker', { pid })) return premiumSheet('sticker'); // ไฟล์ Premium: ต้องเป็น Premium ของบัญชีตัวเอง (โปรไฟล์ที่แชร์มาก็โหลดได้)
     toast('กำลังสร้างไฟล์สติกเกอร์…');
     try { const { pdf, name, pages } = await makeStickersPdf(pid, counts); pdf.save(name); toast(`✓ บันทึกสติกเกอร์แล้ว (${pages} หน้า)`); closeSheet(); }
     catch (e) { console.error(e); toast('สร้างไฟล์สติกเกอร์ไม่สำเร็จ — ลองใหม่อีกครั้ง'); }

@@ -73,20 +73,20 @@ function careCard(c) {
 
 // ---------- หน้า: ติดตามอาการ ----------
 function viewCare() {
-  if (!S.profiles.length) return `<h1>ติดตามอาการ</h1><div class="card empty"><div class="e">👨‍👩‍👧</div>เพิ่มคนในครอบครัวก่อน<br><button class="btn sm" data-act="add-person" style="margin-top:12px">+ เพิ่มคน</button></div>`;
+  if (!S.profiles.length) return `<h1>บันทึกติดตามอาการ</h1><div class="card empty"><div class="e">👨‍👩‍👧</div>เพิ่มคนในครอบครัวก่อน<br><button class="btn sm" data-act="add-person" style="margin-top:12px">+ เพิ่มคน</button></div>`;
   if (ui.careFilter !== 'all' && !S.profiles.some((p) => p.id === ui.careFilter)) ui.careFilter = 'all';
   const ids = ui.careFilter === 'all' ? S.profiles.map((p) => p.id) : [ui.careFilter];
   const mine = S.care_plans.filter((c) => ids.includes(c.profile_id));
   const act = mine.filter((c) => c.status === 'active').sort((a, b) => careNext(a).n - careNext(b).n);
   const done = mine.filter((c) => c.status !== 'active');
   return `
-    <h1>ติดตามอาการ</h1><p class="sub">ถ่ายรูป/บันทึกอาการตามรอบ เช่น แผล ผื่น อาการบวม — ย้อนดูได้ว่าดีขึ้นไหม</p>
+    <h1>บันทึกติดตามอาการ</h1><p class="sub">ถ่ายรูป/บันทึกอาการตามรอบ เช่น แผล ผื่น อาการบวม — ย้อนดูได้ว่าดีขึ้นไหม</p>
     ${personChips(ui.careFilter, 'care-filter', false, true)}
     <h2>กำลังติดตาม <span class="small muted">${act.length} เรื่อง</span></h2>
     ${act.map(careCard).join('') || `<div class="card empty"><div class="e">🩹</div>ยังไม่มีอาการที่ติดตาม<br>
-      <button class="btn sm" data-act="add-care" style="margin-top:12px">+ เพิ่มการติดตามอาการ</button></div>`}
+      <button class="btn sm" data-act="add-care" style="margin-top:12px">+ เพิ่มบันทึกติดตามอาการ</button></div>`}
     ${done.length ? `<h2>${CARE_STATUS.done} <span class="small muted">${done.length} เรื่อง</span></h2>${done.map(careCard).join('')}` : ''}
-    <button class="fab" data-act="add-care" aria-label="เพิ่มการติดตามอาการ">+</button>
+    <button class="fab" data-act="add-care" aria-label="เพิ่มบันทึกติดตามอาการ">+</button>
   `;
 }
 
@@ -102,7 +102,7 @@ function careDetail(c) {
   const fig = (l, cap) => `<figure><img class="zoom" data-path="${esc(l.photos[0])}" alt="รูป${cap}"><figcaption>${cap} · ${thDate(l.log_date)}</figcaption></figure>`;
   const sheet = openSheet(`
     <div class="detail-head" style="--pc:${p.color}">${avatarHtml(p, 'lg')}<div>
-      <div class="small muted">ติดตามอาการของ ${esc(p.name)}</div><h3 style="margin:0">${esc(c.title)}</h3>
+      <div class="small muted">บันทึกติดตามอาการของ ${esc(p.name)}</div><h3 style="margin:0">${esc(c.title)}</h3>
       ${active ? careBadge(n) : `<span class="small muted">${CARE_STATUS[c.status] || ''}</span>`}</div></div>
     <div class="card flat">
       ${row('รอบการติดตาม', intervalText(c.interval_days))}
@@ -117,7 +117,7 @@ function careDetail(c) {
     ${logs.map((l) => `<div class="log">
       <div class="log-head"><b>${thDate(l.log_date)}</b>${trendTag(l.trend)}${canEdit ? `<button class="btn ghost sm mini" data-act="care-log-edit" data-id="${l.id}">แก้ไข</button>` : ''}${canEdit && canDeleteRow(l, c.profile_id) ? `<button class="btn ghost sm mini danger" data-act="del-care-log" data-id="${l.id}">ลบ</button>` : ''}</div>
       ${l.note ? `<div class="small">${esc(l.note)}</div>` : ''}
-      ${l.photos?.length ? `<div class="thumbs">${l.photos.map((ph) => `<div class="thumb"><img class="zoom" data-path="${esc(ph)}" alt="รูปติดตามอาการ"></div>`).join('')}</div>` : ''}
+      ${l.photos?.length ? `<div class="thumbs">${l.photos.map((ph) => `<div class="thumb"><img class="zoom" data-path="${esc(ph)}" alt="รูปบันทึกติดตามอาการ"></div>`).join('')}</div>` : ''}
     </div>`).join('') || '<div class="card flat empty small">ยังไม่มีบันทึก</div>'}
     <div class="row sticky-actions">
       <button class="btn ghost" data-act="close">ปิด</button>
@@ -134,9 +134,9 @@ function careForm(c) {
   if (!S.profiles.length) { toast('เพิ่มคนในครอบครัวก่อนนะ'); return go('family'); }
   if (c ? !canEditProfile(c.profile_id) : !S.profiles.some((p) => canEditProfile(p.id))) return toast('สิทธิ์ของคุณดูอย่างเดียว แก้ไขไม่ได้');
   const e = c || { profile_id: ui.careFilter !== 'all' && canEditProfile(ui.careFilter) ? ui.careFilter : null, started_on: todayKey(), interval_days: 1, care_steps: [], remind: true, status: 'active' };
-  const sheet = openSheet(`<h3>${c ? 'แก้ไขการติดตามอาการ' : 'เพิ่มการติดตามอาการ'}</h3>
+  const sheet = openSheet(`<h3>${c ? 'แก้ไขบันทึกติดตามอาการ' : 'เพิ่มบันทึกติดตามอาการ'}</h3>
     <form id="f">
-      <label class="f"><span>ติดตามอาการของใคร</span>${profileRadio(e.profile_id)}</label>
+      <label class="f"><span>บันทึกติดตามอาการของใคร</span>${profileRadio(e.profile_id)}</label>
       <label class="f"><span>อาการ/สิ่งที่ติดตาม</span><input type="text" name="title" required value="${esc(e.title)}" placeholder="เช่น แผลที่ขาซ้าย, แผลกดทับ, ผื่นที่แขน"></label>
       <label class="f"><span>เริ่มติดตามวันที่</span><input type="date" name="started_on" required value="${e.started_on}"></label>
       <div class="f"><span class="lbl">ถ่ายรูป/บันทึกอาการทุกกี่วัน</span>
@@ -173,7 +173,7 @@ function careForm(c) {
     } else {
       const row = { id: uuid(), status: 'active', created_at: new Date().toISOString(), ...data };
       S.care_plans.push(row); ui.tab = 'meds'; ui.medsPage = 'care'; closeSheet(); render();
-      if (await dbDo(DB.insert('care_plans', row))) toast('เพิ่มการติดตามอาการแล้ว');
+      if (await dbDo(DB.insert('care_plans', row))) toast('เพิ่มบันทึกติดตามอาการแล้ว');
     }
   };
 }
@@ -221,14 +221,14 @@ function careLogForm(c, log) {
           <label class="btn ghost filebtn">📷 ถ่ายรูป<input type="file" accept="image/*" capture="environment" hidden></label>
           <label class="btn ghost filebtn">🖼️ เลือกรูป<input type="file" accept="image/*" multiple hidden></label>
         </div>
-        <p class="small muted" style="margin:6px 0 0">เพิ่มได้หลายรูป · รูปติดตามอาการเก็บไว้ตลอด จนกว่าคุณจะลบเอง</p>
+        <p class="small muted" style="margin:6px 0 0">เพิ่มได้หลายรูป · รูปบันทึกติดตามอาการเก็บไว้ตลอด จนกว่าคุณจะลบเอง</p>
       </div>
       <div class="f"><span class="lbl">อาการเทียบกับครั้งก่อน</span>
         <div class="trend-pick">${Object.entries(CARE_TRENDS).map(([k, v]) => `<label class="trend-opt t-${k}"><input type="radio" name="trend" value="${k}" ${e.trend === k ? 'checked' : ''}><span class="t-card"><i class="t-ic">${v.icon}</i><b>${v.label}</b></span></label>`).join('')}</div>
         <p class="small red-t ${e.trend === 'worse' ? '' : 'hidden'}" id="worseTip">⚠️ ถ้าบวมแดง ร้อน มีหนอง มีกลิ่น หรือมีไข้ ควรพาไปพบแพทย์</p>
       </div>
       <label class="f"><span>บันทึกเพิ่มเติม</span><textarea name="note" placeholder="เช่น แผลแห้งขึ้น ไม่มีหนอง / ขอบแผลแดงขึ้น">${esc(e.note)}</textarea></label>
-      <label class="switch-row"><span>ไปโรงพยาบาลหรือไม่<small class="small muted" style="display:block">ติ๊กถ้าครั้งนี้ไป รพ. จะขึ้นในประวัติการรักษา</small></span><span class="switch"><input type="checkbox" name="hospital_visit" ${e.hospital_visit ? 'checked' : ''}><i></i></span></label>
+      <label class="switch-row"><span>ไปโรงพยาบาลหรือไม่<small class="small muted" style="display:block">ติ๊กถ้าครั้งนี้ไป รพ. จะขึ้นในบันทึกการไปหาหมอ</small></span><span class="switch"><input type="checkbox" name="hospital_visit" ${e.hospital_visit ? 'checked' : ''}><i></i></span></label>
       <div class="row sticky-actions">
         ${log ? `<button type="button" class="btn danger" data-act="del-care-log" data-id="${log.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button>
@@ -275,7 +275,7 @@ document.addEventListener('click', (ev) => {
     case 'care-detail': careDetail(plan()); break;
     case 'care-log': careLogForm(plan()); break;
     case 'care-log-edit': { const l = S.care_logs.find((x) => x.id === id); if (l) careLogForm(S.care_plans.find((c) => c.id === l.plan_id), l); break; }
-    case 'del-care': confirmSheet('ลบการติดตามอาการนี้ พร้อมบันทึกและรูปทั้งหมด?<br><small class="muted">ถ้าหายแล้ว แนะนำเปลี่ยนสถานะเป็น "หายแล้ว" เพื่อเก็บประวัติ</small>', async () => {
+    case 'del-care': confirmSheet('ลบบันทึกติดตามอาการนี้ พร้อมบันทึกและรูปทั้งหมด?<br><small class="muted">ถ้าหายแล้ว แนะนำเปลี่ยนสถานะเป็น "หายแล้ว" เพื่อเก็บประวัติ</small>', async () => {
       const files = S.care_logs.filter((l) => l.plan_id === id).flatMap((l) => l.photos || []);
       S.care_plans = S.care_plans.filter((c) => c.id !== id); S.care_logs = S.care_logs.filter((l) => l.plan_id !== id);
       if (await dbDo(DB.remove('care_plans', id))) DB.removeFiles(files).catch(() => {});

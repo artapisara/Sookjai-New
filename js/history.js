@@ -70,7 +70,7 @@ function historyCard(it) {
   }
   if (it.kind === 'care') {
     const l = it.l;
-    return `<div class="card hist-item"><div class="hi-top"><span class="tag">🩹 จากติดตามอาการ · ไป รพ.</span><span class="small muted">${thDate(it.date)}</span></div>
+    return `<div class="card hist-item"><div class="hi-top"><span class="tag">🩹 จากบันทึกติดตามอาการ · ไป รพ.</span><span class="small muted">${thDate(it.date)}</span></div>
       <b>${esc(it.c.title)}</b>${line(l.trend && CARE_TRENDS[l.trend] ? `อาการ: ${CARE_TRENDS[l.trend].icon} ${CARE_TRENDS[l.trend].label}` : '')}${line(l.note ? esc(l.note) : '')}</div>`;
   }
   const r = it.r; const can = canEditProfile(r.profile_id);
@@ -80,16 +80,16 @@ function historyCard(it) {
     ${can ? `<div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="tr-edit" data-id="${r.id}">✏️ แก้ไข</button></div>` : ''}</div>`;
 }
 function viewHistory() {
-  if (!canUse('history')) return premiumPage('ประวัติการรักษา', 'history');
+  if (!canUse('history')) return premiumPage('บันทึกการไปหาหมอ', 'history');
   const back = backBar('ยาและการดูแล', 'meds-go', 'hub');
-  if (!S.profiles.length) return `${back}<h1>ประวัติการรักษา</h1><div class="card empty">ยังไม่มีสมาชิก</div>`;
+  if (!S.profiles.length) return `${back}<h1>บันทึกการไปหาหมอ</h1><div class="card empty">ยังไม่มีสมาชิก</div>`;
   if (!S.profiles.some((p) => p.id === ui.histPid)) ui.histPid = (S.profiles.find((p) => p.id === ui.medsPerson) || S.profiles[0]).id;
   const p = profileById(ui.histPid); const items = historyItems(p.id);
   const chips = `<div class="chips">${S.profiles.map((x) => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-act="hist-person" data-id="${x.id}" style="--pc:${x.color};--pt:${inkOn(x.color)}"><span class="av xs">${avatarSVG(x.avatar, x.color)}</span>${esc(x.name)}</button>`).join('')}</div>`;
-  return `${back}<h1>ประวัติการรักษา</h1>${ui.histOnly ? '' : chips}
-    <h2 class="ad-title">การไปโรงพยาบาลของ${esc(p.name)}</h2>
-    <p class="small muted" style="margin:4px 0 12px">สรุปจากใบนัดหมอ และบันทึกติดตามอาการที่เลือก "ไป รพ." — สามารถดูได้อย่างเดียว ถ้าจะเพิ่มหรือแก้ ให้ไปที่ > ติดตามอาการ</p>
-    ${items.length ? items.map(historyCard).join('') : '<div class="card empty"><div class="e">🏥</div>ยังไม่มีประวัติการรักษา</div>'}`;
+  return `${back}<h1>บันทึกการไปหาหมอ</h1>${ui.histOnly ? '' : chips}
+    <h2 class="ad-title">ครั้งที่ ${esc(p.name)} ไปหาหมอ</h2>
+    <p class="small muted" style="margin:4px 0 12px">รวมจากใบนัดหมอ และบันทึกที่ติดตามอาการแล้วเลือก "ไป รพ." ดูได้อย่างเดียว ถ้าจะเพิ่มหรือแก้ ให้ไปที่ "บันทึกติดตามอาการ"</p>
+    ${items.length ? items.map(historyCard).join('') : '<div class="card empty"><div class="e">🏥</div>ยังไม่มีบันทึกการไปหาหมอ</div>'}`;
 }
 
 function treatmentForm(pid, r) {

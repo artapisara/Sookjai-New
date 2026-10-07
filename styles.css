@@ -1304,8 +1304,8 @@ html.bigtext #app, html.bigtext #modal .sheet { zoom: 1.18; }
 @keyframes need-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
 /* หัวข้อกล่อง พบแพทย์ครั้งถัดไป ตัวใหญ่ */
-.preview b { font-size: 18px; line-height: 1.4; }
-.preview { font-size: 16px; }
+.preview b { font-size: 16px; line-height: 1.4; }
+.preview { font-size: 15px; }
 .preview { white-space: pre-wrap; }
 
 /* สระ/วรรณยุกต์ไม่ซ้อนกัน (ตึก/ชั้น) */
@@ -1382,12 +1382,14 @@ html.bigtext #app, html.bigtext #modal .sheet { zoom: 1.18; }
 
 .dt-head .dt-pdf { margin-left: auto; flex: none; white-space: nowrap; padding: 8px 12px; background: #fff; }
 
-/* สรุปก่อนพบแพทย์ ชิดซ้าย + ปุ่มไฟล์ PDF ชิดขวาสุด (แถวเดียวกัน; ตอนกางสรุปปุ่มลงบรรทัดล่างชิดขวา) */
-.report-box { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
-.report-box .rp-prev { flex: 1 1 0; min-width: 0; margin-top: 0; }
-.report-box .rp-prev[open] { flex-basis: 100%; }
-.report-box .rp-prev > summary { justify-content: flex-start; text-align: left; padding-left: 16px; padding-right: 40px; }
-.report-box .rp-dl { flex: none; margin: 0 0 0 auto; align-self: stretch; padding: 0 14px; white-space: nowrap; display: inline-flex; align-items: center; }
+/* สรุปก่อนพบแพทย์ ชิดซ้าย + ปุ่มไฟล์ PDF อยู่ในแถวหัวกรอบเดียวกันเสมอ (ทั้งตอนปิดและตอนกางสรุป) */
+.report-box { position: relative; }
+.report-box .rp-prev { margin-top: 0; }
+.report-box .rp-prev > summary { justify-content: flex-start; text-align: left; padding-left: 12px; padding-right: 128px; gap: 8px; font-size: 18px; font-weight: 700; }
+.report-box .rp-prev > summary .rp-ic { width: 24px; height: 24px; }
+.report-box .rp-prev > summary::after { right: 108px; }
+.report-box .rp-dl { position: absolute; top: 2.5px; right: 2.5px; height: 56px; margin: 0; padding: 0 10px; font-size: 15px; border-radius: 15px; white-space: nowrap; display: inline-flex; align-items: center; z-index: 1; }
+.report-box > p { margin-top: 6px; }
 .kv .tel-btn, .tel-btn { background: transparent !important; color: inherit; box-shadow: none; padding: 0 !important; margin-right: 8px; font-size: 24px; line-height: 1; }
 
 .every-box .lbl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -1709,10 +1711,7 @@ img[data-path]:not([src]) { visibility: hidden; }
 .post-visit textarea { background: #fff; }
 
 /* v1.3 — โควตา Free/Premium + โครงสร้างโปรไฟล์ */
-.owner-lock { opacity: 1; background: #F1F2F7 !important; color: #4A4D5E !important; border: 1.5px dashed #C9CCDA !important; cursor: not-allowed; text-align: center; }
-.owner-lock small, .tool-pair .tp-tx small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: #6B6E82; line-height: 1.3; }
-.rp-dl.owner-lock { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.tool-pair > .owner-lock { text-align: left; }
+.tool-pair .tp-tx small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: #6B6E82; line-height: 1.3; }
 .lim-btns { flex-direction: column; align-items: stretch; }
 .lim-btns .btn { width: 100%; }
 .ap-pick { max-height: 80vh; overflow: auto; }
@@ -1722,9 +1721,6 @@ img[data-path]:not([src]) { visibility: hidden; }
 .plan-invited { margin-top: 12px; background: #EEF0FF; border: 1.5px solid #D5D9FF; }
 .plan-invited h4 { margin: 0 0 6px; }
 .plan-inv { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.55; }
-.owner-lock:disabled, .btn.owner-lock:disabled { opacity: 1 !important; }
-.owner-lock .ol-t, .owner-lock .tp-tx { color: #4A4D5E; }
-
 /* หน้าการแจ้งเตือน: ป้ายใต้ชื่อโปรไฟล์ที่แชร์มา · วิธีเปิดสิทธิ์เมื่อถูกบล็อก · ปุ่มทดลองส่งเป็นสีรองกันกดผิด */
 .nt-nm { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .nt-nm small { font-size: 12.5px; }
@@ -1828,3 +1824,9 @@ body:not(.auth) .sw-pair .switch-row > span:first-child { font-size: var(--fs-bt
 body:not(.auth) .sw-pair .wd-sw > span:first-child { color: #2E2268; }
 body:not(.auth) .sw-pair .asn-box > span:first-child { color: #7A1744; }
 body:not(.auth) .sw-pair .switch-row small { font-weight: var(--fw-regular); }
+
+
+/* v1.3.8 — ฟอร์มยา: กรอบ "บันทึกเพิ่มเติม" พื้นเขียว (โทนเดียวกับกรอบหมายเหตุ/ข้อควรระวังสีแดง) */
+.extra-box { background: linear-gradient(165deg, #E9FACF 0%, #C9EF9B 100%); border: 1.5px solid #9FD25E; border-radius: 16px; padding: 10px 12px; box-shadow: 0 4px 12px rgba(80, 150, 30, .16), inset 0 1px 0 #fff; }
+.extra-box > span { color: #2D5F12; font-weight: var(--fw-bold, 700); }
+.extra-box textarea { background: #fff; border-color: #BFE08E; }

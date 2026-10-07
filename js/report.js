@@ -1,8 +1,7 @@
 /* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — รายงานก่อนพบแพทย์ (PDF A4 แนวตั้ง) · Premium
  * ใส่เฉพาะที่ใช้จริงในห้องตรวจ (แอพเป็นเครื่องช่วยจำ ไม่เก็บ/สรุปข้อมูลสุขภาพเกินจำเป็น):
- *   1) แพ้ยา  2) ใครไปหาหมอ + นัดครั้งนี้  3) ผลการพบแพทย์ครั้งก่อน (ที่ผู้ใช้จดไว้ในนัดครั้งก่อน ข้อ 10)  4) ยาที่เกี่ยวกับแผนกนี้ + บันทึก (หมายเหตุ) ของยาแต่ละตัว  5) เส้นให้เขียนสิ่งที่อยากถามหมอ
- * สั่งทำ PDF ได้เมื่อใกล้วันนัด (ภายใน REPORT_WINDOW_DAYS วันก่อนนัด) · สร้างจากข้อมูลปัจจุบันทุกครั้ง · ตรวจก่อนบันทึกไฟล์ (สร้างซ้ำ 2 รอบต้องเหมือนกัน + ข้อมูลครบ ไม่ล้นหน้า)
+ *   1) แพ้ยา  2) ใครไปหาหมอ + นัดครั้งนี้  3) ผลการพบแพทย์ครั้งก่อน (ที่ผู้ใช้จดไว้ในนัดครั้งก่อน ข้อ 10)  4) ยาที่เกี่ยวกับแผนกนี้ + บันทึก (หมายเหตุ) ของยาแต่ละตัว * สั่งทำ PDF ได้เมื่อใกล้วันนัด (ภายใน REPORT_WINDOW_DAYS วันก่อนนัด) · สร้างจากข้อมูลปัจจุบันทุกครั้ง · ตรวจก่อนบันทึกไฟล์ (สร้างซ้ำ 2 รอบต้องเหมือนกัน + ข้อมูลครบ ไม่ล้นหน้า)
  */
 'use strict';
 
@@ -16,22 +15,29 @@ function reportButtonHtml(a) {
   // กรอบสรุป (สำคัญกว่า) อยู่ก่อน แล้วค่อยปุ่มโหลดไฟล์
   return `<div class="report-box">
     <details class="rp-prev" data-appt="${a.id}"><summary><span class="mi rp-ic" style="--ic:url(assets/icons/report-notes.png)"></span>สรุปก่อนพบแพทย์</summary><div class="rp-prev-body small muted">กำลังเตรียมสรุป…</div></details>
-    ${ownsProfile(a.profile_id) ? `<button type="button" class="btn ghost rp-dl ${st.ok ? '' : 'rp-dl-off'}" data-act="appt-report" data-id="${a.id}">📄 ไฟล์ PDF</button>` : lockedOwnerBtn('📄 ไฟล์ PDF')}
+    <button type="button" class="btn ghost rp-dl ${st.ok ? '' : 'rp-dl-off'}" data-act="appt-report" data-id="${a.id}">📄 ไฟล์ PDF</button>
     ${st.ok ? '' : `<p class="small muted center" style="margin:4px 0 0;flex-basis:100%">สร้างไฟล์ได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)</p>`}</div>`;
 }
 // ---------- เลือกยาที่เกี่ยวกับแผนก ----------
 const reportDeptNorm = (s) => norm(String(s || '').replace(/^แผนก/, ''));
 /** ยานี้เกี่ยวกับแผนกของนัดไหม — เทียบกับ "แผนกที่จ่ายยา" ในฟอร์มยา (ตรงทั้งคำหรือเป็นส่วนหนึ่งของกัน เช่น "อายุรกรรม" กับ "อายุรกรรมโรคหัวใจ") */
 const reportMedMatches = (m, dept) => { const x = reportDeptNorm(m.prescribed_dept), y = reportDeptNorm(dept); return !!x && !!y && (x.includes(y) || y.includes(x)); };
+/** "บันทึกเพิ่มเติม" ของยา (extra_note) แสดงในตารางยาของสรุปก่อนพบแพทย์ เฉพาะยาที่เกี่ยวข้องกับแผนกของนัดนี้ (ยาที่ผู้ใช้เลือกเพิ่มเองแต่ไม่เกี่ยวกับแผนก ไม่แสดงบันทึกนี้) */
+const reportExtraNote = (m, dept) => (dept && reportMedMatches(m, dept) ? String(m.extra_note || '').trim() : '');
+function reportMedNoteHtml(m, dept) {
+  const note = normTxt(m.note || '') ? esc(String(m.note).trim().slice(0, 220)) : ''; const extra = reportExtraNote(m, dept);
+  return `${note}${note && extra ? '<br>' : ''}${extra ? `<b class="rp-extra">${esc(extra)}</b>` : ''}` || '<span class="s">–</span>';
+}
 /** ยาที่ติ๊กไว้ให้ตามแผนกของนัด (ถ้าไม่มียาไหนระบุแผนก = ทุกตัว) */
 function reportDefaultMedIds(a) {
   const meds = medsOf(a.profile_id); const matched = a.department ? meds.filter((m) => reportMedMatches(m, a.department)) : [];
   return (matched.length ? matched : meds).map((m) => m.id);
 }
-/** ผลการพบแพทย์ครั้งก่อน: นัดที่ผ่านมาของคนนี้ที่จดผลไว้ — เลือกแผนกเดียวกันก่อน ถ้าไม่มีใช้ครั้งล่าสุดที่จดไว้ */
+/** "ครั้งที่แล้วแพทย์แนะนำว่า": นัดที่ผ่านมาของคนนี้ที่จดข้อ 8 ไว้ — ต้องเป็นแพทย์คนเดิมและแผนกเดิมเท่านั้น (ไม่ตรง = ไม่แสดง) ใช้ครั้งล่าสุด */
 function reportPrevVisit(a) {
-  const past = S.appointments.filter((x) => x.profile_id === a.profile_id && x.id !== a.id && x.appt_date < a.appt_date && normTxt(x.visit_summary || '')).sort((x, y) => y.appt_date.localeCompare(x.appt_date));
-  return past.find((x) => reportDeptNorm(x.department) && reportDeptNorm(x.department) === reportDeptNorm(a.department)) || past[0] || null;
+  const dept = reportDeptNorm(a.department); if (!a.doctor_id || !dept) return null;
+  return S.appointments.filter((x) => x.profile_id === a.profile_id && x.id !== a.id && x.appt_date < a.appt_date && x.doctor_id === a.doctor_id && reportDeptNorm(x.department) === dept && normTxt(x.visit_summary || ''))
+    .sort((x, y) => y.appt_date.localeCompare(x.appt_date))[0] || null;
 }
 
 /** รวมข้อมูลที่จะใส่ในรายงาน (ดึงจากข้อมูลปัจจุบันทุกครั้ง) */
@@ -77,12 +83,8 @@ function reportBlocks(R) {
       <tr>${cell('วันที่ไป', `${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`)}${cell('แผนก', e(a.department || '–'))}</tr>
       <tr>${cell('หมอ', e(d?.name || '–'))}${cell('รพ.', e(h?.name || '–'))}</tr>
       <tr>${cell('สาเหตุ', `<span class="rp-wide">${e(a.visit_reason || '–')}</span>`).replace('<td>', '<td colspan="3">')}</tr>${reportBodyRows(p, cell)}</table>`, info: true });
-  if (a.note) C(`<b class="rp-nt">📝 หมายเหตุ</b><div class="rp-notetext">${e(a.note)}</div>`, 'rp-notebox'); // หมายเหตุแยกกรอบ
-  // 3) ผลการพบแพทย์ครั้งก่อน
-  if (prev) {
-    T('🏥 ครั้งก่อนหมอบอกว่า');
-    B.push({ html: `<table class="rp-t rp-prev-t"><colgroup><col style="width:22%"><col style="width:78%"></colgroup><tr><th>${thDate(prev.appt_date)}${prev.department ? `<br><span class="s">${e(prev.department)}</span>` : ''}</th><td class="rp-say">${e(String(prev.visit_summary).trim())}</td></tr></table>`, prevVisit: true });
-  }
+  // 3) ครั้งที่แล้วแพทย์แนะนำว่า — ข้อ 8 ของนัดครั้งก่อน เฉพาะนัดที่เป็นแพทย์คนเดิมและแผนกเดิม (แทนกรอบ "หมายเหตุ" เดิม)
+  if (prev) C(`<b class="rp-nt">🩺 ครั้งที่แล้วแพทย์แนะนำว่า</b> <span class="s">(${thDate(prev.appt_date)})</span><div class="rp-notetext">${e(String(prev.visit_summary).trim())}</div>`, 'rp-notebox');
   // 4) ตารางยาที่เกี่ยวกับแผนกนี้
   T(`💊 ยาที่เกี่ยวกับแผนกนี้${meds.length < allMeds.length && a.department ? ` <span class="rp-sub">(แผนก${e(a.department)})</span>` : ''}`);
   if (!meds.length) C('ยังไม่ได้เลือกยา');
@@ -95,11 +97,9 @@ function reportBlocks(R) {
         <td><b class="rp-mn">${e(m.name)}</b>${m.purpose ? `<div class="s">${e(m.purpose)}</div>` : ''}</td>
         <td data-label="ทานครั้งละ">${m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${e(unitOf(m))}`}<div class="s">${e(medWhen(m))}</div></td>
         <td class="rp-left" data-label="ยาเหลือ">${left}</td>
-        <td class="rp-mnote" data-label="บันทึก">${normTxt(m.note || '') ? e(String(m.note).trim().slice(0, 220)) : '<span class="s">–</span>'}</td></tr></table>`, med: true, rowKey: 'meds', tight: true });
+        <td class="rp-mnote" data-label="บันทึก">${reportMedNoteHtml(m, a.department)}</td></tr></table>`, med: true, rowKey: 'meds', tight: true });
     });
   }
-  // 5) สิ่งที่อยากถามหมอ
-  C('<b>✍️ สิ่งที่อยากถามหมอ</b><div class="rp-lines"><i></i><i></i><i></i></div>', 'rp-ask');
   return B;
 }
 const RPT_CSS = `.rp-wrap{position:fixed;left:-12000px;top:0;background:#fff;font-family:Sarabun,Prompt,sans-serif;color:#161A4D}
@@ -121,7 +121,7 @@ const RPT_CSS = `.rp-wrap{position:fixed;left:-12000px;top:0;background:#fff;fon
 .rp-prev-t td.rp-say{font-size:16.5px;line-height:1.55;white-space:pre-line}.rp-prev-t th{font-size:14px}
 .rp-head-t th{background:var(--pc);color:#fff;border-color:var(--pc);font-size:13.5px;padding:5px 8px}
 .rp-med{margin-top:-1.2px}.rp-med td{background:#fff}.rp-no{text-align:center}.rp-no b{display:inline-block;background:var(--pc);color:#fff;border-radius:6px;padding:1px 6px;font:700 12px Prompt,Sarabun,sans-serif}
-.rp-mn{font:700 16.5px Prompt,Sarabun,sans-serif}.rp-left{font-weight:700;color:#2C6E3F}.rp-mnote{background:#FFFCEF!important;white-space:pre-line;font-size:13.5px}
+.rp-mn{font:700 16.5px Prompt,Sarabun,sans-serif}.rp-left{font-weight:700;color:#2C6E3F}.rp-mnote{background:#FFFCEF!important;white-space:pre-line;font-size:13.5px;overflow-wrap:anywhere}.rp-extra{font-weight:700;color:#2D5F12}
 .rp-lines i{display:block;height:30px;border-bottom:1.2px solid #9BA2CC}.rp-ask .rp-lines{margin-top:2px}
 .rp-foot{position:absolute;left:${RPT.padX}px;right:${RPT.padX}px;bottom:${RPT.padBottom}px;height:${RPT.footH - 8}px;border-top:1.5px solid #D5D9F5;padding-top:4px;font-size:10.5px;line-height:1.35;color:#5A6080;display:flex;justify-content:space-between;gap:12px}
 .rp-foot .pg{flex:none;font-weight:700;color:#161A4D}`;
@@ -188,10 +188,11 @@ function auditReport(wrap, R) {
     if (!tx.includes(nz(m.name)) || !tx.includes(medNo(m))) issues.push(`ยา ${medNo(m)} ${m.name}: ข้อมูลไม่ตรง`);
     if (!tx.includes(nz(medWhen(m)))) issues.push(`ยา ${medNo(m)}: เวลากินไม่ตรง`);
     const note = nz(m.note || ''); if (note && !tx.includes(note.slice(0, 40))) issues.push(`ยา ${medNo(m)}: บันทึกของยาไม่ครบ`);
+    const extra = nz(reportExtraNote(m, R.a.department)); if (extra && !tx.includes(extra.slice(0, 40))) issues.push(`ยา ${medNo(m)}: บันทึกเพิ่มเติมไม่ครบ`);
+    if (!extra && m.extra_note && nz(m.extra_note).length > 3 && tx.includes(nz(m.extra_note).slice(0, 40))) issues.push(`ยา ${medNo(m)}: แสดงบันทึกเพิ่มเติมของยาที่ไม่เกี่ยวกับแผนก`);
     if (tracksStock(m) && !tx.includes(`${qtyText(stockLeft(m))} ${nz(unitOf(m))}`)) issues.push(`ยา ${medNo(m)}: จำนวนยาที่เหลือไม่ตรง`); });
   const headRows = wrap.querySelectorAll('.rp-head-t').length; const pagesWithMeds = pages.filter((pg) => pg.querySelector('.rp-med')).length; if (meds.length && headRows < pagesWithMeds) issues.push('ตารางยาบางหน้าไม่มีหัวตาราง');
-  if (R.a.note && !text.includes(nz(R.a.note).slice(0, 40))) issues.push('ไม่มีหมายเหตุของนัด');
-  if (prev && !text.includes(nz(prev.visit_summary).slice(0, 40))) issues.push('ไม่มีผลการพบแพทย์ครั้งก่อน');
+  if (prev && !text.includes(nz(prev.visit_summary).slice(0, 40))) issues.push('ไม่มีข้อความ "ครั้งที่แล้วแพทย์แนะนำว่า"');
   if (R.p.drug_allergies?.length && !R.p.drug_allergies.every((x) => text.includes(nz(x)))) issues.push('ข้อมูลแพ้ยาไม่ครบ');
   if (!text.includes(`${thDate(R.a.appt_date)} ${hhmm(R.a.appt_time)}`)) issues.push('ไม่มีวันนัด');
   reportBodyItems(R.p).forEach(([k, v]) => { if (!text.includes(nz(k)) || !text.includes(nz(v))) issues.push(`ไม่มีข้อมูล${k}`); });
@@ -219,7 +220,7 @@ async function makeReportPdf(apptId, opt = {}) {
     finally { f2.wrap.remove(); }
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); const pages = [...f1.wrap.querySelectorAll('.rp-page')]; const i3 = [];
     for (let i = 0; i < pages.length; i++) {
-      const cv = await window.html2canvas(pages[i], { scale: 3, backgroundColor: '#fff', useCORS: true, onclone: preloadCloneFonts, windowWidth: RPT.W });
+      const cv = await capturePage(pages[i], { scale: 3, backgroundColor: '#fff', useCORS: true, onclone: preloadCloneFonts, windowWidth: RPT.W });
       if (cv.width !== RPT.W * 3 || cv.height !== RPT.H * 3) i3.push(`[รอบ 3] หน้า ${i + 1}: ภาพ ${cv.width}×${cv.height}`);
       const t = document.createElement('canvas'); t.width = 120; t.height = 170; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 120, 170); const d = tc.getImageData(0, 0, 120, 170).data; let ink = 0;
       for (let k = 0; k < d.length; k += 4) if (d[k] + d[k + 1] + d[k + 2] < 690) ink++;
@@ -240,7 +241,7 @@ function renderReportPreview(det) {
     box.className = 'rp-prev-body'; box.innerHTML = '';
     const root = box.attachShadow ? box.attachShadow({ mode: 'open' }) : box;
     root.innerHTML = `<style>${RPT_CSS}${RPT_NARROW}.rp-view{--pc:${R.p.color};--pcs:${tint(R.p.color, .16)};font-family:Sarabun,Prompt,sans-serif;color:#161A4D}.rp-view .rp-b{margin-bottom:10px}</style>
-      <div class="rp-view">${blocks.map((b) => `<div class="rp-b">${b.html}</div>`).join('')}<p style="font-size:12px;color:#5A6080;margin:4px 0 0">นี่คือสรุปที่จะอยู่ในไฟล์ PDF — กด "รายงานก่อนพบแพทย์ (PDF)" เพื่อเลือกยาและสร้างไฟล์</p></div>`;
+      <div class="rp-view">${blocks.map((b) => `<div class="rp-b">${b.html}</div>`).join('')}<p style="font-size:12px;color:#5A6080;margin:4px 0 0">นี่คือสรุปที่จะอยู่ในไฟล์ PDF — กดปุ่ม "ไฟล์ PDF" ด้านบน เพื่อเลือกยาและสร้างไฟล์</p></div>`;
     det.dataset.ready = '1';
   } catch (e) { console.error(e); box.textContent = 'แสดงสรุปไม่สำเร็จ ลองใหม่อีกครั้ง'; }
 }
@@ -276,7 +277,7 @@ async function runReport(apptId, opt) {
 }
 async function downloadReport(apptId) {
   const a = S.appointments.find((x) => x.id === apptId); if (!a) return;
-  if (!canUse('report', { pid: a.profile_id })) return ownsProfile(a.profile_id) ? premiumSheet('report') : toast('ให้เจ้าของโปรไฟล์เป็นคนดาวน์โหลด'); // ไฟล์ Premium: เฉพาะเจ้าของโปรไฟล์ที่เป็น Premium
+  if (!canUse('report', { pid: a.profile_id })) return premiumSheet('report'); // ไฟล์ Premium: ต้องเป็น Premium ของบัญชีตัวเอง (โปรไฟล์ที่แชร์มาก็โหลดได้)
   const st = reportState(a); if (!st.ok) return toast(st.n < 0 ? 'นัดนี้ผ่านมาแล้ว' : `สั่งทำรายงานได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)`);
   await refreshForPdf();
   if (!medsOf(a.profile_id).length) return runReport(apptId, {});

@@ -234,7 +234,7 @@ function medCard(m) {
     <div class="mr-more" ${open ? '' : 'hidden'}>
       ${stock}
       ${m.prescriber ? kv('แพทย์ที่จ่ายยา', esc(m.prescriber)) : ''}${m.prescribed_dept ? kv('แผนกที่จ่ายยา', esc(m.prescribed_dept)) : ''}
-      ${m.warning ? kv('หมายเหตุ / ข้อควรระวัง', `<span class="red-t">${esc(m.warning)}</span>`) : ''}${noteShown(m) ? kv('หมายเหตุ', esc(noteShown(m))) : ''}
+      ${m.warning ? kv('หมายเหตุ / ข้อควรระวัง', `<span class="red-t">${esc(m.warning)}</span>`) : ''}${noteShown(m) ? kv('หมายเหตุ', esc(noteShown(m))) : ''}${m.extra_note ? kv('บันทึกเพิ่มเติม', `<span style="white-space:pre-line">${esc(m.extra_note)}</span>`) : ''}
       <div class="mr-foot"><span class="med-upd">อัปเดต ${thDateTime(m.updated_at)}</span><button type="button" class="btn sm" data-act="edit-med" data-id="${m.id}">✏️ แก้ไขยา</button></div>
     </div>
   </div>`;
@@ -254,7 +254,7 @@ function viewMedList() {
     <h1>ยาที่ต้องทาน</h1>
     ${visBtn}
     ${personChips(ui.medsPerson, 'meds-person', false, false, vis)}
-    <div class="tool-pair">${ownsProfile(p.id) ? `<button class="btn ghost" data-act="stickers" data-id="${p.id}"><span class="tp-ic">⭐</span><span class="tp-tx">สติกเกอร์ช่วงเวลา<br>และรหัสยา (PDF)</span></button>` : `<button type="button" class="btn ghost owner-lock" disabled aria-disabled="true"><span class="tp-ic">🔒</span><span class="tp-tx">สติกเกอร์ช่วงเวลาและรหัสยา (PDF)<small>ให้เจ้าของโปรไฟล์เป็นคนดาวน์โหลด</small></span></button>`}${canEditProfile(p.id) ? lockToggle() : ''}</div>
+    <div class="tool-pair"><button class="btn ghost" data-act="stickers" data-id="${p.id}"><span class="tp-ic">⭐</span><span class="tp-tx">สติกเกอร์ช่วงเวลา<br>และรหัสยา (PDF)</span></button>${canEditProfile(p.id) ? lockToggle() : ''}</div>
     
     ${dayTable(p, null) || ''}
     

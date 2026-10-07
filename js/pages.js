@@ -1,8 +1,8 @@
-/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ v1.2 — หน้าจอตามดีไซน์ใหม่: ภาพรวมวันนี้ · เมนูยา · สรุปการกินยา/อารมณ์ (ดูย้อนหลังได้) · สมาชิก · ตั้งค่า */
 'use strict';
 
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.3.9';
 // โลโก้: ขวดยาสี 4 สีหลัก (เขียว มิ้นต์ ส้ม เหลือง) วาดเป็น SVG — ขยับด้วย CSS (ปิดอัตโนมัติถ้าผู้ใช้ตั้งลดการเคลื่อนไหว)
 const LOGO_MARK = '<g class="lg-bottle"><path class="lg-star s1" d="M98 24l2.6 6.4 6.4 2.6-6.4 2.6L98 42l-2.6-6.4L89 33l6.4-2.6z" fill="#fff"/><path class="lg-star s2" d="M20 38l1.9 4.6 4.6 1.9-4.6 1.9L20 51l-1.9-4.6-4.6-1.9 4.6-1.9z" fill="#fff"/><rect x="39" y="12" width="42" height="20" rx="6" fill="#DAFF3A"/><rect x="39" y="20" width="42" height="5" fill="#4D55F5"/><rect x="45" y="31" width="30" height="9" rx="2" fill="#fff"/><rect class="lg-body" x="26" y="38" width="68" height="72" rx="18" fill="#fff"/><path d="M26 76q17-9 34 0t34 0v16q0 18-18 18H44q-18 0-18-18z" fill="#CA7FFE"/><rect x="32" y="46" width="5" height="30" rx="2.5" fill="#DDE0FF"/><g class="lg-cross"><rect x="53" y="46" width="14" height="34" rx="4" fill="#4D55F5"/><rect x="43" y="56" width="34" height="14" rx="4" fill="#4D55F5"/></g></g>';
 const logoSvg = () => `<svg viewBox="0 0 120 120" aria-hidden="true">${LOGO_MARK}</svg>`;
@@ -10,7 +10,7 @@ const logoSvg = () => `<svg viewBox="0 0 120 120" aria-hidden="true">${LOGO_MARK
 function pageTitle(s) {
   if (!s) return '';
   if (s.tab === 'today') return s.todayPage === 'mood' ? 'สรุปอารมณ์' : 'ภาพรวมวันนี้';
-  if (s.tab === 'meds') return { hub: 'ยาและการดูแล', list: 'ยาที่ต้องทาน', care: 'ติดตามอาการ', summary: 'สรุปการกินยา', health: 'ความดัน / น้ำตาล', history: 'ประวัติการรักษา', stock: 'จำนวนยาที่เหลือ' }[s.medsPage] || 'ยา';
+  if (s.tab === 'meds') return { hub: 'ยาและการดูแล', list: 'ยาที่ต้องทาน', care: 'บันทึกติดตามอาการ', summary: 'สรุปการกินยา', health: 'ความดัน / น้ำตาล', history: 'บันทึกการไปหาหมอ', stock: 'จำนวนยาที่เหลือ' }[s.medsPage] || 'ยา';
   if (s.tab === 'calendar') return 'นัดพบแพทย์';
   if (s.tab === 'family') return s.memberPage && S.profiles.some((p) => p.id === s.memberPage) ? `ข้อมูลของ${profileById(s.memberPage).name}` : 'สมาชิก';
   return s.tab === 'settings' ? 'ตั้งค่า' : '';
@@ -160,7 +160,7 @@ function viewMeds() {
     ${tile('list', '<span class="mi" style="--ic:url(assets/icons/medicine.png)"></span>', 'var(--sky-soft)', 'ยาที่ต้องทาน', 'ตารางยาประจำวัน · เพิ่ม/แก้ยา')}
     ${tile('stock', '<span class="mi" style="--ic:url(assets/icons/stock.png)"></span>', 'var(--meadow)', 'จำนวนยาที่เหลือ', lowN ? `ยาใกล้หมด ${lowN} ตัว` : 'ดูว่ายาแต่ละตัวเหลือเท่าไร หมดเมื่อไร', lowN)}
     ${tile('summary', '<span class="mi" style="--ic:url(assets/icons/summary.png)"></span>', 'var(--pink-soft)', 'สรุปการกินยา', 'ดูว่ากินครบแค่ไหนในแต่ละวัน', 0, true)}
-    ${tile('care', '<span class="mi" style="--ic:url(assets/icons/bandaid.png)"></span>', 'var(--meadow)', 'ติดตามอาการ', 'ถ่ายรูปแผล เทียบอาการ')}
+    ${tile('care', '<span class="mi" style="--ic:url(assets/icons/bandaid.png)"></span>', 'var(--meadow)', 'บันทึกติดตามอาการ', 'ถ่ายรูปแผล เทียบอาการ')}
     ${tile('health', '<span class="mi" style="--ic:url(assets/icons/blood-pressure.png)"></span>', '#FFE9EC', 'ความดัน / น้ำตาล', 'บันทึกค่าที่วัด และดูแนวโน้ม', 0, true)}`;
 }
 
@@ -290,7 +290,7 @@ function viewMembers() {
     <div class="rs">
       <h3 class="rs-h o"><i></i>โปรไฟล์ของฉัน</h3>
       ${me}
-      <h3 class="rs-h g"><i></i>คนที่ฉันดูแล</h3>
+      <h3 class="rs-h g"><i></i>สมาชิกที่ฉันดูแล</h3>
       ${cared.map((p) => card(p)).join('')}
       <button type="button" class="rs-add g" data-act="add-person">+ เพิ่มคน</button>
       ${shared.length ? `<h3 class="rs-h v"><i></i>แชร์มาให้ฉัน</h3>${shared.map((p) => card(p)).join('')}` : ''}
@@ -337,7 +337,7 @@ function memberDetail(p) {
       ${kv('ใบนัด', `${slips} ใบ`)}
     </div>
     <div class="two-btn">
-      <button type="button" class="card mb-btn" data-act="member-history" data-id="${p.id}"><span class="tile-ic" style="background:var(--pink-soft)"><span class="mi" style="--ic:url(assets/icons/history.png)"></span></span><b>ประวัติการรักษา</b></button>
+      <button type="button" class="card mb-btn" data-act="member-history" data-id="${p.id}"><span class="tile-ic" style="background:var(--pink-soft)"><span class="mi" style="--ic:url(assets/icons/notebook.svg)"></span></span><b>บันทึกการไปหาหมอ</b></button>
     </div>
     ${ownsProfile(p.id) ? `<button class="btn block" data-act="edit-person" data-id="${p.id}">✏️ แก้ไขข้อมูล</button>` : '<p class="small muted center">ข้อมูลส่วนตัวแก้ได้เฉพาะเจ้าของข้อมูล</p>'}`;
 }
@@ -369,7 +369,7 @@ async function clearAppCache() {
 
 // เครดิตไอคอน (Flaticon · Free license with attribution — ชื่อผู้สร้างตามใบรับรองในโฟลเดอร์ License)
 const ICON_CREDITS = [['ยา', 'Magnific'], ['นัดพบแพทย์', 'Gajah Mada'], ['วันนี้', 'Aldo Cervantes'], ['สมาชิก', 'Magnific'], ['ตั้งค่า', 'Gregor Cresnar Premium'],
-  ['ติดตามอาการ', 'Magnific'], ['สรุปการกินยา', 'juicy_fish'], ['ประวัติการรักษา', 'Magnific'], ['จำนวนยาที่เหลือ', 'M Karruly'], ['ความดัน / น้ำตาล', 'Smashicons'], ['ดูสรุปรายงานก่อนพบแพทย์', 'Magnific'], ['สรุปอารมณ์ใน 1 เดือน (ภาพเคลื่อนไหว)', 'Magnific']];
+  ['บันทึกติดตามอาการ', 'Magnific'], ['สรุปการกินยา', 'juicy_fish'], ['จำนวนยาที่เหลือ', 'M Karruly'], ['ความดัน / น้ำตาล', 'Smashicons'], ['ดูสรุปรายงานก่อนพบแพทย์', 'Magnific'], ['สรุปอารมณ์ใน 1 เดือน (ภาพเคลื่อนไหว)', 'Magnific']];
 
 // ---------- แท็บตั้งค่า ----------
 /** ตั้งค่า > การแจ้งเตือน: รวมสวิตช์แจ้งเตือนทุกรายการไว้ที่เดียว แยกเป็นหมวด (พับเก็บไว้ กดเพื่อเปิด) */
@@ -391,7 +391,7 @@ function notifCategories() {
   return `<div class="nt-cats">
     ${cat('💊', 'เตือนกินยา', ntMedSub(), desc('เลือกโปรไฟล์ที่จะให้เตือน แอพจะเด้งตอนถึงเวลากินยาของทุกตัวที่โปรไฟล์นั้นมี (ปรับเวลาที่ ตั้งค่า › กำหนดช่วงเวลาทานยา) ในการแจ้งเตือนมีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที"') + (meds || none))}
     ${cat('📅', 'เตือนนัดพบแพทย์', ntApptSub(), desc('เด้งเตือนก่อนวันนัดหมอตามจำนวนวันที่เลือก ในเวลาที่ตั้ง') + daysBox + (appts || none))}
-    ${cat('🩹', 'เตือนติดตามอาการ', ntCareSub(), desc('เลือกแผนติดตามที่ต้องการให้เด้งเตือนในวันที่ถึงรอบติดตาม') + (plans || '<p class="small muted">ยังไม่มีแผนติดตามอาการ</p>'))}
+    ${cat('🩹', 'เตือนบันทึกติดตามอาการ', ntCareSub(), desc('เลือกแผนติดตามที่ต้องการให้เด้งเตือนในวันที่ถึงรอบติดตาม') + (plans || '<p class="small muted">ยังไม่มีบันทึกติดตามอาการ</p>'))}
     ${cat('📦', 'ยาใกล้หมด', `แจ้งเตือนเมื่อยาเหลือจำนวน ${lowStockQty()} เม็ด`, lowBox)}</div>
     <p class="nt-note"><b>ใครจะได้รับการเตือน?</b> การเตือนจะเด้งที่เครื่องของเจ้าของโปรไฟล์ ส่วนผู้ดูแลในกลุ่มที่ได้รับแชร์จะได้รับเฉพาะ "ยังไม่มีบันทึกการกินยา" เมื่อเลยเวลาไปแล้ว 1 ชั่วโมง</p>`;
 }
@@ -664,11 +664,53 @@ function askConfirm(msg, yes = 'ใช่ ยืนยัน', no = 'ไม่�
 }
 
 // ---------- สร้างไฟล์ PDF จริงและดาวน์โหลดทันที (ตรวจสอบหลายรอบก่อนบันทึกทุกครั้ง) ----------
-const loadScript = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('โหลดไม่สำเร็จ ' + src)); document.head.appendChild(s); });
+const loadScript = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => { s.remove(); rej(new Error('โหลดไม่สำเร็จ ' + src)); }; document.head.appendChild(s); });
+/** โหลดเครื่องมือสร้าง PDF: ใช้ไฟล์ที่เก็บไว้ในแอพ (vendor/ — ใช้ออฟไลน์ได้ ไม่พึ่งเน็ตภายนอก) ถ้าไม่มีค่อยลองโหลดจาก CDN */
 async function loadPdfLibs() {
-  if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-  if (!(window.jspdf && window.jspdf.jsPDF)) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const get = async (local, cdn) => { try { await loadScript(local); } catch (e) { await loadScript(cdn); } };
+  if (!window.html2canvas) await get('vendor/html2canvas.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  if (!(window.jspdf && window.jspdf.jsPDF)) await get('vendor/jspdf.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
   return window.jspdf.jsPDF;
+}
+/** รอให้หน้าต่างอยู่ด้านหน้าก่อนสร้างไฟล์ — เบราว์เซอร์ที่ซ่อน/ย่ออยู่จะโหลดฟอนต์ไม่ทัน ทำให้ตัวหนังสือเพี้ยน */
+async function waitVisible(maxMs = 20000) {
+  if (!document.hidden) return;
+  toast('กรุณาเปิดหน้าแอพค้างไว้ระหว่างสร้างไฟล์ PDF…');
+  const t0 = Date.now(); while (document.hidden && Date.now() - t0 < maxMs) await new Promise((r) => setTimeout(r, 300));
+}
+/** ตรวจว่าตัวหนังสือที่วาดลงภาพไม่ยื่นเลย "ปลายข้อความจริง" บนหน้า (อาการช่องไฟกระจาย/ตัวเล็กเพี้ยน) — ตรวจเฉพาะข้อความบรรทัดเดียวที่ด้านขวาไม่มีอะไรอยู่ใกล้ ๆ */
+function textFidelityIssues(el, cv, scale) {
+  const doc = el.ownerDocument; const win = doc.defaultView; const er = el.getBoundingClientRect(); const ctx = cv.getContext('2d', { willReadFrequently: true });
+  const issues = []; let checked = 0;
+  for (const e of el.querySelectorAll('*')) {
+    if (e.childElementCount || !/\S{3}/.test(e.textContent) || /^(SCRIPT|STYLE|svg|SVG)$/.test(e.tagName)) continue;
+    const cs = win.getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const fs = parseFloat(cs.fontSize) || 14; const rg = doc.createRange(); rg.selectNodeContents(e); const r = rg.getBoundingClientRect();
+    if (r.width < 24 || r.height > fs * 2.2 || r.height < 4) continue; // บรรทัดเดียวเท่านั้น
+    let tail = false; for (let n = e.nextSibling; n; n = n.nextSibling) if (n.nodeType === 3 && n.textContent.trim()) tail = true; if (tail) continue; // มีข้อความต่อท้ายในบรรทัดเดียวกัน
+    const pr = e.parentElement.getBoundingClientRect(); let zoneR = Math.min(r.right + Math.max(10, r.width * 0.25), pr.right - 3);
+    for (let n = e.nextElementSibling; n; n = n.nextElementSibling) { const sr = n.getBoundingClientRect(); if (sr.width && sr.top < r.bottom - 2 && sr.bottom > r.top + 2) zoneR = Math.min(zoneR, sr.left - 3); } // ไม่ล้ำเข้าไปในกล่องข้างเคียงบนบรรทัดเดียวกัน
+    if (zoneR <= r.right + 3) continue;
+    const x0 = Math.round((r.right + 1.5 - er.left) * scale), x1 = Math.round((zoneR - er.left) * scale), y0 = Math.round((r.top + 2 - er.top) * scale), y1 = Math.round((r.bottom - 2 - er.top) * scale);
+    if (x1 <= x0 || y1 <= y0 || x0 < 0 || y0 < 0 || x1 > cv.width || y1 > cv.height) continue;
+    const d = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data; let ink = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] < 330) ink++;
+    checked++;
+    if (ink > Math.max(8, (x1 - x0) * (y1 - y0) * 0.006)) issues.push(`"${e.textContent.trim().slice(0, 24)}" ตัวหนังสือยื่นเกินความกว้างจริง`);
+  }
+  return { issues, checked };
+}
+/** วาดหน้าลงภาพ + ตรวจตัวหนังสือเพี้ยน (ลองใหม่ได้ 3 ครั้ง) — ถ้ายังเพี้ยนจะไม่ส่งภาพที่เสียไปใส่ไฟล์ */
+async function capturePage(el, opts) {
+  await waitVisible(); let last = [];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const cv = await window.html2canvas(el, opts);
+    const r = textFidelityIssues(el, cv, opts.scale || 1); last = r.issues;
+    if (!last.length) return cv;
+    console.warn('capturePage: ตัวหนังสือเพี้ยน ลองใหม่ครั้งที่', attempt + 2, last.slice(0, 3));
+    await new Promise((res) => setTimeout(res, 500)); await waitVisible();
+  }
+  throw Object.assign(new PdfAuditError(last.map((x) => '[วาดภาพ] ' + x)), { kind: 'render' });
 }
 const PDF_SCALE = 3; // ความละเอียดภาพ PDF (เท่าของหน้าจอ) — 3 ให้ตัวอักษรไทยคมชัดตอนซูม
 const PDF_PAGE_W = 1047, PDF_PAGE_H = 718; // พื้นที่พิมพ์ A4 แนวนอน (277 × 190 มม. ที่ 96dpi) — ทุกหน้าของทุกไฟล์ขนาดเท่ากัน
@@ -783,7 +825,7 @@ async function renderVerifiedPdf(buildSections, ctx) {
     finally { f2.ifr.remove(); }
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' }); const i3 = [];
     for (let i = 0; i < f1.pages.length; i++) {
-      const cv = await window.html2canvas(f1.pages[i], { scale: PDF_SCALE, backgroundColor: '#fff', useCORS: true, windowWidth: PDF_PAGE_W, onclone: preloadCloneFonts });
+      const cv = await capturePage(f1.pages[i], { scale: PDF_SCALE, backgroundColor: '#fff', useCORS: true, windowWidth: PDF_PAGE_W, onclone: preloadCloneFonts });
       if (cv.width !== PDF_PAGE_W * PDF_SCALE || cv.height !== PDF_PAGE_H * PDF_SCALE) i3.push(`[รอบ 3] หน้า ${i + 1}: ภาพ ${cv.width}×${cv.height} ไม่ใช่ ${PDF_PAGE_W * PDF_SCALE}×${PDF_PAGE_H * PDF_SCALE}`);
       const t = document.createElement('canvas'); t.width = 210; t.height = 144; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 210, 144); const d = tc.getImageData(0, 0, 210, 144).data; let ink = 0;
       for (let k = 0; k < d.length; k += 4) if (d[k] + d[k + 1] + d[k + 2] < 690) ink++;
@@ -802,6 +844,7 @@ async function makeSummaryPdf(pid, ym) {
 }
 function pdfFail(e, fallback) {
   console.error(e, e.issues);
+  if (e instanceof PdfAuditError && e.kind === 'render') { toast('ตัวหนังสือในไฟล์ยังวาดไม่สมบูรณ์ จึงยังไม่บันทึกไฟล์ — เปิดหน้าแอพค้างไว้แล้วลองกดอีกครั้ง'); return; }
   if (e instanceof PdfAuditError) { toast('⚠️ ตรวจพบข้อมูลไม่ตรงในไฟล์ PDF จึงยังไม่บันทึกไฟล์ — กรุณาแจ้งผู้ดูแลระบบ'); return; }
   toast('สร้าง PDF ตรงๆ ไม่ได้ — เปิดหน้าต่างพิมพ์แทน (เลือก "บันทึกเป็น PDF")'); fallback();
 }
@@ -878,14 +921,29 @@ async function printMedsText(pid) {
 }
 /** ปุ่ม "📄 ไฟล์ PDF": สร้างไฟล์แล้วดาวน์โหลดทันที (หน้าตาเดียวกับหน้าพิมพ์ — เรนเดอร์เป็นภาพ ความละเอียด 2 เท่า บีบให้ไฟล์เล็ก) */
 const MP_SCALE = 2, MP_JPEG = 0.8;
+/** ตารางกินยา 1 วัน: วาดหน้าด้วยโค้ดโดยตรง (pdfcanvas.js) — ถ้าวาดไม่สำเร็จค่อยใช้วิธีสำรอง (html2canvas) */
 async function makeMedsPdf(pid) {
+  const d = await prepMedsDoc(pid); if (!d) return null;
+  try {
+    const jsPDF = await loadPdfLibs(); const { canvases, pages } = await renderMedsCanvases(d.p, d.meds);
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    canvases.forEach((cv, i) => {
+      const t = document.createElement('canvas'); t.width = 210; t.height = 144; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 210, 144); const px = tc.getImageData(0, 0, 210, 144).data; let ink = 0;
+      for (let k = 0; k < px.length; k += 4) if (px[k] + px[k + 1] + px[k + 2] < 690) ink++;
+      if (ink / (210 * 144) < 0.02) throw new PdfAuditError([`หน้า ${i + 1}: ภาพแทบว่าง`]);
+      if (i > 0) pdf.addPage('a4', 'landscape'); pdf.addImage(cv.toDataURL('image/jpeg', 0.85), 'JPEG', 10, 10, 277, 190);
+    });
+    return { pdf, pages, name: `ตารางยา-${d.p.name}-${todayKey()}.pdf` };
+  } catch (e) { console.warn('วาดตารางตรงไม่สำเร็จ ใช้วิธีสำรอง', e); return makeMedsPdfHtml(pid); }
+}
+async function makeMedsPdfHtml(pid) {
   const d = await prepMedsDoc(pid); if (!d) return null;
   const { p, meds } = d; const jsPDF = await loadPdfLibs();
   const css = await (await fetch('styles.css?v=' + Date.now())).text();
   const ifr = document.createElement('iframe'); ifr.setAttribute('aria-hidden', 'true'); ifr.style.cssText = `position:fixed;left:-12000px;top:0;width:${PDF_PAGE_W}px;height:1200px;border:0`; document.body.appendChild(ifr);
   try {
     const doc = ifr.contentDocument; doc.open();
-    doc.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><link rel="stylesheet" href="${new URL('fonts/fonts.css', location.href).href}"><style>${css.replace(/@media print/g, '@media all').replace(/@page[^{]*\{[^}]*\}/g, '')}</style><style>html,body{margin:0!important;padding:0!important;width:${PDF_PAGE_W}px;background:#fff!important}.mp-sp{display:none!important}.mp-sec{break-after:auto!important}.mp-foot{display:none!important}.rp{position:relative;width:${PDF_PAGE_W}px;height:${PDF_PAGE_H}px;overflow:hidden;background:#fff}.rp .mp-foot{display:flex!important;position:absolute;left:0;right:0;bottom:0;justify-content:space-between;gap:14px}.rp .mp-foot b{flex:none;font-size:10pt;font-weight:700;color:#000;white-space:nowrap}</style></head><body><div id="printArea" style="display:block">${mpDoc(p, meds)}</div></body></html>`);
+    doc.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><link rel="stylesheet" href="${new URL('fonts/fonts.css', location.href).href}"><style>${css.replace(/@media print/g, '@media all').replace(/@page[^{]*\{[^}]*\}/g, '')}</style><style>html,body{margin:0!important;padding:0!important;width:${PDF_PAGE_W}px;background:#fff!important}.mp-root{font-feature-settings:normal!important;text-wrap:wrap!important;letter-spacing:normal!important;word-spacing:normal!important;font-kerning:auto!important}.mp-root *{letter-spacing:normal!important;word-spacing:normal!important}.mp-root *{text-wrap:wrap!important}.mp-sp{display:none!important}.mp-sec{break-after:auto!important}.mp-foot{display:none!important}.rp{position:relative;width:${PDF_PAGE_W}px;height:${PDF_PAGE_H}px;overflow:hidden;background:#fff}.rp .mp-foot{display:flex!important;position:absolute;left:0;right:0;bottom:0;justify-content:space-between;gap:14px}.rp .mp-foot b{flex:none;font-size:10pt;font-weight:700;color:#000;white-space:nowrap}</style></head><body><div id="printArea" style="display:block">${mpDoc(p, meds)}</div></body></html>`);
     doc.close();
     await Promise.race([new Promise((r) => { const l = doc.querySelector('link'); if (!l) return r(); l.onload = r; l.onerror = r; }), new Promise((r) => setTimeout(r, 5000))]);
     await Promise.all(['400', '500', '600', '700'].map((w) => doc.fonts.load(`${w} 16px Sarabun`, 'เมื่อมีอาการ ก่อนอาหาร 0123 Abc').catch(() => null)));
@@ -912,7 +970,7 @@ async function makeMedsPdf(pid) {
     if (issues.length) throw new PdfAuditError(issues);
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     for (let i = 0; i < wraps.length; i++) {
-      const cv = await window.html2canvas(wraps[i], { scale: MP_SCALE, backgroundColor: '#fff', useCORS: true, windowWidth: PDF_PAGE_W, onclone: preloadCloneFonts });
+      const cv = await capturePage(wraps[i], { scale: MP_SCALE, backgroundColor: '#fff', useCORS: true, windowWidth: PDF_PAGE_W, onclone: preloadCloneFonts });
       if (cv.width !== PDF_PAGE_W * MP_SCALE || cv.height !== PDF_PAGE_H * MP_SCALE) throw new PdfAuditError([`หน้า ${i + 1}: ภาพ ${cv.width}×${cv.height} ขนาดไม่ถูกต้อง`]);
       const t = document.createElement('canvas'); t.width = 210; t.height = 144; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 210, 144); const px = tc.getImageData(0, 0, 210, 144).data; let ink = 0;
       for (let k = 0; k < px.length; k += 4) if (px[k] + px[k + 1] + px[k + 2] < 690) ink++;
@@ -926,7 +984,7 @@ async function makeMedsPdf(pid) {
 async function downloadMedsPdf(pid) {
   toast('กำลังสร้างและตรวจสอบไฟล์ PDF…');
   try { const r = await makeMedsPdf(pid); if (!r) return; r.pdf.save(r.name); toast('✓ ตรวจสอบแล้ว บันทึกไฟล์ PDF เรียบร้อย'); }
-  catch (e) { pdfFail(e, () => printMedsText(pid)); }
+  catch (e) { console.error(e, e.issues); pdfFail(e, () => {}); }
 }
 async function downloadSummaryPdf() {
   const pid = ui.adPid; const ym = ui.adYm || ymOf(new Date()); if (!pid) return toast('ยังไม่มีข้อมูลให้สร้างไฟล์');
