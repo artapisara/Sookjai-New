@@ -593,6 +593,7 @@ document.addEventListener('click', async (ev) => {
         <span class="switch"><input type="checkbox" data-today-toggle="${p.id}" ${todayHidden().includes(p.id) ? '' : 'checked'}><i></i></span></label>`).join('')}
       <div class="row"><button class="btn" data-act="close">เสร็จแล้ว</button></div>`); break;
     case 'slot-name': toast(el.dataset.label); break;
+    case 'rel-label': relLabelForm(el.dataset.id); break;
     case 'med-toggle': { ui.medOpen = ui.medOpen || {}; const on = !ui.medOpen[el.dataset.id]; ui.medOpen[el.dataset.id] = on; const row = el.closest('.mrow'); row.classList.toggle('open', on); row.querySelector('.mr-more').hidden = !on; el.setAttribute('aria-expanded', on); el.querySelector('.mr-chev').textContent = on ? '▴' : '▾'; break; }
     case 'change-password': passwordForm(false); break;
     case 'add-contact': contactForm(); break;
@@ -716,6 +717,8 @@ function contactForm() {
 
 // ---------- ฟอร์มกลุ่มผู้ดูแล (Circles) ----------
 const roleLabel = (r) => (r === 'owner' ? 'เจ้าของกลุ่ม' : r === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้');
+/** ชื่อกลุ่มขึ้นต้นด้วยคำว่า "กลุ่ม" เสมอ (ไม่ซ้ำซ้อนถ้าผู้ใช้พิมพ์เอง) */
+const circleNameFix = (s) => { const r = String(s || '').trim().replace(/^(กลุ่ม\s*)+/, ''); return `กลุ่ม${r}`; };
 function circleForm(c) {
   if (!c && !canUse('circles')) return premiumSheet('circles');
   const e = c || { name: '', description: '' };
@@ -726,7 +729,7 @@ function circleForm(c) {
   const mine = S.profiles.filter((p) => ownsProfile(p.id));
   const sheet = openSheet(`<h3>${isNew ? 'สร้างกลุ่มผู้ดูแล' : 'แก้ไขกลุ่มผู้ดูแล'}</h3>
     <form id="f">
-      <label class="f"><span>ชื่อกลุ่ม</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น กลุ่มดูแลปู่ย่า"></label>
+      <label class="f"><span>ชื่อกลุ่ม</span><span class="grp-input"><b>กลุ่ม</b><input type="text" name="name" required maxlength="40" value="${esc(String(e.name || '').replace(/^กลุ่ม\s*/, ''))}" placeholder="เช่น ดูแลปู่ย่า"></span></label>
       <label class="f"><span>คำอธิบาย (เพิ่มเติม)</span><textarea name="description" placeholder="เช่น ลูกหลานที่ช่วยกันดูแลปู่ย่า">${esc(e.description)}</textarea></label>
 
       <div class="sep"><b>คนที่จะแชร์ข้อมูลในกลุ่มนี้</b></div>
@@ -761,7 +764,7 @@ function circleForm(c) {
     const fd = new FormData(ev.target);
     const careForIds = fd.getAll('care_for');
     if (c && !(await askConfirm(`ต้องการ <b>แก้ไขกลุ่มผู้ดูแล "${esc(c.name)}"</b> ใช่หรือไม่?<br><small class="muted">กด "ใช่ แก้ไข" เพื่อบันทึกการเปลี่ยนแปลง</small>`, 'ใช่ แก้ไข'))) return;
-    const data = { name: String(fd.get('name')).trim(), description: String(fd.get('description') || '').trim() };
+    const data = { name: circleNameFix(fd.get('name')), description: String(fd.get('description') || '').trim() };
     const now = new Date().toISOString();
     S.circle_care_for = S.circle_care_for || [];
     const circleId = isNew ? uuid() : c.id;
@@ -838,12 +841,25 @@ document.addEventListener('change', async (ev) => {
     p.reminder_enabled = t.checked;
     if (t.checked) await enforceOneReminder(p.id);
     document.querySelectorAll('[data-toggle-reminder]').forEach((i) => { const q = S.profiles.find((x) => x.id === i.dataset.toggleReminder); if (q) i.checked = reminderOn(q); });
-    if (await dbDo(DB.update('profiles', p.id, { reminder_enabled: p.reminder_enabled }))) toast(p.reminder_enabled ? `เปิดเตือนกินยาของ${p.name}` : `ปิดเตือนกินยาของ${p.name}`);
+    if (await dbDo(DB.update('profiles', p.id, { reminder_enabled: p.reminder_enabled }))) toast(p.reminder_enabled ? `เปิดเตือนกินยาของ${p.name}` : `ปิดเตือนกินยาของ${p.name}`);
   }
   if (t.dataset.slotRemind) { // เปิด/ปิดเตือนรายยา รายช่วงเวลา
     const [mid, slot] = t.dataset.slotRemind.split('|'); const m = S.medications.find((x) => x.id === mid); if (!m) return;
     m.slot_reminders = { ...(m.slot_reminders || {}), [slot]: t.checked };
     if (await dbDo(DB.update('medications', mid, { slot_reminders: m.slot_reminders }))) toast(`${t.checked ? 'เปิด' : 'ปิด'}เตือน ${medNo(m)} · ${slotOf(slot).short}`);
+  }
+  if (t.dataset.lowQty !== undefined) { // ตั้งจำนวนเม็ดที่ยาเหลือแล้วขึ้นเตือน (ใช้กับยาทุกตัว)
+    const v = Math.max(0, Math.min(999, Math.floor(Number(t.value)))); if (!Number.isFinite(v)) return;
+    const prev = S.settings.low_stock_qty; t.value = v; S.settings.low_stock_qty = v;
+    document.querySelectorAll('[data-low-set]').forEach((b) => b.classList.toggle('on', Number(b.dataset.lowSet) === v));
+    try { await DB.saveSettings(S.settings); toast(`แจ้งเตือนเมื่อยาเหลือจำนวน ${v} เม็ด`); const sub = t.closest('details.nt-cat')?.querySelector(':scope > summary small'); if (sub) sub.textContent = `แจ้งเตือนเมื่อยาเหลือจำนวน ${v} เม็ด`; }
+    catch (e) { S.settings.low_stock_qty = prev; toast(e?.needSql ? 'ต้องรัน SQL ล่าสุดใน Supabase ก่อน (supabase/notify-settings.sql) จึงจะตั้งจำนวนเม็ดได้' : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'); if (e?.needSql) t.value = prev ?? LOW_STOCK_QTY; }
+  }
+  if (t.dataset.apptHh !== undefined || t.dataset.apptMm !== undefined) { // เวลาแจ้งเตือนนัดหมอ (กำหนดเองได้ ทั้งบัญชี)
+    const box = t.closest('.nt-time'); const next = `${box.querySelector('[data-appt-hh]').value}:${box.querySelector('[data-appt-mm]').value}`;
+    const prev = S.settings.appt_remind_time; S.settings.appt_remind_time = next;
+    try { await DB.saveSettings(S.settings); toast(`เตือนนัดหมอเวลา ${next} น.`); }
+    catch (e) { S.settings.appt_remind_time = prev; const [ph, pm] = apptRemindTime().split(':'); box.querySelector('[data-appt-hh]').value = ph; box.querySelector('[data-appt-mm]').value = pm; toast(e?.needSql ? 'ต้องรัน SQL ล่าสุดใน Supabase ก่อน (supabase/notify-settings.sql) จึงจะตั้งเวลาเตือนนัดหมอได้' : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'); }
   }
   if (t.dataset.apptDay !== undefined) { // เลือกเตือนนัดหมอล่วงหน้ากี่วัน (ทั้งบัญชี)
     const cur = remindDays().slice(); const d = Number(t.dataset.apptDay); const next = (t.checked ? [...new Set([...cur, d])] : cur.filter((x) => x !== d)).sort((a, b) => b - a);
@@ -879,17 +895,54 @@ document.addEventListener('click', async (ev) => {
 // ---------- ปุ่มเปิด-ปิดตา (แสดง/ซ่อนรหัสผ่าน) ที่ช่องรหัสผ่านทุกช่องในแอพ ----------
 function addPwEye(inp) {
   if (inp.dataset.eye) return; inp.dataset.eye = '1';
+  // ไอคอนเส้นเรียบ (วาดเอง): ตา = แสดงรหัสผ่าน · ตามีเส้นขีด = ซ่อนรหัสผ่าน
+  const EYE = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>';
   const wrap = document.createElement('span'); wrap.className = 'pw-wrap'; inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
-  const b = document.createElement('button'); b.type = 'button'; b.className = 'pw-eye'; b.textContent = '👁️'; b.setAttribute('aria-label', 'แสดงรหัสผ่าน'); b.setAttribute('aria-pressed', 'false');
-  b.addEventListener('click', () => { const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.textContent = show ? '🙈' : '👁️'; b.setAttribute('aria-label', show ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'); b.setAttribute('aria-pressed', String(show)); inp.focus(); });
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'pw-eye'; b.innerHTML = EYE; b.setAttribute('aria-label', 'แสดงรหัสผ่าน'); b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => { const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.innerHTML = show ? EYE_OFF : EYE; b.setAttribute('aria-label', show ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'); b.setAttribute('aria-pressed', String(show)); inp.focus(); });
   wrap.appendChild(b);
-}
-const addPwEyes = () => document.querySelectorAll('input[type=password]:not([data-eye])').forEach(addPwEye);
+}const addPwEyes = () => document.querySelectorAll('input[type=password]:not([data-eye])').forEach(addPwEye);
 new MutationObserver(addPwEyes).observe(document.body, { childList: true, subtree: true }); addPwEyes();
 
+// ปุ่มลัด/ปุ่ม − + ของ "ยาใกล้หมด" ใน ตั้งค่า > การแจ้งเตือน → ใส่ค่าในช่อง แล้วให้ช่องบันทึกเอง
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-low-set], [data-low-step]'); if (!b) return;
+  const inp = document.getElementById('lowQty'); if (!inp) return;
+  const cur = Math.floor(Number(inp.value)) || 0;
+  inp.value = b.dataset.lowSet !== undefined ? Number(b.dataset.lowSet) : Math.max(0, Math.min(999, cur + Number(b.dataset.lowStep)));
+  inp.dispatchEvent(new Event('change', { bubbles: true }));
+});
 // ปุ่มเลือกจำนวนยาต่อครั้งที่ใช้บ่อย (¼ ½ ¾ 1 1½ 2) ในฟอร์มยา
 document.addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-dose-set]'); if (!b) return;
   const inp = b.closest('form')?.querySelector('input[name=dose]'); if (!inp) return;
   inp.value = b.dataset.doseSet; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
 });
+
+// ตั้งค่า > การแจ้งเตือน: อัปเดตบรรทัดสรุปใต้ชื่อหมวดสดๆ เมื่อผู้ใช้เปลี่ยนค่าข้างใน (ทำหลังตัวจัดการหลักที่ตั้งค่าแล้ว)
+document.addEventListener('change', (ev) => {
+  if (!ev.target.closest?.('details.nt-cat')) return;
+  const cats = document.querySelectorAll('details.nt-cat'); const set = (i, t) => { const s = cats[i]?.querySelector(':scope > summary small'); if (s) s.textContent = t; };
+  set(0, ntMedSub()); set(1, ntApptSub()); set(2, ntCareSub());
+});
+
+/** ตั้งความสัมพันธ์ของ "ฉัน" ที่มีต่อโปรไฟล์ที่คนอื่นแชร์มา (เก็บในบัญชีตัวเอง ไม่กระทบเจ้าของข้อมูล) */
+function relLabelForm(pid) {
+  const p = profileById(pid); if (!p || ownsProfile(pid)) return;
+  const cur = S.settings?.profile_relations?.[pid] || '';
+  const sheet = openSheet(`<h3>ความสัมพันธ์ของฉัน</h3>
+    <p class="small muted">${esc(p.name)} เป็นอะไรสำหรับคุณ? ตั้งได้เฉพาะในบัญชีของคุณ เจ้าของข้อมูลจะไม่เห็นและไม่ถูกเปลี่ยน</p>
+    <form id="f"><div class="f"><span class="lbl">เป็น</span>${selectOther('relation', RELATIONS.filter((r) => r !== 'ตัวเอง'), cur, 'เลือกความสัมพันธ์')}</div>
+      <div class="row sticky-actions">${cur ? '<button type="button" class="btn danger" id="relClear">ล้าง</button>' : ''}<button type="button" class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" type="submit">บันทึก</button></div></form>`);
+  const f = $('#f', sheet); bindSelectOther(f);
+  const save = async (val) => {
+    const prev = S.settings.profile_relations; S.settings.profile_relations = { ...(prev || {}) };
+    if (val) S.settings.profile_relations[pid] = val; else delete S.settings.profile_relations[pid];
+    S.settings._relTouched = true;
+    try { await DB.saveSettings(S.settings); closeSheet(); render(); toast(val ? `ตั้ง ${p.name} เป็น "${val}" แล้ว` : 'ล้างความสัมพันธ์แล้ว'); }
+    catch (e) { S.settings.profile_relations = prev; toast(e?.needSql ? 'ต้องรัน SQL ล่าสุดใน Supabase ก่อน (supabase/notify-settings.sql) จึงจะตั้งความสัมพันธ์ได้' : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'); }
+  };
+  f.onsubmit = (ev) => { ev.preventDefault(); const v = String(readSelectOther(new FormData(f), 'relation') || '').trim().slice(0, 30); if (!v) return toast('เลือกหรือพิมพ์ความสัมพันธ์ก่อน'); save(v); };
+  $('#relClear', f)?.addEventListener('click', () => save(''));
+}

@@ -266,22 +266,29 @@ function viewMembers() {
     <header class="header between"><div><h1>สมาชิก</h1><p class="sub">แตะที่ชื่อเพื่อดูข้อมูลส่วนตัว</p></div><button class="btn sm" data-act="add-person">+ เพิ่มคน</button></header>
     ${myInvites.length ? `<div class="alert sun"><div class="ic">🔔</div><div><b>มี ${myInvites.length} คำเชิญเข้ากลุ่มผู้ดูแล</b><span class="small">เลื่อนลงไปที่ "กลุ่มผู้ดูแล" เพื่อรับคำเชิญหรือปฏิเสธ</span></div></div>` : ''}
     ${me ? '' : '<button class="alert sun" data-act="add-self"><div class="ic">🙋</div><div><b>ยังไม่มีข้อมูลของคุณ</b><span class="small">เพิ่ม "ตัวฉัน" เพื่อบันทึกอารมณ์และดูแลตัวเองด้วย</span></div></button>'}
-    ${S.profiles.map((p) => {
-      const n = medsOf(p.id).filter(isOralMed).length; const other = medsOf(p.id).length - n; const isMe = me?.id === p.id; const age = ageOf(p.birth_year);
-      return `<button type="button" class="card member-row" data-act="member-open" data-id="${p.id}" style="--pc:${p.color}">
+    ${(() => {
+      const card = (p) => {
+        const n = medsOf(p.id).filter(isOralMed).length; const other = medsOf(p.id).length - n; const isMe = me?.id === p.id; const age = ageOf(p.birth_year); const own = ownsProfile(p.id);
+        // ความสัมพันธ์เก็บจากมุมของเจ้าของข้อมูล — ถ้าเป็นของที่แชร์มาและเป็น "ตัวเอง" (ของเจ้าของ) ไม่แสดงคำนี้ เพราะไม่ใช่ตัวผู้ดู
+        const rel = relOf(p);
+        const sub = [rel, age ? `อายุ ${age} ปี` : ''].filter(Boolean).join(' · ');
+        return `<button type="button" class="card member-row ${own ? '' : 'is-shared'}" data-act="member-open" data-id="${p.id}" style="--pc:${p.color}">
         ${avatarHtml(p, 'lg')}
-        <div class="info"><div class="mr-name">${esc(p.name)}${isMe ? ' <span class="tag">คุณ</span>' : ''}</div>
-          <div class="small muted">${esc(p.relation || '')}${age ? ` · อายุ ${age} ปี` : ''}</div>
+        <div class="info">${own ? '' : `<div class="mr-share">${shareTag(p.id)}</div>`}<div class="mr-name">${esc(p.name)}${isMe ? ' <span class="tag">ตัวคุณ</span>' : ''}</div>
+          ${sub ? `<div class="small muted">${esc(sub)}</div>` : ''}
           <div class="small muted">💊 จำนวนยาที่ทาน ${n} รายการ${other ? ` · ยาอื่นๆ ${other}` : ''}</div>
-          ${p.drug_allergies?.length ? `<div class="small red-t">⚠️ แพ้ยา: ${p.drug_allergies.map(esc).join(', ')}</div>` : ''}
-          ${ownsProfile(p.id) ? '' : `<div class="tags">${shareTag(p.id)}</div>`}</div>
+          ${p.drug_allergies?.length ? `<div class="small red-t">⚠️ แพ้ยา: ${p.drug_allergies.map(esc).join(', ')}</div>` : ''}</div>
         <span class="muted chev">›</span></button>`;
-    }).join('') || '<div class="card empty"><div class="e">👨‍👩‍👧</div>ยังไม่มีสมาชิก</div>'}
+      };
+      const mine = S.profiles.filter((p) => ownsProfile(p.id)); const shared = S.profiles.filter((p) => !ownsProfile(p.id));
+      if (!S.profiles.length) return '<div class="card empty"><div class="e">👨‍👩‍👧</div>ยังไม่มีสมาชิก</div>';
+      return `${mine.length ? `<h3 class="mb-sec">ของฉัน</h3>${mine.map(card).join('')}` : ''}${shared.length ? `<h3 class="mb-sec">แชร์มาให้ฉัน</h3>${shared.map(card).join('')}` : ''}`;
+    })()}
 
     <h2>กลุ่มผู้ดูแล</h2>
-    ${myCircles.map((c) => { const shared = (S.circle_care_for || []).filter((cf) => cf.circle_id === c.id).map((cf) => S.profiles.find((p) => p.id === cf.profile_id)).filter(Boolean); const nm = S.circle_members.filter((m) => m.circle_id === c.id).length; return `<div class="card circle"><b>${esc(c.name)}</b><p class="small muted">${esc(c.description || '')}${nm ? ` · สมาชิก ${nm} คน` : ''}</p><div class="shared-row">${shared.length ? `${shared.map((p) => `<span class="shared-av" title="${esc(p.name)}">${avatarHtml(p, 'xs')}<small>${esc(p.name)}</small></span>`).join('')}` : '<span class="small muted">ยังไม่ได้เลือกข้อมูลที่แชร์</span>'}</div><button class="btn ghost sm" data-act="manage-circle" data-id="${c.id}">✏️ แก้ไข</button></div>`; }).join('')}
+    ${myCircles.map((c) => { const shared = (S.circle_care_for || []).filter((cf) => cf.circle_id === c.id).map((cf) => S.profiles.find((p) => p.id === cf.profile_id)).filter(Boolean); const nm = S.circle_members.filter((m) => m.circle_id === c.id).length; return `<div class="card circle"><b>${esc(circleLabel(c.name))}</b><p class="small muted">${esc(c.description || '')}${nm ? ` · สมาชิก ${nm} คน` : ''}</p><div class="shared-row">${shared.length ? `${shared.map((p) => `<span class="shared-av" title="${esc(p.name)}">${avatarHtml(p, 'xs')}<small>${esc(p.name)}</small></span>`).join('')}` : '<span class="small muted">ยังไม่ได้เลือกข้อมูลที่แชร์</span>'}</div><button class="btn ghost sm" data-act="manage-circle" data-id="${c.id}">✏️ แก้ไข</button></div>`; }).join('')}
     ${myInvites.map((i) => `<div class="card circle"><b>คำเชิญ: ${esc(i.circle_name || 'กลุ่มผู้ดูแล')}</b><p class="small muted">สิทธิ์: ${i.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขข้อมูลได้'}</p><div class="row"><button class="btn sm" data-act="accept-invite" data-id="${i.id}">✓ รับคำเชิญ</button><button class="btn ghost sm" data-act="decline-invite" data-id="${i.id}">ปฏิเสธ</button></div></div>`).join('')}
-    ${sharedCircles.map((c) => { const mm = S.circle_members.find((m) => m.circle_id === c.id && m.user_id === DB.user.id); return `<div class="card circle shared"><b>${esc(c.name)}</b><p class="small muted">แชร์มาให้ · สิทธิ์ของฉัน: ${mm?.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้'}</p><button class="btn ghost sm danger" data-act="leave-circle" data-id="${c.id}">👋 ออกจากกลุ่ม</button></div>`; }).join('')}
+    ${sharedCircles.map((c) => { const mm = S.circle_members.find((m) => m.circle_id === c.id && m.user_id === DB.user.id); return `<div class="card circle shared"><b>${esc(circleLabel(c.name))}</b><p class="small muted">แชร์มาให้ · สิทธิ์ของฉัน: ${mm?.role === 'viewer' ? 'ดูอย่างเดียว' : 'แก้ไขได้'}</p><button class="btn ghost sm danger" data-act="leave-circle" data-id="${c.id}">👋 ออกจากกลุ่ม</button></div>`; }).join('')}
     <button class="btn ghost block" data-act="new-circle">+ สร้างกลุ่มผู้ดูแล</button>
 
     <h2>📞 เบอร์ฉุกเฉิน</h2>
@@ -301,9 +308,10 @@ function memberDetail(p) {
   const nA = '<span class="muted" style="font-weight:400">ยังไม่ได้ระบุ</span>'; // ข้อมูลร่างกายแสดงเสมอ แม้ยังไม่กรอก (แก้ได้ที่ "แก้ไขข้อมูล")
   return `${backBar('สมาชิก', 'member-back')}
     <div class="profile-top" style="--pc:${p.color}">${avatarHtml(p, 'lg')}<h1>${esc(p.name)}${isMe ? ' <span class="tag">คุณ</span>' : ''}</h1>
-      <div class="small muted">${esc(p.relation || '')}${age ? ` · อายุ ${age} ปี` : ''}</div>${ownsProfile(p.id) ? '' : `<div class="tags">${shareTag(p.id)}</div>`}</div>
+      <div class="small muted">${esc(relOf(p))}${relOf(p) && age ? ' · ' : ''}${age ? `อายุ ${age} ปี` : ''}</div>${ownsProfile(p.id) ? '' : `<div class="tags">${shareTag(p.id)}</div>`}</div>
     ${p.drug_allergies?.length ? `<div class="alert red allergy-box"><div class="ic">⚠️</div><div><b>แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <div class="card kv-card">
+      ${ownsProfile(p.id) ? '' : `<div class="kv"><span>ความสัมพันธ์ของฉัน</span><b>${esc(relOf(p)) || nA} <button type="button" class="linkbtn" data-act="rel-label" data-id="${p.id}">✏️ ${relOf(p) ? 'แก้' : 'ตั้ง'}</button></b></div>`}
       ${kv('โรคประจำตัว', p.chronic_diseases?.length ? p.chronic_diseases.map(esc).join(', ') : '')}
       ${kv('น้ำหนัก', p.weight_kg ? `${num(p.weight_kg)} กก.` : nA)}${kv('ส่วนสูง', p.height_cm ? `${num(p.height_cm)} ซม.` : nA)}${kv('รอบเอว', p.waist_cm ? `${num(p.waist_cm)} ซม.` : nA)}${kv('กรุ๊ปเลือด', p.blood_type ? esc(p.blood_type) : nA)}
       ${kv('จำนวนยาที่ทาน', `${n} รายการ (รหัส "${esc(medPrefix(p.id)) || '-'}")`)}
@@ -354,15 +362,26 @@ function notifCategories() {
   const cat = (ic, title, sub, body) => `<details class="set-det nt-cat"><summary class="set-row"><span class="sr-ic">${ic}</span><span class="sr-l">${title}<small class="muted" style="display:block">${sub}</small></span><span class="muted chev">›</span></summary><div class="nt-body">${body}</div></details>`;
   const none = '<p class="small muted">ยังไม่มีข้อมูล</p>';
   const meds = S.profiles.map((p) => `<label class="nt-row">${who(p)}${sw(`data-toggle-reminder="${p.id}"`, reminderOn(p), !ownsProfile(p.id))}</label>`).join('');
+  const lowNow = lowStockQty();
+  const lowBox = `<div class="nt-days"><b>แจ้งเตือนเมื่อยาเหลือจำนวน</b><div class="nt-low"><button type="button" class="stk-b" data-low-step="-1" aria-label="ลด">−</button><input type="number" id="lowQty" data-low-qty min="0" max="999" step="1" inputmode="numeric" value="${lowNow}" aria-label="จำนวนเม็ด"><span>เม็ด</span><button type="button" class="stk-b" data-low-step="1" aria-label="เพิ่ม">+</button></div>
+    <small class="muted">จะขึ้นแจ้งเตือน "ยาใกล้หมด" ตามจำนวนที่คุณระบุ (ยาที่ทานเฉพาะเมื่อมีอาการและยาที่ไม่ใช่เม็ดไม่นับ)</small></div>`;
   const daysOn = remindDays();
-  const daysBox = `<div class="nt-days"><b>เตือนล่วงหน้า</b><div class="nt-chips">${REMIND_DAY_OPTIONS.map((d) => `<label class="nt-chip"><input type="checkbox" data-appt-day="${d}" ${daysOn.includes(d) ? 'checked' : ''}><span>${d === 0 ? 'วันนัด' : `${d} วัน`}</span></label>`).join('')}</div><small class="muted">ติ๊กได้หลายข้อ เช่น 5 วัน 3 วัน 1 วัน (ใช้กับทุกคน · เวลาเตือนประมาณ 08:00)</small></div>`;
+  const daysBox = `<div class="nt-days"><b>เตือนล่วงหน้า</b><div class="nt-chips">${REMIND_DAY_OPTIONS.map((d) => `<label class="nt-chip"><input type="checkbox" data-appt-day="${d}" ${daysOn.includes(d) ? 'checked' : ''}><span>${d === 0 ? 'วันนัด' : `${d} วัน`}</span></label>`).join('')}</div><small class="muted">เลือกได้หลายวัน</small>
+    <b class="nt-tl">เวลาแจ้งเตือน</b><div class="t24 nt-time"><select data-appt-hh aria-label="ชั่วโมง">${Array.from({ length: 24 }, (_, h) => pad(h)).map((h) => `<option ${h === apptRemindTime().slice(0, 2) ? 'selected' : ''}>${h}</option>`).join('')}</select><b>:</b><select data-appt-mm aria-label="นาที">${[...new Set(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', apptRemindTime().slice(3)])].sort().map((m) => `<option ${m === apptRemindTime().slice(3) ? 'selected' : ''}>${m}</option>`).join('')}</select><small>น.</small></div></div>`;
   const appts = S.profiles.map((p) => `<label class="nt-row">${who(p)}${sw(`data-toggle-appt="${p.id}"`, p.appt_reminder !== false, !ownsProfile(p.id))}</label>`).join('');
   const plans = S.care_plans.filter((c) => c.status === 'active').map((c) => { const p = profileById(c.profile_id); return `<label class="nt-row"><span class="nt-who"><b>${esc(c.title)}</b><small class="muted">${esc(p?.name || '')}</small></span>${sw(`data-toggle-care="${c.id}"`, c.remind !== false, !canEditProfile(c.profile_id))}</label>`; }).join('');
+  const desc = (t) => `<p class="small muted nt-desc">${t}</p>`;
   return `<div class="nt-cats">
-    ${cat('💊', 'เตือนกินยา', 'เปิด/ปิดรายคน', meds || none)}
-    ${cat('📅', 'เตือนนัดพบแพทย์', 'เลือกเตือนล่วงหน้ากี่วัน · เปิด/ปิดรายคน', daysBox + (appts ? appts + '<p class="small muted">Free เตือนนัดหมอได้ 1 คน · Premium เตือนได้ทุกคน</p>' : none))}
-    ${cat('🩹', 'เตือนติดตามอาการ', 'เตือนวันถึงกำหนด · เลือกรายเรื่องที่ติดตาม', plans || '<p class="small muted">ยังไม่มีเรื่องที่ติดตามอาการ</p>')}</div>`;
+    ${cat('💊', 'เตือนกินยา', ntMedSub(), desc('เลือกคนที่จะให้เตือน แอพจะเด้งตอนถึงเวลากินยาของทุกตัวที่คนนั้นมี (ปรับเวลาที่ ตั้งค่า › กำหนดช่วงเวลาทานยา) ในการแจ้งเตือนมีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที"') + (meds || none))}
+    ${cat('📅', 'เตือนนัดพบแพทย์', ntApptSub(), desc('เด้งเตือนก่อนวันนัดหมอตามจำนวนวันที่เลือก ในเวลาที่ตั้ง') + daysBox + (appts || none))}
+    ${cat('🩹', 'เตือนติดตามอาการ', ntCareSub(), desc('เลือกเรื่องที่ต้องการให้เด้งเตือนในวันที่ถึงรอบติดตาม') + (plans || '<p class="small muted">ยังไม่มีเรื่องที่ติดตามอาการ</p>'))}
+    ${cat('📦', 'ยาใกล้หมด', `แจ้งเตือนเมื่อยาเหลือจำนวน ${lowStockQty()} เม็ด`, lowBox)}</div>
+    <p class="nt-note"><b>ใครจะได้รับการเตือน?</b> การเตือนจะเด้งที่เครื่องของเจ้าของโปรไฟล์ ส่วนผู้ดูแลในกลุ่มที่ได้รับแชร์จะได้รับเฉพาะ "ยังไม่ได้กินยา" เมื่อเลยเวลาไปแล้ว 1 ชั่วโมง</p>`;
 }
+/** บรรทัดสรุปใต้ชื่อแต่ละหมวด (อัปเดตสดตอนผู้ใช้เปลี่ยนค่า) */
+const ntMedSub = () => `เด้งตอนถึงเวลากินยา · เปิดให้ ${S.profiles.filter((p) => reminderOn(p)).length} จาก ${S.profiles.length} คน`;
+const ntApptSub = () => { const d = remindDays(); return `ก่อนวันนัดหมอ ${d.length ? d.join(', ') + ' วัน' : 'ปิดอยู่'} · เวลา ${apptRemindTime()} น.`; };
+const ntCareSub = () => `เด้งวันที่ถึงรอบติดตาม · เปิดให้ ${S.care_plans.filter((c) => c.status === 'active' && c.remind !== false).length} เรื่อง`;
 function viewSettings() {
   const pushOk = 'serviceWorker' in navigator && 'PushManager' in window;
   const supa = DB.mode === 'supabase';
@@ -384,12 +403,13 @@ function viewSettings() {
             <select data-slot-hh="${s.key}" aria-label="ชั่วโมง">${Array.from({ length: 24 }, (_, h) => pad(h)).map((h) => `<option ${h === hh ? 'selected' : ''}>${h}</option>`).join('')}</select><b>:</b>
             <select data-slot-mm="${s.key}" aria-label="นาที">${mmOpts.map((m) => `<option ${m === mm ? 'selected' : ''}>${m}</option>`).join('')}</select><small>น.</small></div></div>`; }).join('')}</div></details>
       <details class="set-det"><summary class="set-row"><span class="sr-ic">🔔</span><span class="sr-l">การแจ้งเตือน</span><span class="muted chev">›</span></summary>
-        <p class="small" style="margin-top:0">• ในการแจ้งเตือนกินยามีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที"<br>• Free เตือนกินยาได้ 1 คน · Premium เตือนได้ทุกคน</p>
-        ${notifCategories()}
+        <div class="nt-step"><span class="nt-no">1</span><div><b>เปิดการแจ้งเตือนบนเครื่องนี้</b><small class="muted">${'Notification' in window ? ({ granted: '✅ เปิดอยู่แล้ว', denied: '❌ ถูกบล็อก — ไปเปิดที่การตั้งค่าของเบราว์เซอร์', default: 'ยังไม่ได้เปิด — กดปุ่มด้านล่าง' }[Notification.permission] || '') : 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน'}</small></div></div>
         <button class="btn block" data-act="enable-push" ${pushOk ? '' : 'disabled'}>🔔 เปิดการแจ้งเตือนบนเครื่องนี้</button>
         <button class="btn ghost block" data-act="test-push" style="margin-top:8px">ทดลองส่งแจ้งเตือน</button>
-        <p class="small muted" style="margin-bottom:0">${pushOk ? (supa && CFG.VAPID_PUBLIC_KEY ? 'ใช้ Web Push — เตือนได้แม้ปิดแอพ' : 'เตือนได้เฉพาะตอนเปิดแอพค้างไว้') : 'เบราว์เซอร์นี้ไม่รองรับ Web Push'}
-          ${/iPhone|iPad/.test(navigator.userAgent) ? '<br>iPhone: ต้อง "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดจากไอคอนก่อน จึงจะเปิดแจ้งเตือนได้' : ''}</p></details></div>
+        <p class="small muted">${pushOk ? (supa && CFG.VAPID_PUBLIC_KEY ? 'ใช้ Web Push — เตือนได้แม้ปิดแอพ' : 'เตือนได้เฉพาะตอนเปิดแอพค้างไว้') : 'เบราว์เซอร์นี้ไม่รองรับ Web Push'}
+          ${/iPhone|iPad/.test(navigator.userAgent) ? '<br>iPhone: ต้อง "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดจากไอคอนก่อน จึงจะเปิดแจ้งเตือนได้' : ''}</p>
+        <div class="nt-step"><span class="nt-no">2</span><div><b>เลือกเรื่องที่จะให้เตือน</b><small class="muted">แตะแต่ละหมวดเพื่อตั้งค่า</small></div></div>
+        ${notifCategories()}</details></div>
     <h3 class="set-h">ความเป็นส่วนตัว</h3>
     <div class="card set-group">${row('🛡️', 'ความเป็นส่วนตัวและข้อมูลสุขภาพ (PDPA)', '', 'privacy')}
       <a class="set-row" href="privacy.html" target="_blank" rel="noopener"><span class="sr-ic">📄</span><span class="sr-l">นโยบายความเป็นส่วนตัว (หน้าเว็บ)</span><span class="muted chev">›</span></a>

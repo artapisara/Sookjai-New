@@ -73,7 +73,7 @@ function reportBlocks(R) {
   // (ไม่มีหัวข้อ "ใครไปหาหมอ" — แสดงชื่อและตารางข้อมูลนัดต่อจากกรอบแพ้ยาเลย)
   const cell = (k, v) => `<th>${k}</th><td>${v}</td>`;
   B.push({ html: `<div class="rp-name">${e(p.name)}${age ? ` <span class="s">อายุ ${age} ปี</span>` : ''}</div>
-    <table class="rp-t rp-info-t"><colgroup><col style="width:15%"><col style="width:38%"><col style="width:15%"><col style="width:32%"></colgroup>
+    <table class="rp-t rp-info-t"><colgroup><col style="width:23%"><col style="width:27%"><col style="width:22%"><col style="width:28%"></colgroup>
       <tr>${cell('วันที่ไป', `${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`)}${cell('แผนก', e(a.department || '–'))}</tr>
       <tr>${cell('หมอ', e(d?.name || '–'))}${cell('รพ.', e(h?.name || '–'))}</tr>
       <tr>${cell('สาเหตุ', `<span class="rp-wide">${e(a.visit_reason || '–')}</span>`).replace('<td>', '<td colspan="3">')}</tr>${reportBodyRows(p, cell)}</table>`, info: true });
@@ -117,7 +117,7 @@ const RPT_CSS = `.rp-wrap{position:fixed;left:-12000px;top:0;background:#fff;fon
 .rp-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14.5px;line-height:1.4}
 .rp-t th,.rp-t td{border:1.2px solid #C3C9EE;padding:6px 8px;vertical-align:top;text-align:left;overflow-wrap:anywhere}
 .rp-t th{background:var(--pcs);font-weight:700}
-.rp-info-t th,.rp-info-t td{font-size:13px;padding:3px 8px}.rp-info-t th{white-space:nowrap;width:1%}.rp-info-t th{background:#F4F5FC;color:#5A6080;font-weight:600}
+.rp-info-t th,.rp-info-t td{font-size:13px;padding:3px 8px}.rp-info-t th{white-space:normal;overflow-wrap:normal;word-break:normal}.rp-info-t th{background:#F4F5FC;color:#5A6080;font-weight:600}
 .rp-prev-t td.rp-say{font-size:16.5px;line-height:1.55;white-space:pre-line}.rp-prev-t th{font-size:14px}
 .rp-head-t th{background:var(--pc);color:#fff;border-color:var(--pc);font-size:13.5px;padding:5px 8px}
 .rp-med{margin-top:-1.2px}.rp-med td{background:#fff}.rp-no{text-align:center}.rp-no b{display:inline-block;background:var(--pc);color:#fff;border-radius:6px;padding:1px 6px;font:700 12px Prompt,Sarabun,sans-serif}

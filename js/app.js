@@ -41,10 +41,13 @@ const circleNamesOf = (pid) => {
   const mine = new Set(S.circle_members.filter((m) => m.user_id === DB.user.id).map((m) => m.circle_id));
   return S.circles.filter((c) => ids.has(c.id) && mine.has(c.id)).map((c) => c.name);
 };
+/** ความสัมพันธ์ที่แสดง: ของตัวเอง = ที่กรอกในโปรไฟล์ · ของที่คนอื่นแชร์มา = ที่ผู้ดูตั้งเองในบัญชีตัวเอง (ค่าที่เจ้าของกรอกเป็นมุมของเขา จึงไม่นำมาแสดง) */
+const relOf = (p) => (ownsProfile(p.id) ? (p.relation || '') : (S.settings?.profile_relations?.[p.id] || ''));
+const circleLabel = (n) => { const s = String(n || '').trim(); return /^กลุ่ม/.test(s) ? s : (s ? `กลุ่ม${s}` : 'กลุ่มผู้ดูแล'); };
 const shareTag = (pid) => {
   if (ownsProfile(pid)) return '';
   const names = circleNamesOf(pid);
-  return `<span class="tag share-tag">👥 แชร์จากกลุ่ม${names.length ? ' ' + esc(names.join(', ')) : 'ผู้ดูแล'} · ${canEditProfile(pid) ? 'แก้ไขได้' : 'ดูอย่างเดียว'}</span>`;
+  return `<span class="tag share-tag">👥 แชร์จาก${names.length ? ' ' + esc(names.map(circleLabel).join(', ')) : 'กลุ่มผู้ดูแล'} · ${canEditProfile(pid) ? 'แก้ไขได้' : 'ดูอย่างเดียว'}</span>`;
 };
 // เลขลำดับยา: เรียงต่อเนื่องรายคน + รหัสของคนนั้น เช่น ป1 ป2 ป3
 const medPrefix = (pid) => { const p = profileById(pid); return p.med_prefix != null ? p.med_prefix : defaultPrefix(p.name); };
@@ -57,7 +60,7 @@ const runoutDate = (m) => { const d = daysLeft(m); return d === Infinity ? null 
 const slotTime = (k) => S.settings.slot_times[k] || DEFAULT_SLOT_TIMES[k];
 const slotsByTime = () => [...SLOTS].sort((a, b) => slotTime(a.key).localeCompare(slotTime(b.key)));
 const takenLog = (medId, slot, day = todayKey()) => S.med_logs.find((l) => l.medication_id === medId && l.slot === slot && l.log_date === day);
-const slotReminderOn = (m, slot) => m.slot_reminders?.[slot] !== false;
+const slotReminderOn = (m, slot) => true; // เตือนทุกยา/ทุกช่วงเวลาของคนที่เปิดเตือนไว้ (ไม่มีตัวเลือกรายยาแล้ว — ค่า slot_reminders เดิมในฐานข้อมูลไม่มีผล)
 const departmentOf = (a) => a.department || '-';
 const moodLog = (pid, day = todayKey()) => (S.mood_logs || []).find((l) => l.profile_id === pid && l.log_date === day);
 /** โปรไฟล์ "ตัวฉัน" ของบัญชีนี้ (ความสัมพันธ์ = ตัวเอง และเป็นเจ้าของเอง) — อารมณ์รายวันบันทึกได้เฉพาะของตัวเอง */
@@ -334,8 +337,7 @@ function viewLogin(mode = 'in', msg = '') {
         ${msg ? `<p class="small ${msg.startsWith('✓') ? '' : 'red-t'}">${esc(msg)}</p>` : ''}
         <button class="btn block" type="submit">${mode === 'in' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}</button>
         <button class="btn ghost block" type="button" data-login-mode="${mode === 'in' ? 'up' : 'in'}" style="margin-top:8px">${mode === 'in' ? 'ยังไม่มีบัญชี? สมัครสมาชิก' : 'มีบัญชีแล้ว? เข้าสู่ระบบ'}</button>
-        ${mode === 'in' ? '<button class="linkbtn" type="button" data-login-mode="reset">ลืมรหัสผ่าน</button>' : ''}
-        <button class="linkbtn" type="button" data-login-mode="welcome">‹ กลับหน้าแรก</button>
+        <div class="login-links"><button class="linkbtn" type="button" data-login-mode="welcome">‹ กลับหน้าแรก</button>${mode === 'in' ? '<button class="linkbtn" type="button" data-login-mode="reset">ลืมรหัสผ่าน</button>' : ''}</div>
       </form>
     </div>`;
   $('#loginForm').onsubmit = async (ev) => {

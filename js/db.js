@@ -104,7 +104,10 @@ class SupaDB {
       mood_logs: ml.data, treatment_records: tr.data, health_logs: hl.data,
       settings: { slot_times: { ...DEFAULT_SLOT_TIMES, ...(s.data?.slot_times || {}) }, today_hidden: s.data?.today_hidden || [],
         profile_order: s.data?.profile_order || [], pdpa_consent_at: s.data?.pdpa_consent_at || null, pdpa_version: s.data?.pdpa_version || null,
-        appt_remind_days: Array.isArray(s.data?.appt_remind_days) ? s.data.appt_remind_days : null } };
+        appt_remind_days: Array.isArray(s.data?.appt_remind_days) ? s.data.appt_remind_days : null,
+        low_stock_qty: Number.isInteger(s.data?.low_stock_qty) ? s.data.low_stock_qty : null,
+        appt_remind_time: typeof s.data?.appt_remind_time === 'string' ? s.data.appt_remind_time.slice(0, 5) : null,
+        profile_relations: s.data?.profile_relations && typeof s.data.profile_relations === 'object' ? s.data.profile_relations : {} } };
   }
   /** ลบทุกแถวของตารางที่ตรงเงื่อนไข (ใช้ตอนผู้ใช้สั่งลบข้อมูลของตัวเอง — RLS ยังจำกัดให้ลบได้เฉพาะของตัวเอง) */
   async removeWhere(t, col, val) { const { error } = await this.sb.from(t).delete().eq(col, val); if (error) throw error; }
@@ -115,11 +118,16 @@ class SupaDB {
     this.guard();
     const row = { user_id: this.user.id, slot_times: settings.slot_times, today_hidden: settings.today_hidden || [],
       profile_order: settings.profile_order || [], pdpa_consent_at: settings.pdpa_consent_at || null, pdpa_version: settings.pdpa_version || null, timezone: 'Asia/Bangkok' };
-    if (Array.isArray(settings.appt_remind_days)) row.appt_remind_days = settings.appt_remind_days; // ส่งเฉพาะเมื่อผู้ใช้เลือกเอง (ยังไม่รัน SQL ก็บันทึกเวลายาปกติได้)
+    // คอลัมน์เสริม: ส่งเฉพาะเมื่อผู้ใช้ตั้งเอง (ยังไม่รัน SQL ก็บันทึกเวลายา/การตั้งค่าอื่นได้ปกติ)
+    const OPTIONAL = ['appt_remind_days', 'low_stock_qty', 'appt_remind_time', 'profile_relations'];
+    if (Array.isArray(settings.appt_remind_days)) row.appt_remind_days = settings.appt_remind_days;
+    if (Number.isInteger(settings.low_stock_qty)) row.low_stock_qty = settings.low_stock_qty;
+    if (typeof settings.appt_remind_time === 'string') row.appt_remind_time = settings.appt_remind_time;
+    if (settings.profile_relations && (Object.keys(settings.profile_relations).length || settings._relTouched)) row.profile_relations = settings.profile_relations; // ความสัมพันธ์ที่ผู้ใช้ตั้งให้โปรไฟล์ที่คนอื่นแชร์มา
     const { error } = await this.sb.from('user_settings').upsert(row);
-    if (error && 'appt_remind_days' in row && (error.code === 'PGRST204' || /appt_remind_days/.test(error.message || ''))) { // ยังไม่มีคอลัมน์ → บันทึกส่วนอื่นให้ก่อน แล้วแจ้งว่าต้องรัน SQL
-      delete row.appt_remind_days; const r2 = await this.sb.from('user_settings').upsert(row); if (r2.error) throw r2.error;
-      throw Object.assign(new Error('NEED_SQL_APPT_DAYS'), { needSql: true });
+    if (error && OPTIONAL.some((c) => c in row) && (error.code === 'PGRST204' || OPTIONAL.some((c) => (error.message || '').includes(c)))) { // ยังไม่มีคอลัมน์ → บันทึกส่วนอื่นให้ก่อน แล้วแจ้งว่าต้องรัน SQL
+      OPTIONAL.forEach((c) => delete row[c]); const r2 = await this.sb.from('user_settings').upsert(row); if (r2.error) throw r2.error;
+      throw Object.assign(new Error('NEED_SQL'), { needSql: true });
     }
     if (error) throw error;
   }

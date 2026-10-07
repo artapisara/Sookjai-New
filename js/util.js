@@ -32,9 +32,11 @@ const LEGACY_COLORS = { '#3FA796': '#3DDC97', '#EF5B4C': '#FF7AD9', '#7C6CF2': '
 /** สีตัวหนังสือที่อ่านออกบนพื้นสีนั้น (พื้นสว่างใช้น้ำเงินเข้ม พื้นเข้มใช้ขาว) */
 const inkOn = (hex) => { const n = parseInt(String(hex).slice(1), 16); const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; const L = .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255); return L > .4 ? '#161A4D' : '#fff'; };
 const REMIND_DAYS = [5, 2, 1]; // ค่าเริ่มต้น — ผู้ใช้เลือกเองได้ที่ ตั้งค่า > การแจ้งเตือน > เตือนนัดพบแพทย์ (user_settings.appt_remind_days)
-const REMIND_DAY_OPTIONS = [7, 5, 3, 2, 1, 0]; // 0 = วันนัด
-const remindDays = () => { const d = (typeof S !== 'undefined' && S?.settings?.appt_remind_days); return Array.isArray(d) ? d.map(Number) : REMIND_DAYS; };
-const LOW_STOCK_DAYS = 7; const LOW_STOCK_QTY = 5; // ใกล้หมด = เหลือไม่เกิน 5 หน่วย หรือพอกินอีกไม่เกิน 7 วัน
+const REMIND_DAY_OPTIONS = [7, 5, 3, 2, 1]; // เตือนล่วงหน้า (วัน)
+const apptRemindTime = () => { const t = (typeof S !== 'undefined' && S?.settings?.appt_remind_time); return /^([01]\d|2[0-3]):[0-5]\d$/.test(t || '') ? t : '08:00'; }; // เวลาเตือนนัดหมอ (ผู้ใช้กำหนดเองได้ ค่าเริ่มต้น 08:00)
+const remindDays = () => { const d = (typeof S !== 'undefined' && S?.settings?.appt_remind_days); return Array.isArray(d) ? d.map(Number).filter((x) => x >= 1) : REMIND_DAYS; };
+const LOW_STOCK_DAYS = 7; const LOW_STOCK_QTY = 5; // ค่าเริ่มต้น: ใกล้หมด = เหลือไม่เกิน 5 เม็ด (ผู้ใช้ตั้งเองได้ที่ ตั้งค่า > การแจ้งเตือน > ยาใกล้หมด = user_settings.low_stock_qty)
+const lowStockQty = () => { const q = (typeof S !== 'undefined' && S?.settings?.low_stock_qty); return Number.isFinite(Number(q)) && q !== null && Number(q) >= 0 ? Math.floor(Number(q)) : LOW_STOCK_QTY; };
 
 const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const MONTHS_S = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];

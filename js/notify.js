@@ -35,7 +35,7 @@ const Notifier = (() => {
         if (meds.length) out.push({ med: { p: p.id, s: s.key, d: today }, key: `med:${today}:${p.id}:${s.key}`, title: `${s.icon} ${p.name} ถึงเวลาทานยา${s.label}`, body: meds.map((m, i) => `${i + 1}. ${m.name} (${num(m.dose)} ${unitOf(m)})`).join('\n') });
       }
     }
-    if (now >= '08:00') {
+    if (now >= apptRemindTime()) {
       for (const a of S.appointments.filter((x) => apptReminderOn(x.profile_id))) {
         const n = daysUntil(a.appt_date);
         if (remindDays().includes(n)) { const msg = apptMessage(a, n); out.push({ key: `appt:${a.id}:${n}`, ...msg }); }
