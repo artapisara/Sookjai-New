@@ -15,6 +15,7 @@
 - ภาพอ้างอิงสี/ดีไซน์ที่ผู้ใช้ส่งมา (Ref color ฯลฯ) ใช้เป็นแรงบันดาลใจเรื่องสีเท่านั้น ไม่ได้คัดลอกภาพหรือโค้ดจากภาพเหล่านั้น
 - อีโมจิในแอพเป็นอีโมจิของระบบ/อุปกรณ์ผู้ใช้ ไม่ได้รวมไฟล์ภาพอีโมจิมาในแอพ
 - โลโก้/ขวดยา/ไอคอนแอพ (`icon.svg`, `LOGO_MARK`) วาดขึ้นเองทั้งหมด
+- ไอคอนอารมณ์ 6 แบบ (`assets/moods/`) — ชุด "Emoticon reaction collection" โดย Freepik (Free license: ใช้เชิงพาณิชย์และดัดแปลงได้ ต้องใส่เครดิต "Designed by Freepik" พร้อมลิงก์ · ห้ามขายต่อ/ให้เช่า/ใส่ในคลังไฟล์) · ไฟล์ต้นทางและใบอนุญาตอยู่ที่ `Mood/flat-emoticon-reaction-collectio/` (License free.txt) · แอพแสดงเครดิตที่ ตั้งค่า › เครดิตไอคอน · แอพตัดเป็นวงกลมและย่อเหลือ 192px · รูปเดิมที่เจ้าของโปรเจกต์วาดเองเก็บไว้ที่ `Mood/IMG_95xx.PNG` (ไม่ได้ใช้ในแอพแล้ว)
 ## ไอคอนจาก Flaticon (ใบรับรอง Free license with attribution — ไฟล์ PDF อยู่ในโฟลเดอร์ `License/` ของโปรเจกต์ ผู้รับใบอนุญาต: Art pmela, ดาวน์โหลด 5 ต.ค. 2026)
 ต้องแสดงข้อความ "designed by (ผู้สร้าง) from Flaticon" พร้อมลิงก์ — แอพแสดงไว้ที่ ตั้งค่า › เครดิตไอคอน
 - ยา (Medicine) — Magnific · หมอนัด (Schedule) — Gajah Mada · วันนี้ (Home) — Aldo Cervantes · สมาชิก (Family) — Magnific · ตั้งค่า (Settings) — Gregor Cresnar Premium

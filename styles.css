@@ -1,4 +1,4 @@
-﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — 5 สีหลัก: เขียวมิ้นต์ (หลัก) · แดงคอรัล (เตือน/แพ้ยา/ฉุกเฉิน) · เหลือง (นัดใกล้ถึง) · กรมท่า (ตัวอักษร) · เทาอ่อน (พื้น) */
 :root {
   --bg: #F6F5F1;
@@ -455,7 +455,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .slip-head b { margin-right: 6px; }
 .slip-head .small { display: block; }
 
-/* ติดตามอาการ */
+/* ติดตามการรักษา */
 .care { border-left: 6px solid var(--pc); }
 .care-top { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
 .care-top .info { flex: 1; min-width: 0; }
@@ -618,7 +618,7 @@ body.auth { padding-bottom: 24px; }
 .wk-col i.low { background: var(--sun); }
 .mi { display: block; width: 44px; height: 44px; background: var(--brand); -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
 
-/* ===== v1.3 หน้าความยินยอม (ฟอนต์ Sarabun) + หน้าเปิดแอพ ===== */
+/* ===== v1.3 หน้าความยินยอม (ฟอนต์ Sarabun) + หน้าเปิดแอป ===== */
 .pdpa, .login.consent h1, .login.consent .sub, .login.consent .check-row, .login.consent .btn, .login.consent .linkbtn { font-family: "Sarabun", "Prompt", system-ui, sans-serif; }
 .pdpa { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .pdpa li { display: flex; gap: 10px; align-items: flex-start; background: var(--brand-soft); border-radius: 12px; padding: 8px 12px; }
@@ -769,13 +769,13 @@ body { background: var(--page-bg) fixed; min-height: 100vh; }
 .sp-name { font-size: clamp(64px, 20vw, 92px); font-weight: 800; line-height: 1.05; margin: 14px 0 0; color: #DAFF7C; text-shadow: 0 4px 0 #3F48EE; letter-spacing: 1px; }
 .sp-stars { margin: 4px 0 6px; color: #fff; letter-spacing: 8px; font-size: 18px; animation: sp-up .6s .45s ease both; }
 .sp-slogan { display: flex; flex-direction: column; gap: 2px; font-size: clamp(19px, 5.4vw, 23px); line-height: 1.5; font-weight: 500; color: #fff; margin: 0; animation: none; }
-.sp-slogan span { animation: sp-up .6s ease both; } .sp-slogan span:nth-child(1) { animation-delay: .6s; } .sp-slogan span:nth-child(2) { animation-delay: .8s; } .sp-slogan span:nth-child(3) { animation-delay: 1s; color: #DAFF7C; font-weight: 700; }
+.sp-slogan > span { animation: sp-up .6s ease both; } .sp-slogan > span:nth-child(1) { animation-delay: .6s; } .sp-slogan > span:nth-child(2) { animation-delay: .8s; } .sp-slogan > span:nth-child(3) { animation-delay: 1s; color: #DAFF7C; font-weight: 700; }
 .sp-skip { color: rgba(255, 255, 255, .8); margin-top: 34px; animation-delay: 1.8s; }
 @keyframes sp-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -14px; } }
 @keyframes sp-drift { 0%, 100% { translate: 0 0; } 50% { translate: -14px -10px; } }
 @keyframes sp-spin { to { transform: rotate(360deg); } }
 @keyframes sp-ripple { 0% { opacity: .9; transform: translate(-50%, -50%) scale(.55); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.05); } }
-@media (prefers-reduced-motion: reduce) { .sp-deco .d, .sp-slogan span, .sp-stars { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .sp-deco .d, .sp-slogan > span, .sp-stars { animation: none !important; } }
 /* ===== v1.10 intro: โลโก้เหมือนหน้าวันนี้ + พื้นหลังไล่สี ===== */
 #splash { background: linear-gradient(165deg, #5E67FF 0%, #4D55F5 50%, #4650F2 100%); }
 .sp-logo { background: #4D55F5; box-shadow: 0 0 0 8px rgba(255, 255, 255, .85), 0 18px 38px rgba(20, 24, 120, .4); }
@@ -993,11 +993,11 @@ body:not(.auth) .ring-card, body:not(.auth) .member-row { border-left: 8px solid
 
 /* หน้า intro: สโลแกนเล็กลงและบางลง */
 .sp-slogan { font-size: clamp(16px, 4.5vw, 19px); font-weight: 300; line-height: 1.55; }
-.sp-slogan span:nth-child(3) { font-weight: 400; }
+.sp-slogan > span:nth-child(3) { font-weight: 400; }
 
-/* สโลแกน 2 บรรทัด: บรรทัดที่ 2 ต่อด้วย "ในแอพเดียว" สีมะนาว */
-.sp-slogan span:nth-child(2) { white-space: nowrap; }
-.sp-slogan span b { color: #DAFF7C; font-weight: 400; margin-left: .3em; }
+/* สโลแกน 2 บรรทัด: บรรทัดที่ 2 ต่อด้วย "ในแอปเดียว" สีมะนาว */
+.sp-slogan > span:nth-child(2) { white-space: nowrap; }
+.sp-slogan > span b { color: #DAFF7C; font-weight: 400; margin-left: .3em; }
 
 /* ===== แถบเมนูล่างแบบเดียวกันทุกปุ่ม: ไอคอนอยู่ในวงกลม แท็บที่เลือกมีวงกลมเขียวมะนาวครอบ ===== */
 .tabbar { align-items: center; padding-top: 8px; }
@@ -1152,7 +1152,7 @@ html:has(.login.plain), body.auth:has(.login.plain) { background: #fff !importan
 #tabbar button { position: relative; }
 #tabbar button.has-badge::after { content: ""; position: absolute; top: 6px; left: calc(50% + 10px); width: 12px; height: 12px; border-radius: 50%; background: #FF4D4D; border: 2px solid #4D55F5; }
 .invite-alert { margin-bottom: 10px; }
-/* v1.16 เว้นระยะด้านบนของแอพ + ข้อความลิขสิทธิ์ท้ายหน้าตั้งค่าตัวเล็กลง */
+/* v1.16 เว้นระยะด้านบนของแอป + ข้อความลิขสิทธิ์ท้ายหน้าตั้งค่าตัวเล็กลง */
 .set-copy { font-size: clamp(8px, 2.7vw, 12px) !important; line-height: 1.5 !important; margin: 14px 0 6px; white-space: nowrap; }
 .set-copy .sc-line { display: block; font-size: inherit; line-height: inherit; margin: 0; }
 .stk-opts { display: grid; gap: 8px; margin: 10px 0; }
@@ -1257,7 +1257,7 @@ html.bigtext #app, html.bigtext #modal .sheet { zoom: 1.18; }
 .slot-row .sl-kw { font-weight: 800; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
 .slot-row.slot-bed { grid-column: 1 / -1; border-right: 0; justify-content: center; }
 .slot-row.slot-bed .slot-main { justify-content: center; }
-/* ช่อง "ข้อควรระวัง" ในฟอร์มยา: โซนสีแดงอ่อน (สอดคล้องกับสีเตือนในแอพ) */
+/* ช่อง "ข้อควรระวัง" ในฟอร์มยา: โซนสีแดงอ่อน (สอดคล้องกับสีเตือนในแอป) */
 .f.warn-field > span { display: inline-block; align-self: flex-start; width: fit-content; background: linear-gradient(165deg, #F0605A 0%, #D63B35 100%); border: 0; border-radius: 12px; padding: 5px 16px; color: #fff; font-weight: 800; box-shadow: 0 4px 10px rgba(214, 59, 53, .30), inset 0 1px 0 rgba(255, 255, 255, .3); }
 .f.warn-field input { background: #FFF0EE; border-color: #F2B8B2; }
 .f.warn-field input:focus { border-color: #E5675F; outline: none; box-shadow: 0 0 0 3px rgba(229, 103, 95, .18); }
@@ -1279,8 +1279,8 @@ html.bigtext #app, html.bigtext #modal .sheet { zoom: 1.18; }
   .pr-foot { font-size: 9pt; color: #333; }
 }
 
-/* การ์ด "แพ็กเกจของฉัน": ตอนยังไม่เปิดดูรายละเอียด = พื้นเขียวมะนาวตามสีหลักของแอพ (#DAFF7C) ตัวอักษรกรมท่า · เปิดดูรายละเอียดแล้วกลับเป็นการ์ดปกติ */
-.card.set-group.plan-card { border: 1.5px solid #A6DA3A; } /* เขียวมะนาวเข้มขึ้นเล็กน้อยสำหรับเส้นขอบ (--green ในแอพเป็นสีน้ำเงิน) */
+/* การ์ด "แพ็กเกจของฉัน": ตอนยังไม่เปิดดูรายละเอียด = พื้นเขียวมะนาวตามสีหลักของแอป (#DAFF7C) ตัวอักษรกรมท่า · เปิดดูรายละเอียดแล้วกลับเป็นการ์ดปกติ */
+.card.set-group.plan-card { border: 1.5px solid #A6DA3A; } /* เขียวมะนาวเข้มขึ้นเล็กน้อยสำหรับเส้นขอบ (--green ในแอปเป็นสีน้ำเงิน) */
 .card.set-group.plan-card:not(:has(.plan-det[open])) { background: #DAFF7C; box-shadow: 0 4px 14px rgba(120, 170, 20, .25); }
 .card.set-group.plan-card:not(:has(.plan-det[open])) .plan-det > summary { color: #161A4D; font-weight: 700; }
 /* แถว "ตัวอักษรใหญ่": สวิตช์ชิดขวาสุดของกรอบ */
@@ -1351,7 +1351,7 @@ html.bigtext #app, html.bigtext #modal .sheet { zoom: 1.18; }
 .rp-prev > summary { position: relative; justify-content: center; text-align: center; padding-left: 40px; padding-right: 40px; }
 .rp-prev > summary::after { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); margin: 0; }
 
-/* ชื่อยาในตารางหน้าแอพ/PDF: ยาที่ทานเฉพาะเมื่อมีอาการ + ฟอนต์ PDF ที่อ่านง่าย */
+/* ชื่อยาในตารางหน้าแอป/PDF: ยาที่ทานเฉพาะเมื่อมีอาการ + ฟอนต์ PDF ที่อ่านง่าย */
 .dtable .asn, .lg-name .asn { display: block; font-size: 10.5px; font-weight: 500; color: #B0407E; line-height: 1.2; }
 .lg-name .asn { display: inline; font-size: 12px; }
 @media print {
@@ -1513,7 +1513,7 @@ details.every-box #evNote { display: block; width: fit-content; max-width: 100%;
 .set-det .t24 { display: flex; align-items: center; gap: 6px; flex: none; }
 .set-det .t24 select { width: 64px !important; min-width: 0 !important; min-height: 44px; padding: 6px 4px !important; text-align: center; text-align-last: center; font-size: 17px; -webkit-appearance: none; appearance: none; background-image: none; }
 .set-det .t24 b { font-size: 18px; } .set-det .t24 small { font-size: 14px; margin-left: 2px; }
-/* ตารางกินยา PDF: เหลือง = ข้อควรระวัง · ชมพู = กินเฉพาะเมื่อมีอาการ (ตรงกับในแอพและคำอธิบายหัวกระดาษ) */
+/* ตารางกินยา PDF: เหลือง = ข้อควรระวัง · ชมพู = กินเฉพาะเมื่อมีอาการ (ตรงกับในแอปและคำอธิบายหัวกระดาษ) */
 @media print { .pr-grid td.wr { background: #FFF3B0 !important; } .pr-grid td.pn { background: #FDE7F1 !important; } }
 
 .purpose-row { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 16px; }
@@ -1634,7 +1634,7 @@ img[data-path]:not([src]) { visibility: hidden; }
 .lock-toggle .lt-ic { color: currentColor; display: grid; place-items: center; font-size: 0; } .lock-toggle .lt-ic svg { width: 36px; height: 36px; }
 .lock-toggle .lt-st i { font-style: normal; font-weight: 800; padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 255, .75); }
 .lock-toggle.on .lt-st i { color: #1E7B2E; } .lock-toggle.off .lt-st i { color: #8A4B00; }
-/* รหัสยาในแอพ (ไม่รวม PDF): ใช้ฟอนต์ Sarabun ตัวหนา อักษรไทยนำ เช่น พ ด อ่านไม่สับสนกับตัวอักษรอังกฤษ + กล่องขยายตามความยาวรหัส */
+/* รหัสยาในแอป (ไม่รวม PDF): ใช้ฟอนต์ Sarabun ตัวหนา อักษรไทยนำ เช่น พ ด อ่านไม่สับสนกับตัวอักษรอังกฤษ + กล่องขยายตามความยาวรหัส */
 .ordnum { font-family: Sarabun, 'Leelawadee UI', sans-serif; font-weight: 700; font-size: 20px; line-height: 1; width: auto; min-width: 34px; height: 34px; padding: 0 5px; white-space: nowrap; box-sizing: border-box; }
 .dtable .onum, .dtable .onum .pfx { font-family: Sarabun, 'Leelawadee UI', sans-serif; font-weight: 700; }
 .dtable .onum { font-size: 36px; }
@@ -1669,7 +1669,7 @@ img[data-path]:not([src]) { visibility: hidden; }
   .mp-grid td.wr { background: #FFF3B0; } .mp-grid td.pn { background: #FDE7F1; }
   .mp-grid td.mp-e { background: #fff; }
   .mp-main { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 1.5mm; }
-  /* กล่องรหัสยา = หน้าตาเดียวกับ .ordnum ในแอพ (Sarabun ตัวหนา พื้นสีประจำตัว มุมโค้ง) */
+  /* กล่องรหัสยา = หน้าตาเดียวกับ .ordnum ในแอป (Sarabun ตัวหนา พื้นสีประจำตัว มุมโค้ง) */
   .mp-cb { display: inline-block; padding: 0; background: none; color: #000; font-family: Sarabun, 'TH Sarabun New', sans-serif; font-weight: 700; font-size: 18pt; line-height: 1.15; white-space: nowrap; }
   .mp-st { font-size: 16pt; font-weight: 700; color: #B0407E; line-height: 1; }
   .mp-dz { color: #C62828; font-weight: 700; font-size: 10.5pt; white-space: nowrap; }
@@ -1764,7 +1764,7 @@ body:not(.auth) .rs .member-row:not(.mr-big) { padding: 9px 12px; gap: 12px; bor
 .rs .card.circle .grp-head { margin-bottom: 0; } .rs .card.circle .grp-sub { margin: -6px 0 10px; line-height: 1.3; } .rs .card.circle .grp-sub:empty { display: none; }
 .rs .card.circle.shared { padding-bottom: 16px; } .rs .card.circle.shared .grp-sub { margin: -2px 0 0; } .rs .card.circle > b + .grp-sub { margin: 2px 0 10px; }
 
-/* ===== v1.3.4 มาตรฐานตัวอักษร (ขนาด · ความหนา · ระยะบรรทัด) — ใช้ตัวแปรชุดเดียวทั้งแอพ ===== */
+/* ===== v1.3.4 มาตรฐานตัวอักษร (ขนาด · ความหนา · ระยะบรรทัด) — ใช้ตัวแปรชุดเดียวทั้งแอป ===== */
 :root {
   --fs-h1: 28px; --fs-h2: 22px; --fs-title: 18px; --fs-body: 17px; --fs-btn: 16px; --fs-sub: 15px; --fs-cap: 13px;
   --fw-regular: 400; --fw-semi: 600; --fw-bold: 700;
@@ -1803,7 +1803,7 @@ body:not(.auth) .set-copy, body:not(.auth) p.small.set-copy { font-size: var(--f
 body:not(.auth) .rc-line, body:not(.auth) .small, body:not(.auth) .rs-m { text-wrap: pretty; }
 body:not(.auth) .mr-name, body:not(.auth) h1, body:not(.auth) h2, body:not(.auth) h3 { text-wrap: balance; }
 
-/* ระยะห่างมาตรฐาน (ขั้นเดียวกันทั้งแอพ) — ใช้ตัวแปรเหล่านี้เท่านั้น */
+/* ระยะห่างมาตรฐาน (ขั้นเดียวกันทั้งแอป) — ใช้ตัวแปรเหล่านี้เท่านั้น */
 :root { --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; }
 /* รายการนัดหมอ: การ์ดชิดกันขึ้น */
 body:not(.auth) .card.appt { padding: var(--sp-3) 14px; margin-bottom: var(--sp-2); gap: var(--sp-3); }
@@ -1841,15 +1841,15 @@ body:not(.auth) .sw-pair .switch-row small { font-weight: var(--fw-regular); }
 .mr-foot .mr-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* v1.3.12 — หน้า intro (splash): ไฮไลต์เขียวมะนาวทั้งวลี "แชร์ข้อมูลดูแลครอบครัวพร้อมกัน" · ปุ่มข้อความใหม่ขึ้นบรรทัดใหม่ได้ไม่ตัดกลางคำ · ลิขสิทธิ์บรรทัดเดียวไม่มีกรอบ */
-#splash .sp-slogan span:nth-child(2) { white-space: normal; text-wrap: balance; }
-#splash .sp-slogan span b { margin-left: 0; }
+#splash .sp-slogan > span:nth-child(2) { white-space: normal; text-wrap: balance; }
+#splash .sp-slogan > span b { margin-left: 0; }
 #splash .sp-ask { max-width: calc(100vw - 48px); box-sizing: border-box; line-height: 1.3; text-align: center; white-space: normal; word-break: keep-all; overflow-wrap: normal; text-wrap: balance; }
 #splash .sp-foot .sf-b { display: block; margin: 8px 0 0; padding: 0; border: 0; border-radius: 0; background: none; font-size: 10px; opacity: .6; }
 
 /* v1.3.13 — น้ำหนักตัวอักษรหน้า intro (ฟอนต์ Prompt เดิม · มี 300–800 โหลดไว้จริงใน fonts/fonts.css ไม่ต้องสังเคราะห์) — ปรับที่ตัวแปรนี้ที่เดียว */
 #splash { --sp-w-line1: 400; --sp-w-hi: 500; --sp-w-btn: 600; }
-#splash .sp-slogan span:nth-child(1) { font-weight: var(--sp-w-line1); }
-#splash .sp-slogan span b { font-weight: var(--sp-w-hi); }
+#splash .sp-slogan > span:nth-child(1) { font-weight: var(--sp-w-line1); }
+#splash .sp-slogan > span b { font-weight: var(--sp-w-hi); }
 #splash .sp-ask { font-weight: var(--sp-w-btn); }
 
 /* v1.3.13 — บันทึกอาการ: ปุ่ม แก้ไข + ลบ อยู่ติดกันชิดขวา · ลบเป็นพื้นแดงทึบ */
@@ -1878,9 +1878,9 @@ body:not(.auth) .sw-pair .switch-row small { font-weight: var(--fw-regular); }
 
 /* v1.3.14 — หน้าต้อนรับก่อนเข้าสู่ระบบ: ไฮไลต์ทั้งวลี + น้ำหนักตัวอักษรชุดเดียวกับหน้า intro */
 .wel-screen { --sp-w-line1: 400; --sp-w-hi: 500; --sp-w-btn: 600; }
-.wel-screen .sp-slogan span:nth-child(1) { font-weight: var(--sp-w-line1); }
-.wel-screen .sp-slogan span:nth-child(2) { white-space: normal; text-wrap: balance; }
-.wel-screen .sp-slogan span b { margin-left: 0; font-weight: var(--sp-w-hi); }
+.wel-screen .sp-slogan > span:nth-child(1) { font-weight: var(--sp-w-line1); }
+.wel-screen .sp-slogan > span:nth-child(2) { white-space: normal; text-wrap: balance; }
+.wel-screen .sp-slogan > span b { margin-left: 0; font-weight: var(--sp-w-hi); }
 .wel-screen .sp-ask { font-weight: var(--sp-w-btn); }
 
 /* v1.3.16 — ให้แอตทริบิวต์ hidden ชนะสไตล์ปุ่ม/กล่อง (ปุ่ม "แสดงช่วงเวลา" โผล่เฉพาะเมื่อระบุ "ทานทุก … ชั่วโมง") */
@@ -1916,10 +1916,10 @@ select { padding-top: 12px; padding-bottom: 12px; }
 .mood-cal .ad-d small { min-height: 32px; }
 .mood-cal .ad-d { min-height: 78px; }
 
-/* v1.3.17 — ชื่อตารางกินยาในหน้าแอพ: ไม่ให้คำว่า "วัน" ตกบรรทัดเดียวโดดๆ (ขึ้นบรรทัดใหม่ทั้งก้อน "ใน 1 วัน") */
+/* v1.3.17 — ชื่อตารางกินยาในหน้าแอป: ไม่ให้คำว่า "วัน" ตกบรรทัดเดียวโดดๆ (ขึ้นบรรทัดใหม่ทั้งก้อน "ใน 1 วัน") */
 .dt-head > div:not(.av) b { text-wrap: balance; }
 
-/* v1.3.17 — การตัดบรรทัดข้อความไทยทั้งแอพ: หัวข้อ/ปุ่ม/ป้าย จัดให้สมดุล · ข้อความยาวไม่ปล่อยคำเดี่ยวท้ายย่อหน้า (ใช้ร่วมกับ tidyThaiText ใน util.js ที่ผูกตัวเลขกับหน่วย) */
+/* v1.3.17 — การตัดบรรทัดข้อความไทยทั้งแอป: หัวข้อ/ปุ่ม/ป้าย จัดให้สมดุล · ข้อความยาวไม่ปล่อยคำเดี่ยวท้ายย่อหน้า (ใช้ร่วมกับ tidyThaiText ใน util.js ที่ผูกตัวเลขกับหน่วย) */
 h1, h2, h3, h4, .btn, button, .tag, .chip, .pill-btn, .alert b, .card > b, .praise-h, .ad-title, .set-h, .mr-nm .name, label > span { text-wrap: balance; }
 p, li, .small, .muted, small { text-wrap: pretty; }
 
@@ -1938,3 +1938,61 @@ p, li, .small, .muted, small { text-wrap: pretty; }
 
 /* v1.3.18 — หน้า intro: ขยับเนื้อหาลงมา ลดพื้นที่ว่างระหว่างปุ่มกับข้อความท้ายหน้า (เว้นด้านบนมากขึ้นตามความสูงจอ จอเตี้ยเว้นน้อยลงอัตโนมัติ) */
 #splash { padding-top: clamp(24px, 17vh, 130px); }
+
+/* v1.3.25 — หัวข้อ "ยาที่กำลังทาน" กดย่อ/ขยายได้ (ลูกศร ▾/▸) */
+.fold-btn { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2, 8px); width: 100%; padding: 0; margin: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fold-chev { flex: none; color: var(--brand, #4D55F5); font-size: var(--fs-btn, 16px); }
+.med-group[hidden] { display: none !important; }
+
+/* v1.3.26 — ป้าย "งดชั่วคราว" ในการ์ดยา: พื้นดำ ตัวอักษรขาว */
+.tag.paused { background: #000; color: #fff; font-weight: var(--fw-semi, 600); }
+
+
+/* v1.3.30 — ช่อง "ครั้งละ" ถูกล็อกเมื่อหน่วยเป็น หลอด */
+.f input[name=dose]:disabled { opacity: .55; cursor: not-allowed; }
+.dose-quick button:disabled { opacity: .4; cursor: not-allowed; }
+
+
+/* v1.3.31 — กล่องช่วงเวลาถูกล็อกเมื่อหน่วยเป็น หลอด */
+.slot-box.locked { opacity: .55; pointer-events: none; }
+
+
+/* v1.3.32 — ตัวเลือกสถานะยาที่ถูกเลือก: หยุดแล้ว = แดง (เหมือนป้ายในแอป) · งดชั่วคราว = ดำ ตัวอักษรขาว */
+.st-panel.pn-stopped .seg input:checked + span { background: var(--red, #E5332A); color: #fff; box-shadow: none; }
+.st-panel.pn-paused .seg input:checked + span { background: #000; color: #fff; box-shadow: none; }
+
+
+/* v1.3.34 — ช่องวันที่ของนัด: ตัวเลขชิดเดือน และทั้งก้อนอยู่กึ่งกลางช่อง */
+body:not(.auth) .appt .date { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; width: 64px; height: 64px; padding: 0; }
+body:not(.auth) .appt .date b { display: block; margin: 0; font-size: var(--fs-h2, 22px); font-weight: var(--fw-bold, 700); line-height: var(--lh-tight, 1.1); }
+body:not(.auth) .appt .date span { display: block; margin: 0; font-size: var(--fs-cap, 13px); line-height: var(--lh-tight, 1.1); }
+
+
+/* v1.3.35 — ปฏิทิน: แสดงจุดครบทุกนัด (ขึ้นแถวใหม่ทีละ 3 จุด ช่องวันที่สูงขึ้นตามจำนวนนัด) */
+.cal .d { height: auto; }
+.cal .bars { row-gap: 3px; }
+
+
+/* v1.3.36 — หัวตารางกินยาบนมือถือ: ชื่อตาราง/ชื่อคน/เวลาอัปเดตบรรทัดละหนึ่งอย่างไม่ขาดกลางคำ · ปุ่มไฟล์ PDF ลงไปแถวล่างเต็มความกว้าง */
+@media (max-width: 520px) {
+  .dt-head { flex-wrap: wrap; row-gap: var(--sp-2, 8px); }
+  .dt-head > div:not(.av) { flex: 1; min-width: 0; }
+  .dt-head > div:not(.av) b { white-space: nowrap; text-wrap: nowrap; }
+  .dt-head > div:not(.av) .small { white-space: nowrap; }
+  .dt-head .dt-pdf { flex: 1 0 100%; margin-left: 0; justify-content: center; text-align: center; }
+}
+
+/* v1.3.38 — กรอบ "ทานทุก … ชั่วโมง" ถูกล็อกเมื่อหน่วยเป็น หลอด */
+.every-box.locked { opacity: .55; pointer-events: none; }
+
+
+/* v1.3.40 — รายชื่อสมาชิกที่เลือกให้รับเตือนกินยา (ใต้สวิตช์ของโปรไฟล์) */
+.nt-rcpt { margin: 0 0 var(--sp-3, 12px) var(--sp-3, 12px); padding-left: var(--sp-3, 12px); border-left: 3px solid var(--line, #D5D9FF); }
+.nt-rcpt > small { display: block; margin-bottom: var(--sp-1, 4px); }
+
+
+/* v1.3.41 — ข้อความแนะนำให้ตรวจสอบรายการยา */
+.med-check { margin: var(--sp-3, 12px) 0; }
+.dt-check { margin: var(--sp-3, 12px) 0 0; line-height: var(--lh-sub, 1.4); }
+#splash .sp-foot .sf-a { line-height: 1.5; }
+

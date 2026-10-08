@@ -1,8 +1,8 @@
-﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ v1.2 — หน้าจอตามดีไซน์ใหม่: ภาพรวมวันนี้ · เมนูยา · สรุปการกินยา/อารมณ์ (ดูย้อนหลังได้) · สมาชิก · ตั้งค่า */
 'use strict';
 
-const APP_VERSION = '1.3.18';
+const APP_VERSION = '1.3.45';
 // โลโก้: ขวดยาสี 4 สีหลัก (เขียว มิ้นต์ ส้ม เหลือง) วาดเป็น SVG — ขยับด้วย CSS (ปิดอัตโนมัติถ้าผู้ใช้ตั้งลดการเคลื่อนไหว)
 const LOGO_MARK = '<g class="lg-bottle"><path class="lg-star s1" d="M98 24l2.6 6.4 6.4 2.6-6.4 2.6L98 42l-2.6-6.4L89 33l6.4-2.6z" fill="#fff"/><path class="lg-star s2" d="M20 38l1.9 4.6 4.6 1.9-4.6 1.9L20 51l-1.9-4.6-4.6-1.9 4.6-1.9z" fill="#fff"/><rect x="39" y="12" width="42" height="20" rx="6" fill="#DAFF3A"/><rect x="39" y="20" width="42" height="5" fill="#4D55F5"/><rect x="45" y="31" width="30" height="9" rx="2" fill="#fff"/><rect class="lg-body" x="26" y="38" width="68" height="72" rx="18" fill="#fff"/><path d="M26 76q17-9 34 0t34 0v16q0 18-18 18H44q-18 0-18-18z" fill="#CA7FFE"/><rect x="32" y="46" width="5" height="30" rx="2.5" fill="#DDE0FF"/><g class="lg-cross"><rect x="53" y="46" width="14" height="34" rx="4" fill="#4D55F5"/><rect x="43" y="56" width="34" height="14" rx="4" fill="#4D55F5"/></g></g>';
 const logoSvg = () => `<svg viewBox="0 0 120 120" aria-hidden="true">${LOGO_MARK}</svg>`;
@@ -10,8 +10,8 @@ const logoSvg = () => `<svg viewBox="0 0 120 120" aria-hidden="true">${LOGO_MARK
 function pageTitle(s) {
   if (!s) return '';
   if (s.tab === 'today') return s.todayPage === 'mood' ? 'สรุปอารมณ์' : 'ภาพรวมวันนี้';
-  if (s.tab === 'meds') return { hub: 'ยาและการดูแล', list: 'ยาที่ต้องทาน', care: 'บันทึกติดตามอาการ', summary: 'สรุปการกินยา', health: 'ความดัน / น้ำตาล', history: 'บันทึกการไปหาแพทย์', stock: 'จำนวนยาที่เหลือ' }[s.medsPage] || 'ยา';
-  if (s.tab === 'calendar') return 'นัดพบแพทย์';
+  if (s.tab === 'meds') return { hub: 'ยาและการดูแล', list: 'ยาที่ต้องทาน', care: 'บันทึกติดตามการรักษา', summary: 'สรุปการกินยา', health: 'ความดัน / น้ำตาล', history: 'บันทึกการไปหาหมอ', stock: 'จำนวนยาที่เหลือ' }[s.medsPage] || 'ยา';
+  if (s.tab === 'calendar') return 'นัดพบหมอ';
   if (s.tab === 'family') return s.memberPage && S.profiles.some((p) => p.id === s.memberPage) ? `ข้อมูลของ${profileById(s.memberPage).name}` : 'สมาชิก';
   return s.tab === 'settings' ? 'ตั้งค่า' : '';
 }
@@ -21,7 +21,7 @@ const backBar = (label, act, id = '') => {
   return `<button type="button" class="back-bar" data-act="nav-back" data-to="${act}" data-id="${id}" aria-label="ย้อนกลับไปหน้า ${esc(to)}"><span class="bb-arrow">←</span><span class="bb-txt"><b>ย้อนกลับ</b><small>ไปหน้า ${esc(to)}</small></span></button>`;
 };
 
-// ---------- ล็อกการลบ (กันมือลั่น): ล็อกไว้เสมอตอนเปิดแอพ ปลดล็อกได้ครั้งละ 2 นาที แล้วล็อกกลับเอง ----------
+// ---------- ล็อกการลบ (กันมือลั่น): ล็อกไว้เสมอตอนเปิดแอป ปลดล็อกได้ครั้งละ 2 นาที แล้วล็อกกลับเอง ----------
 const delLocked = () => !(ui.delUnlockUntil && Date.now() < ui.delUnlockUntil);
 let delTimer = null;
 function lockToggle() {
@@ -50,7 +50,7 @@ function refreshLockUi() {
   if (modal && !modal.classList.contains('hidden') && ui.slipsPid && modal.querySelector('.lock-toggle')) { const y = modal.querySelector('.sheet')?.scrollTop || 0; slipsSheet(ui.slipsPid); const sh = document.querySelector('#modal .sheet'); if (sh) sh.scrollTop = y; }
   render();
 }
-// ---------- โหลดบันทึกย้อนหลังทีละเดือน (เดือนนี้โหลดมาแล้วตอนเปิดแอพ) ----------
+// ---------- โหลดบันทึกย้อนหลังทีละเดือน (เดือนนี้โหลดมาแล้วตอนเปิดแอป) ----------
 const loadedMonths = new Set(); const loadingMonths = new Set();
 function resetMonths() { loadedMonths.clear(); }
 /** คืน true ถ้ากำลังโหลดเดือนนี้อยู่ (หน้าจอควรแสดง "กำลังโหลด") */
@@ -135,7 +135,7 @@ function viewToday() {
   }).join('');
   return `
     <header class="header"><img src="icon.svg" alt="" class="logo"><div><h1 class="gem-text today-brand">สุขใจ</h1><p class="sub ask">บันทึกยาเสร็จ สุขใจจัดตารางให้เลย!</p></div></header>
-    ${'Notification' in window && Notification.permission === 'default' ? '<button class="alert sun" data-act="enable-push"><div class="ic">🔔</div><div><b>เปิดการแจ้งเตือนบนเครื่องนี้</b><span class="small">เตือนกินยา นัดแพทย์ และคำเชิญเข้ากลุ่ม · แตะเพื่อเปิด</span></div></button>' : ''}
+    ${'Notification' in window && Notification.permission === 'default' ? '<button class="alert sun" data-act="enable-push"><div class="ic">🔔</div><div><b>เปิดการแจ้งเตือนบนเครื่องนี้</b><span class="small">เตือนกินยา นัดหมอ และคำเชิญเข้ากลุ่ม · แตะเพื่อเปิด</span></div></button>' : ''}
     <h2 class="today-h">ภาพรวมวันนี้</h2>
     ${inviteAlerts()}
     ${S.profiles.length ? `<div class="tool-row"><button class="pill-btn" data-act="today-visibility">เลือกคนที่จะแสดง${todayHidden().filter((id) => S.profiles.some((p) => p.id === id)).length ? ` (ซ่อน ${todayHidden().filter((id) => S.profiles.some((p) => p.id === id)).length})` : ''}</button>
@@ -145,7 +145,7 @@ function viewToday() {
   `;
 }
 
-// ---------- แท็บยา: เมนู 3 ไอคอน → ยาที่ต้องทาน / ติดตามอาการ / สรุปการกินยา ----------
+// ---------- แท็บยา: เมนู 3 ไอคอน → ยาที่ต้องทาน / ติดตามการรักษา / สรุปการกินยา ----------
 function viewMeds() {
   if (ui.medsPage === 'list') return viewMedList();
   if (ui.medsPage === 'care') return `${backBar('ยาและการดูแล', 'meds-go', 'hub')}${viewCare()}`;
@@ -160,7 +160,7 @@ function viewMeds() {
     ${tile('list', '<span class="mi" style="--ic:url(assets/icons/medicine.png)"></span>', 'var(--sky-soft)', 'ยาที่ต้องทาน', 'ตารางยาประจำวัน · เพิ่ม/แก้ยา')}
     ${tile('stock', '<span class="mi" style="--ic:url(assets/icons/stock.png)"></span>', 'var(--meadow)', 'จำนวนยาที่เหลือ', lowN ? `ยาใกล้หมด ${lowN} ตัว` : 'ดูว่ายาแต่ละตัวเหลือเท่าไร หมดเมื่อไร', lowN)}
     ${tile('summary', '<span class="mi" style="--ic:url(assets/icons/summary.png)"></span>', 'var(--pink-soft)', 'สรุปการกินยา', 'ดูว่ากินครบแค่ไหนในแต่ละวัน', 0, true)}
-    ${tile('care', '<span class="mi" style="--ic:url(assets/icons/bandaid.png)"></span>', 'var(--meadow)', 'บันทึกติดตามอาการ', 'ถ่ายรูปแผล เทียบอาการ')}
+    ${tile('care', '<span class="mi" style="--ic:url(assets/icons/bandaid.png)"></span>', 'var(--meadow)', 'บันทึกติดตามการรักษา', 'ถ่ายรูปแผล เทียบอาการ')}
     ${tile('health', '<span class="mi" style="--ic:url(assets/icons/blood-pressure.png)"></span>', '#FFE9EC', 'ความดัน / น้ำตาล', 'บันทึกค่าที่วัด และดูแนวโน้ม', 0, true)}`;
 }
 
@@ -319,7 +319,7 @@ function groupSection() {
 function memberDetail(p) {
   const n = medsOf(p.id).filter(isOralMed).length; const other = medsOf(p.id).length - n; const age = ageOf(p.birth_year); const isMe = selfProfile()?.id === p.id;
   const next = S.appointments.filter((a) => a.profile_id === p.id && daysUntil(a.appt_date) >= 0).sort((a, b) => a.appt_date.localeCompare(b.appt_date))[0];
-  const slips = S.appointments.filter((a) => a.profile_id === p.id).reduce((s, a) => s + (a.attachments?.length || 0), 0);
+  const visits = historyItems(p.id).length; // ตัวเลขเดียวกับหน้า "บันทึกการไปหาหมอ" (history.js)
   const cares = S.care_plans.filter((c) => c.profile_id === p.id && c.status === 'active').length;
   const kv = (k, v) => (v ? `<div class="kv"><span>${k}</span><b>${v}</b></div>` : '');
   const nA = '<span class="muted" style="font-weight:400">ยังไม่ได้ระบุ</span>'; // ข้อมูลร่างกายแสดงเสมอ แม้ยังไม่กรอก (แก้ได้ที่ "แก้ไขข้อมูล")
@@ -334,10 +334,10 @@ function memberDetail(p) {
       ${kv('ยา', `${n} ตัว (รหัส "${esc(medPrefix(p.id)) || '-'}")`)}
       ${kv('ยาอื่นๆ (ไม่ใช่ยาทาน)', `${other} ตัว`)}
       ${kv('นัดถัดไป', next ? thDate(next.appt_date) : '')}
-      ${kv('ใบนัด', `${slips} ใบ`)}
+      ${kv('มีนัดพบหมอรวม', `${visits} ครั้ง`)}
     </div>
     <div class="two-btn">
-      <button type="button" class="card mb-btn" data-act="member-history" data-id="${p.id}"><span class="tile-ic" style="background:var(--pink-soft)"><span class="mi" style="--ic:url(assets/icons/notebook.svg)"></span></span><b>บันทึกการไปหาแพทย์</b></button>
+      <button type="button" class="card mb-btn" data-act="member-history" data-id="${p.id}"><span class="tile-ic" style="background:var(--pink-soft)"><span class="mi" style="--ic:url(assets/icons/notebook.svg)"></span></span><b>บันทึกการไปหาหมอ</b></button>
     </div>
     ${ownsProfile(p.id) ? `<button class="btn block" data-act="edit-person" data-id="${p.id}">✏️ แก้ไขข้อมูล</button>` : '<p class="small muted center">ข้อมูลส่วนตัวแก้ได้เฉพาะเจ้าของข้อมูล</p>'}`;
 }
@@ -355,10 +355,10 @@ function inviteAlerts() {
   return `<button type="button" class="alert sun invite-alert" data-act="open-invites"><div class="ic">📨</div><div><b>มีคำเชิญเข้ากลุ่มผู้ดูแล ${list.length} กลุ่ม</b><span class="small">${names} · แตะเพื่อตอบรับหรือปฏิเสธ</span></div></button>`;
 }
 
-/** ล้างแคชของตัวแอพ (ไฟล์หน้าจอที่เก็บไว้ให้เปิดออฟไลน์) แล้วโหลดเวอร์ชันล่าสุด — ไม่ลบข้อมูลบนเซิร์ฟเวอร์ และไม่ออกจากระบบ */
+/** ล้างแคชของตัวแอป (ไฟล์หน้าจอที่เก็บไว้ให้เปิดออฟไลน์) แล้วโหลดเวอร์ชันล่าสุด — ไม่ลบข้อมูลบนเซิร์ฟเวอร์ และไม่ออกจากระบบ */
 async function clearAppCache() {
   if (!(await askConfirm('ต้องการ <b>ล้างแคชและโหลดเวอร์ชันล่าสุด</b> ใช่หรือไม่?<br><small class="muted">ข้อมูลของคุณบนเซิร์ฟเวอร์ไม่หาย และไม่ออกจากระบบ แต่หน้าจะโหลดใหม่ และต้องมีอินเทอร์เน็ตตอนโหลด</small>', 'ใช่ ล้างแคช'))) return;
-  if (!(await askConfirm('<b>ยืนยันอีกครั้ง</b> — ล้างแคชของแอพเดี๋ยวนี้?<br><small class="muted">ถ้าตอนนี้ไม่มีอินเทอร์เน็ต แอพอาจเปิดไม่ขึ้นจนกว่าจะมีสัญญาณ</small>', 'ยืนยัน ล้างเลย', 'ยกเลิก'))) return;
+  if (!(await askConfirm('<b>ยืนยันอีกครั้ง</b> — ล้างแคชของแอปเดี๋ยวนี้?<br><small class="muted">ถ้าตอนนี้ไม่มีอินเทอร์เน็ต แอปอาจเปิดไม่ขึ้นจนกว่าจะมีสัญญาณ</small>', 'ยืนยัน ล้างเลย', 'ยกเลิก'))) return;
   toast('กำลังล้างแคช…');
   try {
     if ('serviceWorker' in navigator) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
@@ -368,8 +368,8 @@ async function clearAppCache() {
 }
 
 // เครดิตไอคอน (Flaticon · Free license with attribution — ชื่อผู้สร้างตามใบรับรองในโฟลเดอร์ License)
-const ICON_CREDITS = [['ยา', 'Magnific'], ['นัดพบแพทย์', 'Gajah Mada'], ['วันนี้', 'Aldo Cervantes'], ['สมาชิก', 'Magnific'], ['ตั้งค่า', 'Gregor Cresnar Premium'],
-  ['บันทึกติดตามอาการ', 'Magnific'], ['สรุปการกินยา', 'juicy_fish'], ['จำนวนยาที่เหลือ', 'M Karruly'], ['ความดัน / น้ำตาล', 'Smashicons'], ['ดูสรุปก่อนพบแพทย์', 'Magnific'], ['สรุปอารมณ์ใน 1 เดือน (ภาพเคลื่อนไหว)', 'Magnific']];
+const ICON_CREDITS = [['ยา', 'Magnific'], ['นัดพบหมอ', 'Gajah Mada'], ['วันนี้', 'Aldo Cervantes'], ['สมาชิก', 'Magnific'], ['ตั้งค่า', 'Gregor Cresnar Premium'],
+  ['บันทึกติดตามการรักษา', 'Magnific'], ['สรุปการกินยา', 'juicy_fish'], ['จำนวนยาที่เหลือ', 'M Karruly'], ['ความดัน / น้ำตาล', 'Smashicons'], ['ดูสรุปก่อนพบหมอ', 'Magnific'], ['สรุปอารมณ์ใน 1 เดือน (ภาพเคลื่อนไหว)', 'Magnific']];
 
 // ---------- แท็บตั้งค่า ----------
 /** ตั้งค่า > การแจ้งเตือน: รวมสวิตช์แจ้งเตือนทุกรายการไว้ที่เดียว แยกเป็นหมวด (พับเก็บไว้ กดเพื่อเปิด) */
@@ -378,7 +378,15 @@ function notifCategories() {
   const who = (p, note) => `<span class="nt-who">${avatarHtml(p, 'xs')}<span class="nt-nm"><b>${esc(p.name)}</b>${note && !ownsProfile(p.id) ? `<small class="muted">${note}</small>` : ''}</span></span>`; // โปรไฟล์ที่แชร์มา: ใส่ป้ายอธิบายว่าทำไมสวิตช์จาง (ตั้งค่าได้เฉพาะเจ้าของ)
   const cat = (ic, title, sub, body) => `<details class="set-det nt-cat"><summary class="set-row"><span class="sr-ic">${ic}</span><span class="sr-l">${title}<small class="muted" style="display:block">${sub}</small></span><span class="muted chev">›</span></summary><div class="nt-body">${body}</div></details>`;
   const none = '<p class="small muted">ยังไม่มีข้อมูล</p>';
-  const meds = S.profiles.map((p) => `<label class="nt-row">${who(p, 'แชร์มาให้ · เจ้าของโปรไฟล์ตั้งเตือนที่เครื่องของเขา')}${sw(`data-toggle-reminder="${p.id}"`, reminderOn(p), !ownsProfile(p.id))}</label>`).join('');
+  // เจ้าของโปรไฟล์เลือกได้ว่าสมาชิกคนไหนในกลุ่มที่เห็นโปรไฟล์นี้ จะได้รับเตือนกินยาด้วย (reminder_recipients) · สมาชิกที่รับเตือนไม่มีปุ่ม "กินแล้ว" ดูสถานะได้อย่างเดียว
+  const myId = DB.user?.id; const rcpts = S.reminder_recipients || [];
+  const shareesOf = (pid) => { const cids = new Set((S.circle_care_for || []).filter((cf) => cf.profile_id === pid).map((cf) => cf.circle_id)); const seen = new Set(); return S.circle_members.filter((m) => cids.has(m.circle_id) && m.user_id !== myId && !seen.has(m.user_id) && seen.add(m.user_id)); };
+  const meds = S.profiles.map((p) => {
+    const mine = ownsProfile(p.id); const note = rcpts.some((r) => r.profile_id === p.id && r.user_id === myId) ? 'แชร์มาให้ · เจ้าของเลือกให้คุณรับเตือน' : 'แชร์มาให้ · เจ้าของยังไม่ได้เลือกให้คุณรับเตือน';
+    const subs = mine && DB.mode === 'supabase' && reminderOn(p) ? shareesOf(p.id) : [];
+    return `<label class="nt-row">${who(p, note)}${sw(`data-toggle-reminder="${p.id}"`, reminderOn(p), !mine)}</label>`
+      + (subs.length ? `<div class="nt-rcpt"><small class="muted">ส่งเตือนให้สมาชิกในกลุ่มด้วย</small>${subs.map((m) => `<label class="nt-row"><span class="nt-who"><span class="nt-nm"><b>${esc(m.email || 'สมาชิก')}</b><small class="muted">${esc(roleLabel(m.role))}</small></span></span>${sw(`data-toggle-rcpt="${p.id}|${m.user_id}"`, rcpts.some((r) => r.profile_id === p.id && r.user_id === m.user_id))}</label>`).join('')}</div>` : '');
+  }).join('');
   const lowNow = lowStockQty();
   const lowBox = `<div class="nt-days"><b>แจ้งเตือนเมื่อยาเหลือจำนวน</b><div class="nt-low"><button type="button" class="stk-b" data-low-step="-1" aria-label="ลด">−</button><input type="number" id="lowQty" data-low-qty min="0" max="999" step="1" inputmode="numeric" value="${lowNow}" aria-label="จำนวนเม็ด"><span>เม็ด</span><button type="button" class="stk-b" data-low-step="1" aria-label="เพิ่ม">+</button></div>
     <small class="muted">จะขึ้นแจ้งเตือน "ยาใกล้หมด" ตามจำนวนที่คุณระบุ (ยาที่ทานเฉพาะเมื่อมีอาการและยาที่ไม่ใช่เม็ดไม่นับ)</small></div>`;
@@ -389,15 +397,15 @@ function notifCategories() {
   const plans = S.care_plans.filter((c) => c.status === 'active').map((c) => { const p = profileById(c.profile_id); return `<label class="nt-row"><span class="nt-who"><b>${esc(c.title)}</b><small class="muted">${esc(p?.name || '')}</small></span>${sw(`data-toggle-care="${c.id}"`, c.remind !== false, !canEditProfile(c.profile_id))}</label>`; }).join('');
   const desc = (t) => `<p class="small muted nt-desc">${t}</p>`;
   return `<div class="nt-cats">
-    ${cat('💊', 'เตือนกินยา', ntMedSub(), desc('เลือกโปรไฟล์ที่จะให้เตือน แอพจะเด้งตอนถึงเวลากินยาของทุกตัวที่โปรไฟล์นั้นมี (ปรับเวลาที่ ตั้งค่า › กำหนดช่วงเวลาทานยา) ในการแจ้งเตือนมีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที"') + (meds || none))}
-    ${cat('📅', 'เตือนนัดพบแพทย์', ntApptSub(), desc('เด้งเตือนก่อนวันนัดแพทย์ตามจำนวนวันที่เลือก ในเวลาที่ตั้ง') + daysBox + (appts || none))}
-    ${cat('🩹', 'เตือนบันทึกติดตามอาการ', ntCareSub(), desc('เลือกแผนติดตามที่ต้องการให้เด้งเตือนในวันที่ถึงรอบติดตาม') + (plans || '<p class="small muted">ยังไม่มีบันทึกติดตามอาการ</p>'))}
+    ${cat('💊', 'เตือนกินยา', ntMedSub(), desc('เลือกโปรไฟล์ที่จะให้เตือน แอปจะเด้งตอนถึงเวลากินยาของทุกตัวที่โปรไฟล์นั้นมี (ปรับเวลาที่ ตั้งค่า › กำหนดช่วงเวลาทานยา) ในการแจ้งเตือนมีปุ่ม "กินแล้ว" และ "เตือนอีก 15 นาที" (เฉพาะเจ้าของโปรไฟล์) · เจ้าของโปรไฟล์ที่แชร์ในกลุ่มเลือกส่งเตือนให้สมาชิกบางคนด้วยได้') + (meds || none))}
+    ${cat('📅', 'เตือนนัดพบหมอ', ntApptSub(), desc('เด้งเตือนก่อนวันนัดหมอตามจำนวนวันที่เลือก ในเวลาที่ตั้ง') + daysBox + (appts || none))}
+    ${cat('🩹', 'เตือนบันทึกติดตามการรักษา', ntCareSub(), desc('เลือกแผนติดตามที่ต้องการให้เด้งเตือนในวันที่ถึงรอบติดตาม') + (plans || '<p class="small muted">ยังไม่มีบันทึกติดตามการรักษา</p>'))}
     ${cat('📦', 'ยาใกล้หมด', `แจ้งเตือนเมื่อยาเหลือจำนวน ${lowStockQty()} เม็ด`, lowBox)}</div>
-    <p class="nt-note"><b>ใครจะได้รับการเตือน?</b> การเตือนจะเด้งที่เครื่องของเจ้าของโปรไฟล์ ส่วนผู้ดูแลในกลุ่มที่ได้รับแชร์จะได้รับเฉพาะ "ยังไม่มีบันทึกการกินยา" เมื่อเลยเวลาไปแล้ว 1 ชั่วโมง</p>`;
+    <p class="nt-note"><b>ใครจะได้รับการเตือน?</b> การเตือนกินยาจะเด้งที่เครื่องของเจ้าของโปรไฟล์ และสมาชิกในกลุ่มที่เจ้าของเลือกไว้ (สมาชิกต้องเปิดแจ้งเตือนในเครื่องของตัวเอง) ส่วนเตือนนัดหมอและติดตามการรักษาเด้งที่เจ้าของเท่านั้น</p>`;
 }
 /** บรรทัดสรุปใต้ชื่อแต่ละหมวด (อัปเดตสดตอนผู้ใช้เปลี่ยนค่า) */
 const ntMedSub = () => { const on = S.profiles.filter((p) => reminderOn(p)); const nm = on.slice(0, 3).map((p) => p.name).join(', ') + (on.length > 3 ? ` และอีก ${on.length - 3}` : ''); return `เด้งตอนถึงเวลากินยา · เปิดให้ ${on.length} จาก ${S.profiles.length} โปรไฟล์${on.length ? ` · เปิด: ${nm}` : ''}`; };
-const ntApptSub = () => { const d = remindDays(); return `ก่อนวันนัดแพทย์ ${d.length ? d.join(', ') + ' วัน' : 'ปิดอยู่'} · เวลา ${apptRemindTime()} น.`; };
+const ntApptSub = () => { const d = remindDays(); return `ก่อนวันนัดหมอ ${d.length ? d.join(', ') + ' วัน' : 'ปิดอยู่'} · เวลา ${apptRemindTime()} น.`; };
 const ntCareSub = () => `เด้งวันที่ถึงรอบติดตาม · เปิดให้ ${S.care_plans.filter((c) => c.status === 'active' && c.remind !== false).length} แผนติดตาม`;
 function viewSettings() {
   const pushOk = 'serviceWorker' in navigator && 'PushManager' in window;
@@ -413,7 +421,7 @@ function viewSettings() {
     ${typeof membershipSection === 'function' ? membershipSection() : ''}
     <h3 class="set-h">การใช้งาน</h3>
     <div class="card set-group">${row('🌐', 'ภาษา', 'ไทย', 'language')}
-      <label class="set-row bigtext-row"><span class="sr-ic">🔠</span><span class="sr-l">ตัวอักษรใหญ่<small class="muted" style="display:block">ขยายตัวอักษรทั้งแอพ (เฉพาะเครื่องนี้)</small></span><span class="switch"><input type="checkbox" data-bigtext ${bigTextOn() ? 'checked' : ''}><i></i></span></label>
+      <label class="set-row bigtext-row"><span class="sr-ic">🔠</span><span class="sr-l">ตัวอักษรใหญ่<small class="muted" style="display:block">ขยายตัวอักษรทั้งแอป (เฉพาะเครื่องนี้)</small></span><span class="switch"><input type="checkbox" data-bigtext ${bigTextOn() ? 'checked' : ''}><i></i></span></label>
       <details class="set-det"><summary class="set-row"><span class="sr-ic">⏰</span><span class="sr-l">กำหนดช่วงเวลาทานยา</span><span class="muted chev">›</span></summary>
         <div class="two">${SLOTS.map((s) => { const [hh, mm] = slotTime(s.key).split(':'); const mmOpts = [...new Set(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', mm])].sort();
           return `<div class="f"><span>${s.icon} ${s.key === 'bedtime' ? s.label : s.label.replace(/^(ก่อน|หลัง)/, '<b class="sl-b">$1</b>')}</span><div class="t24">
@@ -421,10 +429,10 @@ function viewSettings() {
             <select data-slot-mm="${s.key}" aria-label="นาที">${mmOpts.map((m) => `<option ${m === mm ? 'selected' : ''}>${m}</option>`).join('')}</select><small>น.</small></div></div>`; }).join('')}</div></details>
       <details class="set-det"><summary class="set-row"><span class="sr-ic">🔔</span><span class="sr-l">การแจ้งเตือน</span><span class="muted chev">›</span></summary>
         <div class="nt-step"><span class="nt-no">1</span><div><b>เปิดการแจ้งเตือนบนเครื่องนี้</b><small class="muted">${'Notification' in window ? ({ granted: '✅ เปิดอยู่แล้ว', denied: '❌ ถูกบล็อก — ต้องไปเปิดสิทธิ์ที่เครื่องก่อน (ดูวิธีด้านล่าง)', default: 'ยังไม่ได้เปิด — กดปุ่มด้านล่าง' }[Notification.permission] || '') : 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน'}</small></div></div>
-        ${'Notification' in window && Notification.permission === 'denied' ? `<div class="nt-help"><b>เปิดสิทธิ์การแจ้งเตือนที่ไหน?</b><ul><li><b>iPhone:</b> ตั้งค่า › การแจ้งเตือน › สุขใจ แล้วเปิด "อนุญาตการแจ้งเตือน" (ต้องเพิ่มแอพไปยังหน้าจอโฮมและเปิดจากไอคอนก่อน)</li><li><b>Android:</b> ตั้งค่า › แอป › สุขใจ (หรือ Chrome) › การแจ้งเตือน › เปิด · หรือแตะไอคอนแม่กุญแจข้างชื่อเว็บ › สิทธิ์ › การแจ้งเตือน › อนุญาต</li><li><b>คอมพิวเตอร์:</b> แตะไอคอนแม่กุญแจข้างชื่อเว็บ › การแจ้งเตือน › อนุญาต แล้วโหลดหน้าใหม่</li></ul></div>` : ''}
+        ${'Notification' in window && Notification.permission === 'denied' ? `<div class="nt-help"><b>เปิดสิทธิ์การแจ้งเตือนที่ไหน?</b><ul><li><b>iPhone:</b> ตั้งค่า › การแจ้งเตือน › สุขใจ แล้วเปิด "อนุญาตการแจ้งเตือน" (ต้องเพิ่มแอปไปยังหน้าจอโฮมและเปิดจากไอคอนก่อน)</li><li><b>Android:</b> ตั้งค่า › แอป › สุขใจ (หรือ Chrome) › การแจ้งเตือน › เปิด · หรือแตะไอคอนแม่กุญแจข้างชื่อเว็บ › สิทธิ์ › การแจ้งเตือน › อนุญาต</li><li><b>คอมพิวเตอร์:</b> แตะไอคอนแม่กุญแจข้างชื่อเว็บ › การแจ้งเตือน › อนุญาต แล้วโหลดหน้าใหม่</li></ul></div>` : ''}
         <button class="btn block" data-act="enable-push" ${pushOk ? '' : 'disabled'}>🔔 เปิดการแจ้งเตือนบนเครื่องนี้</button>
         <button class="btn ghost sm block nt-test" data-act="test-push">ทดลองส่งแจ้งเตือน</button>
-        <p class="small muted">${pushOk ? (supa && CFG.VAPID_PUBLIC_KEY ? 'ใช้ Web Push — เตือนได้แม้ปิดแอพ' : 'เตือนได้เฉพาะตอนเปิดแอพค้างไว้') : 'เบราว์เซอร์นี้ไม่รองรับ Web Push'}
+        <p class="small muted">${pushOk ? (supa && CFG.VAPID_PUBLIC_KEY ? 'ใช้ Web Push — เตือนได้แม้ปิดแอป' : 'เตือนได้เฉพาะตอนเปิดแอปค้างไว้') : 'เบราว์เซอร์นี้ไม่รองรับ Web Push'}
           ${/iPhone|iPad/.test(navigator.userAgent) ? '<br>iPhone: ต้อง "เพิ่มไปยังหน้าจอโฮม" แล้วเปิดจากไอคอนก่อน จึงจะเปิดแจ้งเตือนได้' : ''}</p>
         <div class="nt-step"><span class="nt-no">2</span><div><b>เลือกเรื่องที่จะให้เตือน</b><small class="muted">แตะแต่ละหมวดเพื่อตั้งค่า</small></div></div>
         ${notifCategories()}</details></div>
@@ -432,7 +440,7 @@ function viewSettings() {
     <div class="card set-group">${row('🛡️', 'ความเป็นส่วนตัวและข้อมูลสุขภาพ (PDPA)', '', 'privacy')}
       <a class="set-row" href="privacy.html" target="_blank" rel="noopener"><span class="sr-ic">📄</span><span class="sr-l">นโยบายความเป็นส่วนตัว (หน้าเว็บ)</span><span class="muted chev">›</span></a>
       <a class="set-row" href="delete-account.html" target="_blank" rel="noopener"><span class="sr-ic">🗑️</span><span class="sr-l">วิธีลบบัญชี</span><span class="muted chev">›</span></a></div>
-    <h3 class="set-h">เกี่ยวกับแอพ</h3>
+    <h3 class="set-h">เกี่ยวกับแอป</h3>
     <div class="card set-group">${row('📱', 'เวอร์ชันปัจจุบัน', APP_VERSION)}
       ${row('🧹', 'ล้างแคชและโหลดเวอร์ชันล่าสุด', '', 'clear-cache')}
       ${row('👩‍💻', 'ผู้พัฒนา', CFG.DEVELOPER_NAME ? esc(CFG.DEVELOPER_NAME) : unset)}
@@ -479,7 +487,7 @@ document.addEventListener('click', (ev) => {
   }
 });
 
-// ---------- หน้าเปิดแอพ (Splash): ขวดยาขยับ + ชื่อแอพ + สโลแกน ก่อนเข้าหน้าวันนี้ ----------
+// ---------- หน้าเปิดแอป (Splash): ขวดยาขยับ + ชื่อแอป + สโลแกน ก่อนเข้าหน้าวันนี้ ----------
 let splashShown = false;
 function showSplash() {
   if (splashShown) return; splashShown = true;
@@ -491,9 +499,9 @@ function showSplash() {
       <span class="app-ic ic-xl sp-logo">${logoSvg()}</span>
       <h1 class="sp-name">สุขใจ</h1>
       <p class="sp-stars" aria-hidden="true">✱ ✱ ✱</p>
-      <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดแพทย์</span><span><b>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน <span class="kt">ในแอปเดียว</span></b></span></p>
+      <p class="sp-slogan"><span>ช่วยจัดตารางยาและใบนัด</span><span><b>แชร์ข้อมูลให้ทั้งครอบครัวดูแลไปพร้อมกัน<span class="kt">ในแอปเดียว</span></b></span></p>
       <p class="sp-ask">บันทึกยาเสร็จ สุขใจจัดตารางให้เลย!</p></div>
-    <p class="sp-foot"><span class="sf-a">${APP_DISCLAIMER}</span><span class="sf-b">© 2026 สุขใจ (Sookjai) สงวนลิขสิทธิ์</span></p>`;
+    <p class="sp-foot"><span class="sf-a">${APP_DISCLAIMER}<br>${CHECK_MEDS_NOTE}</span><span class="sf-b">© 2026 สุขใจ (Sookjai) สงวนลิขสิทธิ์</span></p>`;
   document.body.appendChild(el);
   document.body.classList.add('noscroll');
   let done = false;
@@ -508,7 +516,7 @@ function maybeOnboard() {
   if (onboardShown || !S || DB?.offline || S.profiles.length > 0) return;
   const m = document.getElementById('modal'); if (m && !m.classList.contains('hidden')) return; // มีหน้าต่างอื่นเปิดอยู่ → ไม่แทรก
   if (document.getElementById('splash') || document.querySelector('.ask-ov')) return;
-  onboardShown = true; // เด้งครั้งเดียวต่อการเปิดแอพ — ถ้ากดยกเลิก ยังมีปุ่ม "เพิ่มคน" ในหน้าสมาชิกและแถบเตือนบนหน้าวันนี้
+  onboardShown = true; // เด้งครั้งเดียวต่อการเปิดแอป — ถ้ากดยกเลิก ยังมีปุ่ม "เพิ่มคน" ในหน้าสมาชิกและแถบเตือนบนหน้าวันนี้
   personForm(null, { relation: 'ตัวเอง', name: 'ฉัน', avatar: 'f-adult-smile', isSelf: true, welcome: true }); // ผู้ใช้ใหม่: เริ่มจากสร้างโปรไฟล์ของฉัน
 }
 // iOS Safari ต้องมี touchstart ถึงจะแสดงสถานะ :active (สีขึ้นที่กรอบที่กด)
@@ -554,7 +562,7 @@ function remarkParts(m) {
 const medWhen = (m) => (m.as_needed ? 'เมื่อมีอาการ' : SLOTS.filter((s) => m.slots.includes(s.key)).map((s) => s.label).join(' · ') || '—');
 
 /** โครงหน้าเดียวกันทุก PDF: หัวกระดาษ (ชื่อเรื่อง + กล่องข้อมูล 2 ช่อง) · เนื้อหา · หมายเหตุ · ท้ายกระดาษ (ข้อความเตือน + เวลาสร้างไฟล์ + เลขหน้า) */
-const PDF_APP_NOTE = `${APP_DISCLAIMER} · กรุณาตรวจสอบรายการยากับแพทย์หรือเภสัชกรก่อนใช้`;
+const PDF_APP_NOTE = `${APP_DISCLAIMER} · ${CHECK_MEDS_NOTE}`;
 function prSection(p, kind, title, box1, bodyHtml, note = '') {
   return `<section class="pr-page" data-kind="${kind}" style="--pcl:${tint(p.color, .5)};--pcs:${tint(p.color, .18)};--pcd:${p.color}">
     <div class="pr-top"><h1>${title}</h1><div class="pr-boxes"><span>${box1}</span><span>UPD: ${updDate(medsOf(p.id))}</span></div></div>
@@ -563,10 +571,10 @@ function prSection(p, kind, title, box1, bodyHtml, note = '') {
     <p class="pr-foot"><span>${PDF_APP_NOTE} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)</span><span class="pr-pg"></span></p></section>`;
 }
 
-/** ===== PDF ตารางกินยา + รายการยา: ตัวหนังสือจริง (vector) สร้างจากหน้าพิมพ์ของเบราว์เซอร์ + ฟอนต์ Sarabun ที่ฝังในแอพ — ไม่ถ่ายภาพหน้าจอ ===== */
+/** ===== PDF ตารางกินยา + รายการยา: ตัวหนังสือจริง (vector) สร้างจากหน้าพิมพ์ของเบราว์เซอร์ + ฟอนต์ Sarabun ที่ฝังในแอป — ไม่ถ่ายภาพหน้าจอ ===== */
 /** ชื่อยาสำหรับพิมพ์: ช่องว่างทุกชนิด (รวม nbsp / ตัวกว้างศูนย์) เหลือช่องเดียว ไม่มีช่องว่างแปลกในชื่อ */
 const printName = (s) => String(s ?? '').replace(/[​-‍﻿]/g, '').replace(/[\s ]+/g, ' ').trim();
-/** รหัสยาใน PDF: ตัวหนังสือหนาสีดำ ไม่มีสีพื้นหลัง (อ่านง่ายตอนพิมพ์) — ฟอนต์ Sarabun ตัวหนาเดียวกับในแอพ */
+/** รหัสยาใน PDF: ตัวหนังสือหนาสีดำ ไม่มีสีพื้นหลัง (อ่านง่ายตอนพิมพ์) — ฟอนต์ Sarabun ตัวหนาเดียวกับในแอป */
 const mpBox = (p, m) => `<span class="mp-cb">${esc(medNo(m))}</span>`;
 
 /** โครงตารางของทั้ง 2 แบบ: หัวเรื่อง + กล่องข้อมูล 2 ช่อง (อยู่ใน thead จึงซ้ำทุกหน้าที่ตารางยาวต่อ) */
@@ -641,7 +649,7 @@ function printSummaryHtml(p, ym) {
     <div><div class="pr-kpi"><div class="pr-kpi-pct">${N.exp ? pct + '%' : '–'}</div><div><b>${pr.head}</b><br>กินยาตรงเวลา ${N.got} / ${N.exp} ครั้ง</div></div>
       <p class="pr-praise">${esc(pr.msg)}</p>
       <h2 class="pr-h2">ยาที่ยังไม่มีบันทึกบ่อย</h2>${missRows ? `<table class="pr-list pr-sum"><colgroup><col style="width:20%"><col style="width:56%"><col style="width:24%"></colgroup><thead><tr><th>รหัส</th><th>ชื่อยา</th><th>ยังไม่มีบันทึก</th></tr></thead><tbody>${missRows}</tbody></table>` : '<p class="pr-praise">ไม่มียาที่ขาดในเดือนนี้</p>'}</div></div>`;
-  return prSection(p, 'summary', `สรุปการกินยา (${esc(p.name)})`, `เดือน${monthLabel(ym)}`, body, 'ยาที่กินเมื่อมีอาการไม่นับรวม · คำนวณจากการติ๊กในแอพ');
+  return prSection(p, 'summary', `สรุปการกินยา (${esc(p.name)})`, `เดือน${monthLabel(ym)}`, body, 'ยาที่กินเมื่อมีอาการไม่นับรวม · คำนวณจากการติ๊กในแอป');
 }
 
 // ---------- กล่องถามยืนยันก่อนแก้ไข/ลบ (ซ้อนทับหน้าที่เปิดอยู่ ถ้ากดไม่ใช่ ก็กลับไปแก้ต่อได้ ข้อมูลที่กรอกไม่หาย) ----------
@@ -661,7 +669,7 @@ function askConfirm(msg, yes = 'ใช่ ยืนยัน', no = 'ไม่�
 
 // ---------- สร้างไฟล์ PDF จริงและดาวน์โหลดทันที (ตรวจสอบหลายรอบก่อนบันทึกทุกครั้ง) ----------
 const loadScript = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => { s.remove(); rej(new Error('โหลดไม่สำเร็จ ' + src)); }; document.head.appendChild(s); });
-/** โหลดเครื่องมือสร้าง PDF: ใช้ไฟล์ที่เก็บไว้ในแอพ (vendor/ — ใช้ออฟไลน์ได้ ไม่พึ่งเน็ตภายนอก) ถ้าไม่มีค่อยลองโหลดจาก CDN */
+/** โหลดเครื่องมือสร้าง PDF: ใช้ไฟล์ที่เก็บไว้ในแอป (vendor/ — ใช้ออฟไลน์ได้ ไม่พึ่งเน็ตภายนอก) ถ้าไม่มีค่อยลองโหลดจาก CDN */
 async function loadPdfLibs() {
   const get = async (local, cdn) => { try { await loadScript(local); } catch (e) { await loadScript(cdn); } };
   if (!window.html2canvas) await get('vendor/html2canvas.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
@@ -671,7 +679,7 @@ async function loadPdfLibs() {
 /** รอให้หน้าต่างอยู่ด้านหน้าก่อนสร้างไฟล์ — เบราว์เซอร์ที่ซ่อน/ย่ออยู่จะโหลดฟอนต์ไม่ทัน ทำให้ตัวหนังสือเพี้ยน */
 async function waitVisible(maxMs = 20000) {
   if (!document.hidden) return;
-  toast('กรุณาเปิดหน้าแอพค้างไว้ระหว่างสร้างไฟล์ PDF…');
+  toast('กรุณาเปิดหน้าแอปค้างไว้ระหว่างสร้างไฟล์ PDF…');
   const t0 = Date.now(); while (document.hidden && Date.now() - t0 < maxMs) await new Promise((r) => setTimeout(r, 300));
 }
 /** ตรวจว่าตัวหนังสือที่วาดลงภาพไม่ยื่นเลย "ปลายข้อความจริง" บนหน้า (อาการช่องไฟกระจาย/ตัวเล็กเพี้ยน) — ตรวจเฉพาะข้อความบรรทัดเดียวที่ด้านขวาไม่มีอะไรอยู่ใกล้ ๆ */
@@ -835,11 +843,11 @@ async function renderVerifiedPdf(buildSections, ctx) {
 }
 function pdfFail(e, fallback) {
   console.error(e, e.issues);
-  if (e instanceof PdfAuditError && e.kind === 'render') { toast('ตัวหนังสือในไฟล์ยังวาดไม่สมบูรณ์ จึงยังไม่บันทึกไฟล์ — เปิดหน้าแอพค้างไว้แล้วลองกดอีกครั้ง'); return; }
+  if (e instanceof PdfAuditError && e.kind === 'render') { toast('ตัวหนังสือในไฟล์ยังวาดไม่สมบูรณ์ จึงยังไม่บันทึกไฟล์ — เปิดหน้าแอปค้างไว้แล้วลองกดอีกครั้ง'); return; }
   if (e instanceof PdfAuditError) { toast('⚠️ ตรวจพบข้อมูลไม่ตรงในไฟล์ PDF จึงยังไม่บันทึกไฟล์ — กรุณาแจ้งผู้ดูแลระบบ'); return; }
   toast('สร้าง PDF ตรงๆ ไม่ได้ — เปิดหน้าต่างพิมพ์แทน (เลือก "บันทึกเป็น PDF")'); fallback();
 }
-/** ตรวจข้อมูลในเอกสารพิมพ์ (ตารางรหัสยา + รายการยา) ให้ตรงกับข้อมูลยาในแอพทุกช่อง — คืนรายการปัญหา (ว่าง = ผ่าน) */
+/** ตรวจข้อมูลในเอกสารพิมพ์ (ตารางรหัสยา + รายการยา) ให้ตรงกับข้อมูลยาในแอปทุกช่อง — คืนรายการปัญหา (ว่าง = ผ่าน) */
 function auditMedsDoc(root, p, meds) {
   const nz = normTxt; const issues = []; const sum = (el) => nz(el?.textContent);
   const grid = root.querySelector('section[data-kind="grid"]'); const list = root.querySelector('section[data-kind="list"]');
@@ -863,7 +871,7 @@ function auditMedsDoc(root, p, meds) {
     const th = ths[ci]; if (!sum(th).includes(nz(s.short.replace(/^(ก่อน|หลัง)/, ''))) || !sum(th).includes(slotTime(s.key))) issues.push(`ตารางรหัสยา: หัวคอลัมน์ ${s.label} ไม่ตรง "${sum(th)}"`);
     const exp = meds.filter((m) => m.slots.includes(s.key));
     const cells = trs.map((tr) => tr.children[ci]).filter((c) => c && c.querySelector('.mp-cb'));
-    if (cells.length !== exp.length) { issues.push(`ตารางรหัสยา ช่วง ${s.label}: ในแอพ ${exp.length} ตัว ใน PDF ${cells.length}`); return; }
+    if (cells.length !== exp.length) { issues.push(`ตารางรหัสยา ช่วง ${s.label}: ในแอป ${exp.length} ตัว ใน PDF ${cells.length}`); return; }
     exp.forEach((m, i) => { const c = cells[i]; const parts = remarkParts(m); const lab = `${medNo(m)} (${s.label})`;
       if (sum(c.querySelector('.mp-cb')) !== medNo(m)) issues.push(`ตารางรหัสยา ${lab}: รหัสไม่ตรง`);
       if (sum(c.querySelector('.mp-nm')) !== nz(printName(medShort(m)))) issues.push(`ตารางรหัสยา ${lab}: ชื่อไม่ตรง "${sum(c.querySelector('.mp-nm'))}"`);
@@ -879,7 +887,7 @@ function auditMedsDoc(root, p, meds) {
   // รายการยา
   if (sum(list.querySelector('tr.mp-hd th')) !== 'รหัสยา') issues.push('รายการยา: หัวคอลัมน์แรกต้องเป็น "รหัสยา"');
   const rows = [...list.querySelectorAll('tbody tr')];
-  if (rows.length !== meds.length) issues.push(`รายการยา: ในแอพ ${meds.length} ตัว ใน PDF ${rows.length} แถว`);
+  if (rows.length !== meds.length) issues.push(`รายการยา: ในแอป ${meds.length} ตัว ใน PDF ${rows.length} แถว`);
   meds.forEach((m, i) => { const tds = rows[i] ? [...rows[i].children] : []; const t = tds.map(sum); const lab = `${medNo(m)} ${m.name}`;
     [medNo(m), nz(printName(m.name)), nz(printName(m.purpose || '')), nz(`${doseLabel(m.dose)} ${unitOf(m)}`), nz(medWhen(m))].forEach((w, k) => { if ((t[k] || '') !== w) issues.push(`รายการยา ${lab}: คอลัมน์ ${k + 1} ควรเป็น "${w}" แต่เป็น "${t[k]}"`); });
     const parts = remarkParts(m); const rs = tds[5] ? [...tds[5].querySelectorAll('.mp-r')] : [];
@@ -891,7 +899,7 @@ function auditMedsDoc(root, p, meds) {
   if (!s1.includes(`ยาทาน ${oral} ตัว`) || !s1.includes(`ยาอื่นๆ ${meds.length - oral} ตัว`)) issues.push(`รายการยา: หัวกระดาษไม่ระบุจำนวนยาทาน/ยาอื่นๆ ให้ตรง "${s1}"`);
   return issues;
 }
-/** เตรียมข้อมูลยา + ตรวจให้ตรงกับในแอพ — คืน { p, meds } หรือ null (แจ้งผู้ใช้แล้ว) */
+/** เตรียมข้อมูลยา + ตรวจให้ตรงกับในแอป — คืน { p, meds } หรือ null (แจ้งผู้ใช้แล้ว) */
 async function prepMedsDoc(pid) {
   await refreshForPdf(); const p = profileById(pid); const meds = medsOf(pid);
   if (!p || !meds.length) { toast('ยังไม่มียาให้สร้างไฟล์'); return null; }

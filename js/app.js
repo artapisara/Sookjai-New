@@ -1,5 +1,5 @@
-﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
-/* สุขใจ — สถานะแอพ หน้าจอหลัก และการเริ่มทำงาน */
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* สุขใจ — สถานะแอป หน้าจอหลัก และการเริ่มทำงาน */
 'use strict';
 
 const CFG = window.SUKJAI_CONFIG || {};
@@ -10,12 +10,12 @@ const ui = {
   tab: 'today',
   filter: 'all',            // หน้าวันนี้: เลือกดูทีละคน
   medsPerson: null,         // หน้ายา: คนที่กำลังดู
-  calPeople: null,          // หน้านัดพบแพทย์: Set ของคนที่เลือก (null = ทุกคน)
+  calPeople: null,          // หน้านัดพบหมอ: Set ของคนที่เลือก (null = ทุกคน)
   calMonth: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
   calSel: todayKey(),
-  careFilter: 'all',        // หน้าติดตามอาการ: เลือกดูทีละคน
+  careFilter: 'all',        // หน้าติดตามการรักษา: เลือกดูทีละคน
   unlocked: {},             // ช่วงเวลาที่กินครบแล้วแต่ผู้ใช้ปลดล็อกเพื่อแก้ (key = profileId:slot:วันที่)
-  medsPage: 'hub',          // แท็บยา: hub (เมนู 3 ไอคอน) | list (ยาที่ต้องทาน) | care (ติดตามอาการ) | summary (สรุปการกินยา)
+  medsPage: 'hub',          // แท็บยา: hub (เมนู 3 ไอคอน) | list (ยาที่ต้องทาน) | care (ติดตามการรักษา) | summary (สรุปการกินยา)
   todayPage: 'home',        // แท็บวันนี้: home (ภาพรวม) | mood (สรุปอารมณ์รายเดือน)
   memberPage: null,         // แท็บสมาชิก: id ของคนที่เปิดดูข้อมูลส่วนตัว
   adPid: null, adYm: null,  // หน้าสรุปการกินยา: คน + เดือน (YYYY-MM)
@@ -27,7 +27,7 @@ const profileById = (id) => S.profiles.find((p) => p.id === id) || { id, name: '
 const hospitalById = (id) => S.hospitals.find((h) => h.id === id);
 const doctorById = (id) => S.doctors.find((d) => d.id === id);
 const profileIndex = (id) => S.profiles.findIndex((p) => p.id === id);
-// สิทธิ์ฝั่งแอพ (ฐานข้อมูลบังคับใช้จริงอีกชั้นด้วย RLS): เจ้าของโปรไฟล์ / สมาชิกกลุ่มที่แก้ไขได้ / ดูอย่างเดียว
+// สิทธิ์ฝั่งแอป (ฐานข้อมูลบังคับใช้จริงอีกชั้นด้วย RLS): เจ้าของโปรไฟล์ / สมาชิกกลุ่มที่แก้ไขได้ / ดูอย่างเดียว
 const ownsProfile = (pid) => { const p = profileById(pid); return !!p && (DB.mode !== 'supabase' || !p.user_id || p.user_id === DB.user.id); };
 const canEditProfile = (pid) => {
   if (DB.offline) return false; // ออฟไลน์ = ดูอย่างเดียว
@@ -153,7 +153,7 @@ function apptAlerts(ids) {
       const p = profileById(a.profile_id); const h = hospitalById(a.hospital_id); const d = doctorById(a.doctor_id);
       return `<button class="alert ${n <= 1 ? 'red' : 'sun'}" data-act="appt-detail" data-id="${a.id}">
         ${avatarHtml(p, 'sm')}<div>
-        <b>${esc(p.name)} นัดแพทย์${whenText(n)}</b>
+        <b>${esc(p.name)} นัดหมอ${whenText(n)}</b>
         <span class="small">${thDate(a.appt_date)} · ${hhmm(a.appt_time)} น. · ${esc(departmentOf(a))}${d ? ' · ' + esc(d.name) : ''}${h ? ' · ' + esc(h.name) : ''}</span>
         ${a.note ? `<span class="small note">📝 ${esc(a.note)}</span>` : ''}
       </div></button>`;
@@ -170,7 +170,7 @@ function stockAlerts(ids) {
 // ตารางกินยาใน 1 วัน ของคนหนึ่งคน — แสดงเฉพาะเลขลำดับยา (ติ๊กที่วงกลมเล็ก)
 function dayTable(p, nextKey) {
   const meds = medsOf(p.id).filter(dueToday); if (!meds.length) return '';
-  const pre = medPrefix(p.id); const canTick = canEditProfile(p.id);
+  const pre = medPrefix(p.id); const canTick = ownsProfile(p.id) && !DB.offline; // ติ๊กกินยาได้เฉพาะเจ้าของโปรไฟล์ — สมาชิกในกลุ่มเห็นสถานะ (ดูอย่างเดียว)
   const cols = SLOTS.map((s) => {
     const list = meds.filter((m) => m.slots.includes(s.key));
     const regular = list.filter((m) => !m.as_needed);
@@ -215,7 +215,7 @@ function dayTable(p, nextKey) {
     <table>${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${meds.some((m) => m.as_needed) ? '<p class="small muted dt-star">* กินเฉพาะตอนมีอาการเท่านั้น (ช่องสีชมพู)</p>' : ''}
     ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b><table class="dt-wt"><colgroup><col style="width:17%"><col style="width:29%"><col></colgroup><thead><tr><th>รหัสยา</th><th>ชื่อยา</th><th>ข้อควรระวัง</th></tr></thead><tbody>${warns.map((m) => `<tr><td class="c">${esc(medNo(m))}</td><td>${esc(m.name)}</td><td>${esc(m.warning)}</td></tr>`).join('')}</tbody></table></div>` : ''}
-
+    <p class="small muted dt-check">${CHECK_MEDS_NOTE}</p>
   </section>`;
 }
 
@@ -229,12 +229,12 @@ function medCard(m) {
   return `<div class="mrow ${open ? 'open' : ''}" data-id="${m.id}">
     <button type="button" class="mr-main" data-act="med-toggle" data-id="${m.id}" aria-expanded="${open}">
       <span class="mr-no">${m.status !== 'active' ? '' : `<span class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="รหัสยา ${esc(medNo(m))}">${esc(medNo(m))}</span>`}</span>
-      <span class="mr-nm"><b class="name">${esc(m.name)}</b>${m.as_needed ? ' <span class="tag pn-tag">ทานเฉพาะเมื่อมีอาการ</span>' : ''}<span class="tags">${slotsTxt}<span class="tag dose-tag">ครั้งละ <b>${doseLabel(m.dose)} ${esc(unitOf(m))}</b></span></span>${m.purpose ? `<small class="muted">รักษา: ${esc(m.purpose)}</small>` : ''}${m.status !== 'active' ? `<small><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</small>` : ''}</span>
+      <span class="mr-nm"><b class="name">${esc(m.name)}</b>${m.as_needed ? ' <span class="tag pn-tag">ทานเฉพาะเมื่อมีอาการ</span>' : ''}<span class="tags">${slotsTxt}<span class="tag dose-tag">ครั้งละ <b>${doseLabel(m.dose)} ${esc(unitOf(m))}</b></span></span>${m.purpose ? `<small class="muted">รักษา: ${esc(m.purpose)}</small>` : ''}${m.status !== 'active' ? `<small><span class="tag ${m.status === 'stopped' ? 'allergy' : 'paused'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</small>` : ''}</span>
       <span class="mr-chev">${open ? '▴' : '▾'}</span>
     </button>
     <div class="mr-more" ${open ? '' : 'hidden'}>
       ${stock}
-      ${m.prescriber ? kv('แพทย์ที่จ่ายยา', esc(m.prescriber)) : ''}${m.prescribed_dept ? kv('แผนกที่จ่ายยา', esc(m.prescribed_dept)) : ''}
+      ${m.prescriber ? kv('หมอที่จ่ายยา', esc(m.prescriber)) : ''}${m.prescribed_dept ? kv('แผนกที่จ่ายยา', esc(m.prescribed_dept)) : ''}
       ${m.warning ? kv('หมายเหตุ / ข้อควรระวัง', `<span class="red-t">${esc(m.warning)}</span>`) : ''}${noteShown(m) ? kv('หมายเหตุ', esc(noteShown(m))) : ''}${m.extra_note ? kv('บันทึกเพิ่มเติม', `<span style="white-space:pre-line">${esc(m.extra_note)}</span>`) : ''}
       <div class="mr-foot"><span class="med-upd">อัปเดต ${thDateTime(m.updated_at)}</span><span class="mr-btns">${canEditProfile(m.profile_id) ? `<button type="button" class="btn sm ghost" data-act="add-stock" data-id="${m.id}">➕ ได้ยามาเพิ่ม</button>` : ''}<button type="button" class="btn sm" data-act="edit-med" data-id="${m.id}">✏️ แก้ไขยา</button></span></div>
     </div>
@@ -248,8 +248,8 @@ function viewMedList() {
   if (!vis.length) return `${backBar('ยาและการดูแล', 'meds-go', 'hub')}<h1>ยาที่ต้องทาน</h1>${visBtn}<div class="card empty"><div class="e">👁️</div>ซ่อนทุกคนอยู่ — กด "เลือกคนที่จะแสดง" ด้านบน</div>`;
   if (!vis.some((x) => x.id === ui.medsPerson)) ui.medsPerson = vis[0].id;
   const p = profileById(ui.medsPerson);
-  const act = medsOf(p.id);
-  const off = S.medications.filter((m) => m.profile_id === p.id && m.status !== 'active').sort((a, b) => a.sort_order - b.sort_order);
+  const act = medsOf(p.id); const mq = norm(ui.medsQ);
+  const off = S.medications.filter((m) => m.profile_id === p.id && m.status !== 'active').sort((a, b) => String(a.name).localeCompare(String(b.name), 'en', { sensitivity: 'base' }) || a.sort_order - b.sort_order); // เรียงตามชื่อ A-Z (ภาษาอังกฤษก่อน แล้วไทย)
   return `
     ${backBar('ยาและการดูแล', 'meds-go', 'hub')}
     <h1>ยาที่ต้องทาน</h1>
@@ -261,16 +261,25 @@ function viewMedList() {
     
     ${shareTag(p.id) ? `<div class="tags">${shareTag(p.id)}</div>` : ''}
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>${esc(p.name)} แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
-    <h2>ยาที่กำลังทาน <span class="small muted">${act.length} ตัว</span></h2>
-    <div class="med-group">${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map(medCard).join('')}</div></div>
+    <h2 class="fold-h"><button type="button" class="fold-btn" data-act="meds-fold" aria-expanded="${!ui.medsFold}"><span>ยาที่กำลังทาน <span class="small muted">${act.length} ตัว</span></span><span class="fold-chev">${ui.medsFold ? '▸' : '▾'}</span></button></h2>
+    <div class="med-group" id="medsFoldBody"${ui.medsFold ? ' hidden' : ''}>${act.length ? `<input type="search" id="medQ" class="stk-search" placeholder="ค้นหาชื่อยา" value="${esc(ui.medsQ || '')}" autocomplete="off" aria-label="ค้นหาชื่อยา"><p class="small muted med-none"${act.some((m) => !mq || norm(m.name).includes(mq)) ? ' hidden' : ''}>ไม่พบยาที่ค้นหา</p>` : ''}${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map((m) => medCard(m).replace('class="mrow', `data-q="${esc(norm(m.name))}"${mq && !norm(m.name).includes(mq) ? ' hidden' : ''} class="mrow`)).join('')}</div></div>
     ${act.length ? '' : `<div class="card empty"><div class="e">💊</div>ยังไม่มียา กดปุ่ม + เพื่อเพิ่ม</div>`}
     ${canEditProfile(p.id) ? '<button class="fab" data-act="add-med" aria-label="เพิ่มยา">+</button>' : ''}
-    <h2>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} ตัว</span></h2>
-    ${off.length ? `<div class="med-group"><div class="mtable">${off.map(medCard).join('')}</div></div>` : `<div class="card empty small">ไม่มี</div>`}
+    <h2${off.length ? ' class="fold-h"' : ''}>${off.length ? `<button type="button" class="fold-btn" data-act="off-fold" aria-expanded="${!ui.offFold}"><span>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} ตัว</span></span><span class="fold-chev">${ui.offFold ? '▸' : '▾'}</span></button>` : 'งดชั่วคราว / หยุดแล้ว <span class="small muted">0 ตัว</span>'}</h2>
+    ${off.length ? `<div class="med-group" id="offFoldBody"${ui.offFold ? ' hidden' : ''}><div class="mtable">${off.map(medCard).join('')}</div></div>` : `<div class="card empty small">ไม่มี</div>`}
   `;
 }
 
-// ---------- หน้า: นัดพบแพทย์ ----------
+// ---------- หน้า: นัดพบหมอ ----------
+/** สีของคนในปฏิทิน/รายการนัด: ถ้ามีหลายคนใช้สีประจำตัวเดียวกัน (เช่น ต่างคนต่างแชร์มาแล้วเลือกสีซ้ำ) คนแรกคงสีเดิม คนถัดไปปรับให้เข้มขึ้น/อ่อนลงสลับกัน จะได้แยกออก — ไม่แก้สีที่บันทึกไว้ */
+function calColor(pid) {
+  const p = S.profiles.find((x) => x.id === pid); if (!p) return '#999999';
+  const key = String(p.color || '').toLowerCase(); const same = S.profiles.filter((x) => String(x.color || '').toLowerCase() === key);
+  const k = same.findIndex((x) => x.id === pid); if (k <= 0) return p.color;
+  const amt = [0, .28, .3, .5, .52][Math.min(k, 4)]; const toward = k % 2 === 1 ? 0 : 255; // คี่ = เข้มขึ้น (ผสมดำ) · คู่ = อ่อนลง (ผสมขาว)
+  const n = parseInt(String(p.color).replace('#', '').padEnd(6, '0').slice(0, 6), 16); const mix = (v) => Math.round(v + (toward - v) * amt).toString(16).padStart(2, '0');
+  return `#${mix(n >> 16)}${mix((n >> 8) & 255)}${mix(n & 255)}`;
+}
 function viewCalendar() {
   const m = ui.calMonth;
   const first = new Date(m.getFullYear(), m.getMonth(), 1);
@@ -285,12 +294,12 @@ function viewCalendar() {
     if (i === 35 && d.getMonth() !== m.getMonth()) break; // ไม่แสดงแถวที่ 6 ถ้าไม่จำเป็น
     cells += `<button class="d ${d.getMonth() !== m.getMonth() ? 'out' : ''} ${key === todayKey() ? 'today' : ''} ${key === ui.calSel ? 'sel' : ''}" data-act="sel-day" data-id="${key}">
       ${list.length ? '<svg class="appt-flag" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.8l3 6.2 6.8.9-5 4.7 1.3 6.7L12 17l-6.1 3.3 1.3-6.7-5-4.7L9 8z" fill="#DAFF3A"/></svg>' : ''}<span class="dn">${d.getDate()}</span>
-      <span class="bars">${list.slice(0, 3).map((a) => `<i style="background:${profileById(a.profile_id).color}"></i>`).join('')}${list.length > 3 ? `<em>+${list.length - 3}</em>` : ''}</span></button>`;
+      <span class="bars">${list.map((a) => `<i style="background:${calColor(a.profile_id)}"></i>`).join('')}</span></button>`;
   }
   const sel = byDay[ui.calSel] || [];
   const upcoming = visible.filter((a) => daysUntil(a.appt_date) >= 0).sort((a, b) => (a.appt_date + hhmm(a.appt_time)).localeCompare(b.appt_date + hhmm(b.appt_time)));
   return `
-    <h1>นัดพบแพทย์</h1><p class="sub">จุดสีตามสีประจำตัวแต่ละคน · แตะวันที่เพื่อดูนัด</p>
+    <h1>นัดพบหมอ</h1><p class="sub">จุดสีตามสีประจำตัวแต่ละคน · แตะวันที่เพื่อดูนัด</p>
     ${personChips(ui.calPeople, 'cal-person', true)}
     <div class="card cal-card">
       <div class="cal-nav"><button class="iconbtn" data-act="cal-prev" aria-label="เดือนก่อน">‹</button>
@@ -303,18 +312,19 @@ function viewCalendar() {
     ${sel.map(apptBrief).join('') || `<div class="card empty small">ไม่มีนัดวันนี้</div>`}
     <h2>นัดที่กำลังจะถึง <span class="small muted">${upcoming.length} นัด</span></h2>
     ${upcoming.slice(0, 20).map(apptBrief).join('') || `<div class="card empty small">ยังไม่มีนัดล่วงหน้า</div>`}
-    <button class="fab" data-act="add-appt" data-id="${ui.calSel}" aria-label="เพิ่มนัดแพทย์">+</button>
+    <button class="fab" data-act="add-appt" data-id="${ui.calSel}" aria-label="เพิ่มนัดหมอ">+</button>
   `;
 }
 
 function apptBrief(a) {
   const p = profileById(a.profile_id); const d = doctorById(a.doctor_id); const dt = parseDk(a.appt_date); const n = daysUntil(a.appt_date);
+  const pc = calColor(a.profile_id);
   return `<button class="card appt" data-act="appt-detail" data-id="${a.id}" style="${n < 0 ? 'opacity:.6' : ''}">
-    <div class="date" style="background:${p.color};color:${inkOn(p.color)}"><b>${dt.getDate()}</b><span>${MONTHS_S[dt.getMonth()]}</span></div>
+    <div class="date" style="background:${pc};color:${inkOn(pc)}"><b>${dt.getDate()}</b><span>${MONTHS_S[dt.getMonth()]}</span></div>
     <div class="info">
       <div class="line"><b>${esc(p.name)}</b>${n >= 0 && n <= 5 ? `<span class="countdown ${n <= 1 ? 'hot' : ''}">${whenText(n)}</span>` : ''}</div>
       <div class="small">🕘 ${hhmm(a.appt_time)} น. · ${esc(departmentOf(a))}${a.attachments?.length ? ` · 📎 ${a.attachments.length}` : ''}</div>
-      <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุแพทย์'}</div>
+      <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุหมอ'}</div>
     </div><span class="muted">›</span></button>`;
 }
 
@@ -331,7 +341,7 @@ function viewLogin(mode = 'in', msg = '') {
           <span class="app-ic ic-xl sp-logo">${logoSvg()}</span>
           <h1 class="sp-name">สุขใจ</h1>
           <p class="sp-stars" aria-hidden="true">✱ ✱ ✱</p>
-          <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดแพทย์</span><span><b>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน <span class="kt">ในแอปเดียว</span></b></span></p>
+          <p class="sp-slogan"><span>ช่วยจัดตารางยาและใบนัด</span><span><b>แชร์ข้อมูลให้ทั้งครอบครัวดูแลไปพร้อมกัน<span class="kt">ในแอปเดียว</span></b></span></p>
           <p class="sp-ask">บันทึกยาเสร็จ สุขใจจัดตารางให้เลย!</p>
         </div>
         <div class="wel-actions">
@@ -381,7 +391,7 @@ function viewLogin(mode = 'in', msg = '') {
 function go(tab) {
   // แตะแท็บที่เปิดอยู่ซ้ำ = กลับหน้าแรกของแท็บนั้น
   if (tab === ui.tab) { if (tab === 'meds') ui.medsPage = 'hub'; if (tab === 'today') ui.todayPage = 'home'; if (tab === 'family') ui.memberPage = null; }
-  if (tab === 'care') { ui.medsPage = 'care'; tab = 'meds'; } // ทางเข้าเดิมของติดตามอาการ
+  if (tab === 'care') { ui.medsPage = 'care'; tab = 'meds'; } // ทางเข้าเดิมของติดตามการรักษา
   ui.tab = tab; render(); window.scrollTo(0, 0);
 }
 function render() {
@@ -403,7 +413,7 @@ function render() {
   navSync();
 }
 
-// ---------- การนำทาง + ปุ่มย้อนกลับ (ใช้ร่วมกันทั้งปุ่ม ← ในแอพและปุ่มย้อนกลับของมือถือ/เบราว์เซอร์) ----------
+// ---------- การนำทาง + ปุ่มย้อนกลับ (ใช้ร่วมกันทั้งปุ่ม ← ในแอปและปุ่มย้อนกลับของมือถือ/เบราว์เซอร์) ----------
 // หลักการ: เก็บ "กองหน้า" (navStack) เอง — กดแท็บล่าง = เริ่มกองใหม่ที่หน้าแรกของแท็บนั้น (ข้างหลังคือ "วันนี้") · กดลิงก์เข้าหน้าย่อย = ซ้อนเพิ่ม · ย้อนกลับ = ถอยทีละชั้นตามที่เข้ามาจริง
 // ไม่ปล่อยให้ประวัติเบราว์เซอร์ตัดสินเอง จึงไม่กระโดดข้ามแท็บ · เก็บเฉพาะ "หน้า" (ไม่รวมคนที่เลือก/เดือนที่ดู)
 const navSnap = () => ({ tab: ui.tab, medsPage: ui.medsPage, todayPage: ui.todayPage, memberPage: ui.memberPage });
@@ -438,10 +448,10 @@ function navBack() {
   try { render(); window.scrollTo(0, 0); } finally { navPopping = false; }
   return true;
 }
-/** ประวัติเบราว์เซอร์ = [ยามเฝ้า][แอพ] เสมอ: กดย้อนกลับของเครื่อง → ตกมาที่ยามเฝ้า → เราถอยในแอพแล้วดันหน้าแอพกลับขึ้นมาใหม่ · ถ้าอยู่หน้าแรกแล้วค่อยปล่อยให้ออกจากแอพ */
+/** ประวัติเบราว์เซอร์ = [ยามเฝ้า][แอป] เสมอ: กดย้อนกลับของเครื่อง → ตกมาที่ยามเฝ้า → เราถอยในแอปแล้วดันหน้าแอปกลับขึ้นมาใหม่ · ถ้าอยู่หน้าแรกแล้วค่อยปล่อยให้ออกจากแอป */
 function navGuardInit() {
   if (navGuard) return; navGuard = true;
-  try { history.replaceState({ guard: 1 }, '', location.href); history.pushState({ app: 1 }, '', location.href); } catch { /* ไม่รองรับ history — ใช้ปุ่ม ← ในแอพแทน */ }
+  try { history.replaceState({ guard: 1 }, '', location.href); history.pushState({ app: 1 }, '', location.href); } catch { /* ไม่รองรับ history — ใช้ปุ่ม ← ในแอปแทน */ }
 }
 window.addEventListener('popstate', (e) => {
   if (!S || !navGuard || (e.state && e.state.app)) return;
@@ -449,7 +459,7 @@ window.addEventListener('popstate', (e) => {
   try {
     if (modal && !modal.classList.contains('hidden')) { closeSheet(); history.pushState({ app: 1 }, '', location.href); return; } // มีหน้าต่างเด้งเปิดอยู่ → ปิดหน้าต่างก่อน
     if (navBack()) { history.pushState({ app: 1 }, '', location.href); return; }
-    navGuard = false; history.back(); // อยู่หน้าแรกสุดแล้ว → ออกจากแอพตามปกติ
+    navGuard = false; history.back(); // อยู่หน้าแรกสุดแล้ว → ออกจากแอปตามปกติ
   } catch { /* ignore */ }
 });
 // ---------- โลโก้เคลื่อนไหว ----------
@@ -465,27 +475,6 @@ function animateLogos() {
   });
 }new MutationObserver(() => animateLogos()).observe(document.getElementById('app'), { childList: true });
 
-/** รูปใบนัดเก็บ 1 ปี (APPOINTMENT_IMAGE_RETENTION_DAYS) นับจาก "วันนัด" แล้วลบอัตโนมัติ — ใช้กับทุกแพ็กเกจ (รูปอื่นๆ เช่นรูปติดตามอาการ เก็บไว้จนกว่าผู้ใช้จะลบเอง)
- *  ตัวหลักคือ Edge Function purge-appointment-images + pg_cron (ลบทุกรูป ทุกบัญชี) — ฟังก์ชันนี้เป็นตัวสำรองตอนเปิดแอพ (ลบเฉพาะไฟล์ในโฟลเดอร์ของเรา ของนัดที่เราเป็นเจ้าของ)
- *  ลบเฉพาะ "ไฟล์รูป" และลิงก์รูป — ตัวนัด (ข้อความ วันที่ แผนก แพทย์ บันทึกหลังพบแพทย์) ไม่ถูกลบ · ลบไฟล์ก่อนแล้วค่อยล้างลิงก์ (ไม่ปล่อยไฟล์ค้าง · รันซ้ำได้) */
-async function purgeOldSlips() {
-  const cutoff = dk(addDays(new Date(), -LIMITS.APPOINTMENT_IMAGE_RETENTION_DAYS)); let changed = 0;
-  for (const a of S.appointments) {
-    if (!a.attachments?.length || a.appt_date >= cutoff) continue;
-    if (DB.mode === 'supabase' && !ownsProfile(a.profile_id)) continue; // นัดของคนอื่นที่แชร์มา: ให้เจ้าของ/งานฝั่งเซิร์ฟเวอร์ลบ
-    const mine = a.attachments.filter((x) => DB.mode !== 'supabase' || String(x).startsWith(`${DB.user.id}/`));
-    if (!mine.length) continue;
-    const keep = a.attachments.filter((x) => !mine.includes(x));
-    try {
-      if (DB.mode === 'supabase') { const { error } = await DB.sb.storage.from(BUCKET).remove(mine); if (error) throw error; }
-      const patch = { attachments: keep };
-      if (!keep.length && (DB.mode !== 'supabase' || S.ent?.v2)) patch.images_purged_at = new Date().toISOString(); // ใช้แสดง "รูปใบนัดถูกลบแล้ว"
-      await DB.update('appointments', a.id, patch);
-      Object.assign(a, patch); changed++;
-    } catch (e) { console.warn('ลบรูปใบนัดเก่าไม่สำเร็จ', e); }
-  }
-  if (changed) { console.info(`ลบรูปใบนัดที่เก็บครบ ${LIMITS.APPOINTMENT_IMAGE_RETENTION_DAYS} วันแล้ว ${changed} นัด`); render(); }
-}
 /** ย้ายสีประจำตัวชุดเก่าของโปรไฟล์ที่เราเป็นเจ้าของ ไปเป็นชุดใหม่ที่เข้ากับสีหลัก */
 async function migrateColors() {
   const jobs = [];
@@ -500,7 +489,7 @@ function updateInviteDot() { // ใช้ pendingInvites() จาก pages.js ·
   b.setAttribute('aria-label', n > 0 ? `สมาชิก มี ${n} คำเชิญรอตอบ` : 'สมาชิก');
 }
 let lastInviteCheck = 0;
-async function refreshInvites() { // กลับมาเปิดแอพ/สลับกลับมาที่แอพ → ดูว่ามีคำเชิญใหม่ไหม (ไม่ทับหน้าที่กำลังกรอก)
+async function refreshInvites() { // กลับมาเปิดแอป/สลับกลับมาที่แอป → ดูว่ามีคำเชิญใหม่ไหม (ไม่ทับหน้าที่กำลังกรอก)
   if (!S || DB?.mode !== 'supabase' || DB.offline || Date.now() - lastInviteCheck < 30000) return;
   lastInviteCheck = Date.now();
   try {
@@ -509,7 +498,7 @@ async function refreshInvites() { // กลับมาเปิดแอพ/ส
     if (JSON.stringify(rows.map((i) => i.id).sort()) !== old) { updateInviteDot(); const m = document.getElementById('modal'); if (ui.tab === 'family' && (!m || m.classList.contains('hidden'))) render(); }
   } catch (e) { console.warn('refreshInvites', e); }
 }
-/** กันกรณีเปิดแอพแล้วข้อมูลว่างทั้งที่มีข้อมูลในบัญชี (เช่น iPad เปิดค้างนานแล้วโหลดตอนสิทธิ์เข้าสู่ระบบยังไม่ต่ออายุ ได้รายการว่าง ไม่มี error) — ถ้าโหลดแล้วไม่มีโปรไฟล์เลย ลองโหลดใหม่ให้เองสูงสุด 3 ครั้ง และลองอีกเมื่อกลับมาเปิดหน้าจอ */
+/** กันกรณีเปิดแอปแล้วข้อมูลว่างทั้งที่มีข้อมูลในบัญชี (เช่น iPad เปิดค้างนานแล้วโหลดตอนสิทธิ์เข้าสู่ระบบยังไม่ต่ออายุ ได้รายการว่าง ไม่มี error) — ถ้าโหลดแล้วไม่มีโปรไฟล์เลย ลองโหลดใหม่ให้เองสูงสุด 3 ครั้ง และลองอีกเมื่อกลับมาเปิดหน้าจอ */
 let emptyTries = 0;
 function retryIfEmpty() {
   if (!S || !DB || DB.mode !== 'supabase' || DB.offline || S.profiles.length || emptyTries >= 3) return;
@@ -545,6 +534,16 @@ document.addEventListener('change', (ev) => {
   applyBigText(); toast(t.checked ? 'เปิดตัวอักษรใหญ่แล้ว' : 'ปิดตัวอักษรใหญ่แล้ว');
 });
 // ---------- เริ่มทำงาน ----------
+/** โหลดข้อมูล — ถ้าเจอ "JWT expired" ให้ต่ออายุเซสชันแล้วลองใหม่ 1 ครั้ง · ต่ออายุไม่ได้ = ให้เข้าสู่ระบบใหม่ (error.expired) */
+async function loadOrRecover() {
+  try { return await DB.loadAll(); } catch (e) {
+    if (DB.recoverAuth && /JWT|expired|PGRST30|401/i.test(String(e?.message || e?.code || e))) {
+      if (await DB.recoverAuth()) return await DB.loadAll();
+      const err = new Error('session expired'); err.expired = true; throw err;
+    }
+    throw e;
+  }
+}
 async function boot() {
   const useSupa = CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase;
   if (CFG.SUPABASE_URL && !window.supabase) toast('โหลดระบบ Supabase ไม่สำเร็จ — ใช้โหมดทดลองแทน');
@@ -558,11 +557,10 @@ async function boot() {
     loading = user.id;
     try {
       $('#app').innerHTML = '<div class="empty" style="padding-top:30vh">กำลังโหลด…</div>';
-      try { S = await DB.loadAll(); } catch (e) { console.error(e); $('#app').innerHTML = `<div class="card empty">โหลดข้อมูลไม่สำเร็จ<br><span class="small">${esc(e.message)}</span><br><button class="btn sm" onclick="location.reload()">ลองใหม่</button></div>`; return; }
+      try { S = await loadOrRecover(); } catch (e) { console.error(e); if (e.expired) { await DB.signOutLocal(); S = null; lastUser = null; viewLogin('in', 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); return; } $('#app').innerHTML = `<div class="card empty">โหลดข้อมูลไม่สำเร็จ<br><span class="small">${esc(e.message)}</span><br><button class="btn sm" onclick="location.reload()">ลองใหม่</button></div>`; return; }
       lastUser = user.id;
       if (!DB.offline) await migrateColors();
       sortProfiles();
-      if (!DB.offline) setTimeout(() => purgeOldSlips(), 3000); // ทำเบื้องหลังหลังเปิดแอพ ไม่รบกวนการใช้งาน
       ui.tab = 'today'; navReset(); // รีเซ็ตแท็บและกองหน้า
       showSplash(); // หน้า intro แสดงก่อนเสมอ (ทับหน้าที่โหลดอยู่ด้านล่าง แล้วจางหายไป)
       // PDPA: ต้องยินยอมการเก็บข้อมูลสุขภาพก่อนใช้งานครั้งแรก (และเมื่อเนื้อหาความยินยอมเปลี่ยน)
@@ -573,7 +571,7 @@ async function boot() {
       emptyTries = 0; retryIfEmpty();
     } finally { loading = null; }
   };
-  // กดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → เข้าแอพแล้วเด้งหน้าตั้งรหัสผ่านใหม่ทันที
+  // กดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → เข้าแอปแล้วเด้งหน้าตั้งรหัสผ่านใหม่ทันที
   DB.onAuth(async (u, ev) => { await start(u); if (ev === 'PASSWORD_RECOVERY' && u) passwordForm(true); });
   let first = null;
   try { first = await DB.getUser(); } catch (e) { console.warn('getUser', e); }

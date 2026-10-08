@@ -2,7 +2,7 @@
 /* สุขใจ — สมาชิก Premium: Free Package vs Premium + ตัวล็อกฟีเจอร์ + ทดลอง 1 เดือน
  * สถานะอยู่ที่ตาราง subscriptions (premium_until) และสวิตช์ app_flags.paywall_enabled — รัน supabase/premium.sql
  * ค่าเริ่มต้น: สวิตช์ปิด = ทุกคนใช้ได้ครบ (ยังไม่เปิดขาย) · ผู้ใช้แก้สถานะเองไม่ได้ (เขียนได้เฉพาะฝั่งเซิร์ฟเวอร์)
- * กฎความปลอดภัย: หมดสมาชิกแล้ว ข้อมูลเดิมยังเห็นและติ๊กกินยาได้ · ติดตามอาการ: ดูประวัติและบันทึกต่อในแผนเดิมได้ แต่สร้างแผนใหม่ไม่ได้
+ * กฎความปลอดภัย: หมดสมาชิกแล้ว ข้อมูลเดิมยังเห็นและติ๊กกินยาได้ · ติดตามการรักษา: ดูประวัติและบันทึกต่อในแผนเดิมได้ แต่สร้างแผนใหม่ไม่ได้
  */
 'use strict';
 
@@ -19,14 +19,14 @@ const premiumActive = () => { const u = entState().premium_until; return !!u && 
 /** เป็น Premium ในแง่ "ถูกบล็อกไหม": ช่วงทดลอง (สวิตช์ปิด) = ผ่านทุกอย่าง */
 const isPremium = () => !paywallOn() || premiumActive();
 
-/** เตือนกินยาและนัดพบแพทย์: ทุกโปรไฟล์ที่เราเป็นเจ้าของและเปิดสวิตช์ ทุกแพ็กเกจ (Free มีได้ ตัวคุณ + คนที่ดูแล 1 คน) — ต้องตรงกับ send-reminders
+/** เตือนกินยาและนัดพบหมอ: ทุกโปรไฟล์ที่เราเป็นเจ้าของและเปิดสวิตช์ ทุกแพ็กเกจ (Free มีได้ ตัวคุณ + คนที่ดูแล 1 คน) — ต้องตรงกับ send-reminders
  * โปรไฟล์ที่แชร์มาจากคนอื่น ไม่นับ (เจ้าของเป็นผู้ได้รับการเตือน) */
 const apptReminderOn = (pid) => { const p = profileById(pid); return !p || p.appt_reminder !== false; }; // เปิด/ปิดรายคนที่ ตั้งค่า > การแจ้งเตือน (appt_reminder)
 const reminderOn = (p) => !!p.reminder_enabled;
 const myCircleIds = () => new Set((S.circles || []).filter((c) => c.user_id === DB.user?.id).map((c) => c.id));
 const carePlanCount = () => (S.care_plans || []).filter((c) => !c.user_id || c.user_id === DB.user?.id).length;
 
-// ---------- ตัวนับโควตา (นับจากข้อมูลที่แอพโหลดมา) ----------
+// ---------- ตัวนับโควตา (นับจากข้อมูลที่แอปโหลดมา) ----------
 /** คนที่ฉันดูแล = โปรไฟล์ที่เป็นของเรา ไม่ใช่ "ของฉัน" (โปรไฟล์ที่แชร์มาให้ไม่นับ) */
 const caredProfiles = () => (S.profiles || []).filter((p) => ownsProfile(p.id) && !isSelfProfile(p));
 const activeMedCount = (pid, exceptId) => (S.medications || []).filter((m) => m.profile_id === pid && m.status === 'active' && m.id !== exceptId).length;
@@ -35,7 +35,7 @@ const myGroupCount = () => (S.circles || []).filter((c) => c.user_id === DB.user
 /** สมาชิกในกลุ่ม (ไม่รวมเจ้าของ) + คำเชิญที่รอ */
 const groupMemberCount = (cid) => (S.circle_members || []).filter((m) => m.circle_id === cid && m.user_id !== DB.user?.id).length + (S.circle_invites || []).filter((i) => i.circle_id === cid).length;
 
-/** ใช้ฟีเจอร์/เพิ่มของนี้ได้ไหม (ฝั่งแอพ — ฐานข้อมูลบังคับซ้ำอีกชั้นด้วย trigger ตามแพ็กเกจของ "เจ้าของ")
+/** ใช้ฟีเจอร์/เพิ่มของนี้ได้ไหม (ฝั่งแอป — ฐานข้อมูลบังคับซ้ำอีกชั้นด้วย trigger ตามแพ็กเกจของ "เจ้าของ")
  *  kind: profiles | circles | meds {pid, exceptId} | appts {pid} | members {cid} | care | sticker {pid} | report {pid} | pdf · ข้อมูลของคนอื่นที่แชร์มา: ให้ฐานข้อมูลตัดสินตามแพ็กเกจของเจ้าของ */
 function canUse(kind, ctx) {
   switch (kind) {
@@ -60,16 +60,16 @@ const PREMIUM_WHY = {
   meds: `ใส่ยาครบ ${FREE_LIMITS.meds} ตัวแล้ว อัปเกรดเพื่อใส่ได้ไม่จำกัด`,
   appts: `เก็บใบนัดครบ ${FREE_LIMITS.appts} ใบแล้ว ลบใบเก่าเพื่อเพิ่มใหม่ ข้อมูลที่ลบจะหายถาวร หรืออัปเกรด Premium เพื่อเก็บไว้ทั้งหมด`,
   members: `เชิญสมาชิกได้ ${FREE_LIMITS.members} คนต่อกลุ่มในแพ็กเกจฟรี อัปเกรดเพื่อเชิญได้ไม่จำกัด`,
-  care: `Free Package สร้างบันทึกติดตามอาการได้ ${FREE_LIMITS.carePlans} แผน (แผนที่มีอยู่ ดูประวัติและบันทึกต่อได้)`,
+  care: `Free Package สร้างบันทึกติดตามการรักษาได้ ${FREE_LIMITS.carePlans} แผน (แผนที่มีอยู่ ดูประวัติและบันทึกต่อได้)`,
   pdf: 'ไฟล์นี้สำหรับสมาชิก Premium',
   sticker: 'สติกเกอร์ติดกล่องยา (PDF) ดาวน์โหลดได้เมื่อบัญชีของคุณเป็น Premium (รวมโปรไฟล์ที่มีคนแชร์มาให้)',
   summary: `Free Package ดูสรุปการกินยาได้ ${FREE_LIMITS.adherenceDays} วันล่าสุด · ย้อนหลังและกราฟรายเดือนสำหรับ Premium`,
   health: `Free Package ดูบันทึกความดัน/น้ำตาลได้ ${FREE_LIMITS.healthDays} วันล่าสุด · กราฟและย้อนหลังทั้งหมดสำหรับ Premium`,
-  report: 'สรุปก่อนพบแพทย์ (รวมแพ้ยา ยาที่เกี่ยวกับแผนกนั้น และผลการพบแพทย์ครั้งก่อนเป็น PDF ฉบับเดียว) ดาวน์โหลดได้เมื่อบัญชีของคุณเป็น Premium (รวมโปรไฟล์ที่มีคนแชร์มาให้)',
+  report: 'สรุปก่อนพบหมอ (รวมแพ้ยา ยาที่เกี่ยวกับแผนกนั้น และผลการพบหมอครั้งก่อนเป็น PDF ฉบับเดียว) ดาวน์โหลดได้เมื่อบัญชีของคุณเป็น Premium (รวมโปรไฟล์ที่มีคนแชร์มาให้)',
   mood: 'บันทึกอารมณ์รายวันและสรุปอารมณ์ 1 เดือน เป็นฟีเจอร์สำหรับ Premium Package',
-  history: 'บันทึกการไปหาแพทย์ (ดึงข้อมูลจากบันทึกติดตามอาการและใบนัด) ดูได้เฉพาะสมาชิก Premium',
+  history: 'บันทึกการไปหาหมอ (ดึงข้อมูลจากใบนัด) ดูได้เฉพาะสมาชิก Premium',
 };
-const PREMIUM_PERKS = ['ดูแลได้ไม่จำกัดคน · สร้างกลุ่มและเชิญผู้ช่วยดูแลได้ไม่จำกัด', 'ใส่ยาได้ไม่จำกัด · เก็บใบนัดได้ไม่จำกัด', 'เตือนยาใกล้หมด', 'สติกเกอร์ติดกล่องยา · สรุปก่อนพบแพทย์ (PDF) รวมโปรไฟล์ที่มีคนแชร์มาให้', 'บันทึกความดัน/น้ำตาลพร้อมกราฟแนวโน้ม · บันทึกการไปหาแพทย์', 'บันทึกติดตามอาการได้ไม่จำกัด · สรุปการกินยาย้อนหลัง', 'บันทึกและสรุปอารมณ์', 'ไม่มีโฆษณา'];
+const PREMIUM_PERKS = ['ดูแลได้ไม่จำกัดคน · สร้างกลุ่มและเชิญผู้ช่วยดูแลได้ไม่จำกัด', 'ใส่ยาได้ไม่จำกัด · เก็บใบนัดได้ไม่จำกัด', 'เตือนยาใกล้หมด', 'สติกเกอร์ติดกล่องยา · สรุปก่อนพบหมอ (PDF) รวมโปรไฟล์ที่มีคนแชร์มาให้', 'บันทึกความดัน/น้ำตาลพร้อมกราฟแนวโน้ม · บันทึกการไปหาหมอ', 'บันทึกติดตามการรักษาได้ไม่จำกัด · สรุปการกินยาย้อนหลัง', 'บันทึกและสรุปอารมณ์', 'ไม่มีโฆษณา'];
 
 /** หน้าต่างสั้นเมื่อเต็มโควตา — ซ้อนทับหน้าที่เปิดอยู่ (ไม่ปิดฟอร์ม จึงไม่เสียข้อมูลที่กำลังกรอก) · "ดู Premium" เปิดหน้ารายละเอียดแพ็กเกจ */
 function limitDialog(kind, { extra = '', primary = null } = {}) {
@@ -122,12 +122,12 @@ const planRows = () => [
   ['เพิ่มจำนวนยา', `${FREE_LIMITS.meds} ตัว`, 'ไม่จำกัด'], ['จัดตารางกินยาอัตโนมัติ', true, true], ['สรุปการกินยา', `${FREE_LIMITS.adherenceDays} วันล่าสุด`, 'ย้อนหลัง + กราฟรายเดือน'],
   ['ตารางกินยา PDF (1 วัน)', true, true], ['สติกเกอร์ติดกล่องยา (PDF)', false, true],
   { group: '🔔 การแจ้งเตือน' },
-  ['เตือนกินยา / เตือนนัดแพทย์', true, true], ['ปุ่ม "กินแล้ว / เตือนอีก 15 นาที"', true, true],
+  ['เตือนกินยา / เตือนนัดหมอ', true, true], ['ปุ่ม "กินแล้ว / เตือนอีก 15 นาที"', true, true],
   ['เตือนยาใกล้หมด', false, true],
-  { group: '📅 นัดพบแพทย์' },
-  ['ใบนัดแพทย์ที่เก็บอยู่ต่อโปรไฟล์', `${FREE_LIMITS.appts} ใบ`, 'ไม่จำกัด'], ['สรุปก่อนพบแพทย์', true, true], ['สรุปก่อนพบแพทย์ (ดาวน์โหลด PDF)', false, true], ['ดูบันทึกการไปหาแพทย์ที่เคยบันทึกไว้', false, true],
-  { group: '🩹 บันทึกติดตามอาการ' },
-  ['บันทึกติดตามอาการ', `${FREE_LIMITS.carePlans} ครั้ง`, 'ไม่จำกัด'],
+  { group: '📅 นัดพบหมอ' },
+  ['ใบนัดหมอที่เก็บอยู่ต่อโปรไฟล์', `${FREE_LIMITS.appts} ใบ`, 'ไม่จำกัด'], ['สรุปก่อนพบหมอ', true, true], ['สรุปก่อนพบหมอ (ดาวน์โหลด PDF)', false, true], ['ดูบันทึกการไปหาหมอที่เคยบันทึกไว้', false, true],
+  { group: '🩹 บันทึกติดตามการรักษา' },
+  ['บันทึกติดตามการรักษา', `${FREE_LIMITS.carePlans} ครั้ง`, 'ไม่จำกัด'],
   { group: '❤️ ความดัน / น้ำตาลในเลือด' },
   ['บันทึกค่าที่วัดได้', true, true], ['ดูย้อนหลัง', `${FREE_LIMITS.healthDays} วันล่าสุด`, 'ทั้งหมด'], ['กราฟแนวโน้ม', false, true],
   { group: '😊 อารมณ์' },
@@ -143,7 +143,7 @@ function planTableHtml() {
     if (r.group) { cur = { title: r.group, rows: [] }; boxes.push(cur); } else if (cur) cur.rows.push(r);
   }
   const head = '';
-  const invited = `<section class="plan-box plan-invited"><h4>ถูกเชิญเข้ากลุ่ม?</h4><ol class="plan-inv"><li>ดู แก้ไข และแนบรูปได้ ตามแพ็กเกจของเจ้าของกลุ่ม</li><li>โหลดตารางกินยา PDF ได้</li><li>ไฟล์สติกเกอร์และสรุปก่อนพบแพทย์ ดาวน์โหลดได้เมื่อบัญชีของคุณเป็น Premium</li><li>โปรไฟล์อื่นที่ถูกแชร์มาให้ดูข้อมูล ไม่นับเป็นโควตาของบัญชีคุณ</li></ol></section>`;
+  const invited = `<section class="plan-box plan-invited"><h4>ถูกเชิญเข้ากลุ่ม?</h4><ol class="plan-inv"><li>ดู แก้ไข และแนบรูปได้ ตามแพ็กเกจของเจ้าของกลุ่ม</li><li>โหลดตารางกินยา PDF ได้</li><li>ไฟล์สติกเกอร์และสรุปก่อนพบหมอ ดาวน์โหลดได้เมื่อบัญชีของคุณเป็น Premium</li><li>โปรไฟล์อื่นที่ถูกแชร์มาให้ดูข้อมูล ไม่นับเป็นโควตาของบัญชีคุณ</li></ol></section>`;
   return `${head}<div class="plan-grid"><div class="plan-colhead"><span>ฟีเจอร์</span><span>Free Package</span><span class="prem">⭐ Premium Package</span></div>${boxes.map((b) => `<section class="plan-box"><h4>${b.title}</h4>${b.rows.map((r) => `<div class="plan-r"><span>${r[0]}</span><span>${planCell(r[1])}</span><span class="prem">${planCell(r[2])}</span></div>`).join('')}</section>`).join('')}</div>${invited}`;
 }
 /** ส่วน "แพ็กเกจของฉัน" ในหน้าตั้งค่า */
@@ -151,7 +151,7 @@ function membershipSection() {
   if (DB.mode !== 'supabase') return '';
   const e = entState(); const until = e.premium_until ? thDate(String(e.premium_until).slice(0, 10), 'long') : '';
   let status; let action = '';
-  if (!paywallOn()) status = 'ช่วงทดลอง: ใช้ได้ทุกฟีเจอร์ฟรี<small class="muted" style="display:block">(แพ็กเกจ Free และ Premium) จะเริ่มหลังช่วงทดลอง<br>โดยแจ้งในแอพล่วงหน้าก่อนเริ่มต้นใช้งาน</small>';
+  if (!paywallOn()) status = 'ช่วงทดลอง: ใช้ได้ทุกฟีเจอร์ฟรี<small class="muted" style="display:block">(แพ็กเกจ Free และ Premium) จะเริ่มหลังช่วงทดลอง<br>โดยแจ้งในแอปล่วงหน้าก่อนเริ่มต้นใช้งาน</small>';
   else if (premiumActive()) status = `⭐ Premium ถึงวันที่ ${until}`;
   else { status = e.premium_until ? `Premium หมดอายุเมื่อ ${until} · ใช้ Free Package` : 'Free Package'; action = `<button class="btn block" data-act="premium-info" data-id="care" style="margin-top:8px">${e.trial_used ? 'สมัคร Premium' : 'ทดลอง Premium 1 เดือน'}</button>`; }
   return `<h3 class="set-h">แพ็กเกจของฉัน</h3><div class="card set-group plan-card"><div class="set-row"><span class="sr-ic">⭐</span><span class="sr-l">${status}</span></div>${action}

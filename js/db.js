@@ -6,7 +6,7 @@
  */
 'use strict';
 
-const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors', 'med_logs', 'care_plans', 'care_logs', 'circles', 'circle_members', 'circle_care_for', 'circle_invites', 'emergency_contacts', 'mood_logs', 'treatment_records', 'health_logs'];
+const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors', 'med_logs', 'care_plans', 'care_logs', 'circles', 'circle_members', 'circle_care_for', 'circle_invites', 'emergency_contacts', 'mood_logs', 'treatment_records', 'health_logs', 'reminder_recipients'];
 const HISTORY_MONTHS = 24; // ดูสรุปย้อนหลังได้กี่เดือน (ข้อมูลเก็บในฐานข้อมูลไม่หาย — โหลดมาทีละเดือนตอนเปิดดู)
 const BUCKET = 'attachments';
 
@@ -29,12 +29,16 @@ class SupaDB {
   }
   async resetPassword(email) { const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; }
   async signOut() { this.clearSnapshot(); await this.sb.auth.signOut(); }
-  /** แจ้งเตือนเด้งไปหาผู้ถูกเชิญ (Edge Function notify-invite) — ทำเบื้องหลัง ล้มเหลวก็ไม่กระทบการเชิญ (ผู้ถูกเชิญยังเห็นคำเชิญเมื่อเปิดแอพ) */
+  /** โทเคนเข้าสู่ระบบหมดอายุ (JWT expired): ลองต่ออายุจาก refresh token — สำเร็จ = true */
+  async recoverAuth() { try { const { data, error } = await this.sb.auth.refreshSession(); if (error || !data.session) return false; this.user = data.session.user; return true; } catch { return false; } }
+  /** ออกจากระบบเฉพาะเครื่องนี้ (ใช้เมื่อเซสชันหมดอายุและต่ออายุไม่ได้ — ไม่ต้องเรียกเซิร์ฟเวอร์) */
+  async signOutLocal() { this.clearSnapshot(); try { await this.sb.auth.signOut({ scope: 'local' }); } catch { /* ไม่เป็นไร */ } this.user = null; }
+  /** แจ้งเตือนเด้งไปหาผู้ถูกเชิญ (Edge Function notify-invite) — ทำเบื้องหลัง ล้มเหลวก็ไม่กระทบการเชิญ (ผู้ถูกเชิญยังเห็นคำเชิญเมื่อเปิดแอป) */
   notifyInvite(inviteId) {
     if (this.offline) return Promise.resolve();
     return this.sb.functions.invoke('notify-invite', { body: { invite_id: inviteId } }).then((r) => { if (r.error) console.warn('notify-invite', r.error.message); return r; }).catch((e) => console.warn('notify-invite', e));
   }
-  /** โหลดเฉพาะคำเชิญของฉันใหม่ (ใช้อัปเดตจุดแดงโดยไม่โหลดทั้งแอพ) */
+  /** โหลดเฉพาะคำเชิญของฉันใหม่ (ใช้อัปเดตจุดแดงโดยไม่โหลดทั้งแอป) */
   async fetchInvites() { const { data, error } = await this.sb.from('circle_invites').select('*').order('created_at'); if (error) throw error; return data; }
   /** ลบบัญชีผู้ใช้ (อีเมล) ถาวร — ต้องรัน supabase/premium.sql ก่อน (ฟังก์ชัน delete_my_account) */
   async deleteAccount() { const { error } = await this.sb.rpc('delete_my_account'); if (error) throw error; }
@@ -85,7 +89,7 @@ class SupaDB {
   async loadAllOnline() {
     const d0 = new Date(); const since = dk(new Date(d0.getFullYear(), d0.getMonth(), 1)); // เริ่มด้วยเดือนนี้ — เดือนก่อนๆ โหลดตอนกดดูย้อนหลัง
     const q = (t) => this.sb.from(t).select('*');
-    const [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr, hl] = await Promise.all([
+    const [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr, hl, rr] = await Promise.all([
       q('profiles').order('created_at'), q('medications').order('sort_order'), q('appointments').order('appt_date'),
       q('hospitals').order('name'), q('doctors').order('name'), this.logsBetween('med_logs', since).then((data) => ({ data })).catch((error) => ({ error })),
       this.sb.from('user_settings').select('*').maybeSingle(),
@@ -95,15 +99,17 @@ class SupaDB {
       this.logsBetween('mood_logs', since).then((data) => ({ data })).catch((error) => ({ error })),
       q('treatment_records').order('record_date'),
       q('health_logs').order('log_date'),
+      q('reminder_recipients').order('created_at'),
     ]);
-    // ยังไม่ได้รัน schema.sql ล่าสุด (ไม่มีตาราง mood_logs) → เปิดแอพได้ตามปกติ แต่ยังบันทึกอารมณ์ไม่ได้
+    // ยังไม่ได้รัน schema.sql ล่าสุด (ไม่มีตาราง mood_logs) → เปิดแอปได้ตามปกติ แต่ยังบันทึกอารมณ์ไม่ได้
     if (ml.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง mood_logs — รัน supabase/schema.sql ใหม่'); ml.error = null; ml.data = []; }
     if (tr.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง treatment_records — รัน SQL ประวัติการรักษา'); tr.error = null; tr.data = []; }
     if (hl.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง health_logs — รัน supabase/health.sql'); hl.error = null; hl.data = []; }
-    for (const r of [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr, hl]) if (r.error) throw r.error;
+    if (rr.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง reminder_recipients — รัน supabase/share-status.sql'); rr.error = null; rr.data = []; }
+    for (const r of [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr, hl, rr]) if (r.error) throw r.error;
     return { profiles: p.data, medications: m.data, appointments: a.data, hospitals: h.data, doctors: d.data, med_logs: l.data,
       care_plans: cp.data, care_logs: cl.data, circles: c.data, circle_members: cm.data, circle_care_for: ccf.data, circle_invites: ci.data, emergency_contacts: ec.data,
-      mood_logs: ml.data, treatment_records: tr.data, health_logs: hl.data,
+      mood_logs: ml.data, treatment_records: tr.data, health_logs: hl.data, reminder_recipients: rr.data,
       settings: { slot_times: { ...DEFAULT_SLOT_TIMES, ...(s.data?.slot_times || {}) }, today_hidden: s.data?.today_hidden || [],
         profile_order: s.data?.profile_order || [], pdpa_consent_at: s.data?.pdpa_consent_at || null, pdpa_version: s.data?.pdpa_version || null,
         appt_remind_days: Array.isArray(s.data?.appt_remind_days) ? s.data.appt_remind_days : null,
@@ -238,7 +244,7 @@ function demoData() {
       med(2, P[0], 'Metformin 500 mg', 'เบาหวาน', ['after_breakfast', 'after_dinner'], { slot_reminders: { after_breakfast: true, after_dinner: false } }),
       med(3, P[0], 'Glipizide 5 mg', 'เบาหวาน', ['before_breakfast']),
       med(4, P[0], 'Aspirin 81 mg', 'ป้องกันหลอดเลือดอุดตัน', ['after_breakfast'], {
-        status: 'paused', status_reason: 'แพทย์ให้งดก่อนถอนฟัน', status_history: [{ date: todayKey(), status: 'paused', reason: 'แพทย์ให้งดก่อนถอนฟัน' }] }),
+        status: 'paused', status_reason: 'หมอให้งดก่อนถอนฟัน', status_history: [{ date: todayKey(), status: 'paused', reason: 'หมอให้งดก่อนถอนฟัน' }] }),
       med(1, P[1], 'Simvastatin 20 mg', 'ไขมันในเลือดสูง', ['bedtime']),
       med(2, P[1], 'Calcium + Vit D', 'กระดูกพรุน', ['after_lunch'], { stock: 60 }),
       med(1, P[2], 'Losartan 50 mg', 'ความดันโลหิตสูง', ['after_breakfast']),
@@ -256,17 +262,17 @@ function demoData() {
       { id: uuid(), profile_id: P[0], department: 'อายุรกรรม', appt_date: dk(addDays(t, 2)), appt_time: '09:00', doctor_id: D[0], hospital_id: H[0],
         building: 'ตึกผู้ป่วยนอก ชั้น 3', visit_reason: 'รับยาต่อเนื่อง', note: 'เจาะเลือด ต้องงดน้ำงดอาหารหลังเที่ยงคืน', attachments: [] },
       { id: uuid(), profile_id: P[1], department: 'กระดูกและข้อ', appt_date: dk(addDays(t, 5)), appt_time: '13:30', doctor_id: D[1], hospital_id: H[1],
-        building: 'ตึก สก. ชั้น 2', visit_reason: 'ติดตามอาการ', note: 'เอาผลเอกซเรย์ครั้งก่อนไปด้วย', attachments: [] },
+        building: 'ตึก สก. ชั้น 2', visit_reason: 'ติดตามการรักษา', note: 'เอาผลเอกซเรย์ครั้งก่อนไปด้วย', attachments: [] },
       { id: uuid(), profile_id: P[2], department: 'หัวใจ', appt_date: dk(addDays(t, 5)), appt_time: '10:00', doctor_id: D[2], hospital_id: H[0],
         building: '', visit_reason: 'ตรวจสุขภาพประจำปี', note: '', attachments: [] },
       { id: uuid(), profile_id: P[0], department: 'จักษุแพทย์', appt_date: dk(addDays(t, 18)), appt_time: '08:30', doctor_id: null, hospital_id: H[1],
-        building: '', visit_reason: 'ติดตามอาการ', note: 'ห้ามขับรถกลับเอง (หยอดยาขยายม่านตา)', attachments: [] },
+        building: '', visit_reason: 'ติดตามการรักษา', note: 'ห้ามขับรถกลับเอง (หยอดยาขยายม่านตา)', attachments: [] },
     ],
     med_logs: [],
     care_plans: [
       { id: C, profile_id: P[0], title: 'แผลที่ขาซ้าย', started_on: dk(addDays(t, -3)), interval_days: 1, remind: true, status: 'active', created_at: now,
         care_steps: ['ล้างแผลด้วยน้ำเกลือ เปลี่ยนผ้าก๊อซ เช้า-เย็น', 'ทายาฆ่าเชื้อ เช้า-เย็น', 'ระวังอย่าให้แผลโดนน้ำ'],
-        note: 'ถ้าแผลบวมแดง มีหนอง หรือมีไข้ ให้กลับไปพบแพทย์' },
+        note: 'ถ้าแผลบวมแดง มีหนอง หรือมีไข้ ให้กลับไปโรงพยาบาล' },
     ],
     care_logs: [
       { id: uuid(), plan_id: C, log_date: dk(addDays(t, -3)), trend: null, note: 'แผลถลอกยาว ~3 ซม. ขอบแดงเล็กน้อย', photos: [], created_at: now },

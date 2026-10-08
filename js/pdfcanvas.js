@@ -1,6 +1,6 @@
 /* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — วาดหน้า PDF ด้วยโค้ดโดยตรง (Canvas 2D) แทนการให้ html2canvas เลียนแบบหน้าเว็บ
- * ข้อความทุกตัวถูกจัดและวาดด้วยตัวจัดภาษาไทยของเบราว์เซอร์เอง (ฟอนต์ Sarabun ที่ฝังในแอพ) จึงไม่เกิดอาการช่องไฟกระจาย/ตัวเล็กเพี้ยน
+ * ข้อความทุกตัวถูกจัดและวาดด้วยตัวจัดภาษาไทยของเบราว์เซอร์เอง (ฟอนต์ Sarabun ที่ฝังในแอป) จึงไม่เกิดอาการช่องไฟกระจาย/ตัวเล็กเพี้ยน
  * ตอนนี้ใช้กับ "ตารางกินยา 1 วัน" (ตารางรหัสยา + รายการยา) — ข้อมูลและหน้าตาเหมือน mpDoc() ใน pages.js
  */
 'use strict';
@@ -240,7 +240,7 @@ async function renderMedsCanvases(p, meds) {
   return { canvases: pages.map((x) => x.c), pages: pages.length, portraits: pages.map((x) => x.portrait), issues };
 }
 
-// ================= สรุปก่อนพบแพทย์ (A4 แนวตั้ง · วาดตรงด้วย Canvas) =================
+// ================= สรุปก่อนพบหมอ (A4 แนวตั้ง · วาดตรงด้วย Canvas) =================
 const RC = { SC: 3, W: 794, H: 1123, X: 40, TOP: 34, HEAD: 46, FOOT: 44, BOT: 22, GAP: 10 };
 function cvRound(ctx, x, y, w, h, r, fill, stroke, lw = 1.2, dash = false) {
   r = Math.min(r, w / 2, h / 2); ctx.save(); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
@@ -248,16 +248,16 @@ function cvRound(ctx, x, y, w, h, r, fill, stroke, lw = 1.2, dash = false) {
 }
 const cvWrapPre = (ctx, text, w) => String(text ?? '').split(/\n/).flatMap((l) => (l.trim() ? cvWrap(ctx, l, w) : ['']));
 const rcTint = (hex, a) => { const n = parseInt(String(hex).replace('#', '').padEnd(6, '0').slice(0, 6), 16); const m = (v) => Math.round(255 - (255 - v) * a); return `rgb(${m(n >> 16)},${m((n >> 8) & 255)},${m(n & 255)})`; };
-/** ตรวจสรุปก่อนพบแพทย์ที่วาดตรง: ฟอนต์/ข้อความล้นขอบ + ข้อมูลทุกอย่างที่ควรมีอยู่ในภาพ — คืนรายการปัญหา (ว่าง = ผ่าน) */
+/** ตรวจสรุปก่อนพบหมอที่วาดตรง: ฟอนต์/ข้อความล้นขอบ + ข้อมูลทุกอย่างที่ควรมีอยู่ในภาพ — คืนรายการปัญหา (ว่าง = ผ่าน) */
 function cvAuditReport(R, log) {
   const issues = cvAuditBasic(log); const nz = (s) => String(s ?? '').replace(/\s+/g, ''); const all = nz(log.map((l) => l.t).join(''));
   const need = (s, label) => { if (nz(s) && !all.includes(nz(s))) issues.push(`ไม่พบ${label} "${String(s).slice(0, 24)}"`); };
   const { a, p, meds, prev } = R; const d = doctorById(a.doctor_id), h = hospitalById(a.hospital_id);
-  need(p.name, 'ชื่อ'); need(`${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`, 'วันนัด'); need(a.department || '–', 'แผนก'); need(d?.name || '–', 'แพทย์'); need(h?.name || '–', 'โรงพยาบาล'); need(a.visit_reason || '–', 'สาเหตุ');
+  need(p.name, 'ชื่อ'); need(`${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`, 'วันนัด'); need(a.department || '–', 'แผนก'); need(d?.name || '–', 'หมอ'); need(h?.name || '–', 'โรงพยาบาล'); need(a.visit_reason || '–', 'สาเหตุ');
   (p.drug_allergies || []).forEach((x) => need(x, 'แพ้ยา')); if (!(p.drug_allergies || []).length) need('ยังไม่ได้บันทึกว่าแพ้ยา', 'ข้อความแพ้ยา');
   reportBodyItems(p).forEach(([k, v]) => { need(k, 'หัวข้อ'); need(v, k); }); (p.chronic_diseases || []).forEach((x) => need(x, 'โรคประจำตัว'));
-  if (prev) { need('ครั้งที่แล้วแพทย์แนะนำว่า', 'หัวข้อ'); need(String(prev.visit_summary).trim(), 'ข้อความแพทย์แนะนำ'); }
-  meds.forEach((m) => { const code = medNo(m); need(code, 'รหัสยา'); need(m.name, 'ชื่อยา'); need(m.purpose || '', 'ใช้รักษา'); need(m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${unitOf(m)}`, `ทานครั้งละ ${code}`); need(medWhen(m), `เวลา ${code}`);
+  if (prev) { need('ครั้งที่แล้วหมอแนะนำว่า', 'หัวข้อ'); need(String(prev.visit_summary).trim(), 'ข้อความหมอแนะนำ'); need(`หมอ: ${reportPrevDoc(prev)}`, 'ชื่อหมอของนัดครั้งก่อน'); }
+  meds.forEach((m) => { const code = medNo(m); need(code, 'รหัสยา'); need(m.name, 'ชื่อยา'); need(`หมอ: ${reportMedDoc(m)}`, `ชื่อหมอที่จ่ายยา ${code}`); need(m.purpose || '', 'ใช้รักษา'); need(m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${unitOf(m)}`, `ทานครั้งละ ${code}`); need(medWhen(m), `เวลา ${code}`);
     if (tracksStock(m)) need(`${qtyText(stockLeft(m))} ${unitOf(m)}`, `ยาเหลือ ${code}`); if (normTxt(m.note || '')) need(String(m.note).trim().slice(0, 220), `บันทึก ${code}`);
     const ex = reportExtraNote(m, a.department); if (ex) need(ex, `บันทึกเพิ่มเติม ${code}`); else if (m.extra_note && nz(m.extra_note).length > 3 && all.includes(nz(m.extra_note))) issues.push(`แสดงบันทึกเพิ่มเติมของยาที่ไม่เกี่ยวกับแผนก ${code}`); });
   return issues;
@@ -277,7 +277,7 @@ async function renderReportCanvases(R) {
     else blocks.push({ h: 36, gap: GAP, draw: (c, y) => { cvRound(c, X, y, CW, 36, 12, '#F7F8FF', '#D5D9F5', 1.5, true); cvText(c, 'ยังไม่ได้บันทึกว่าแพ้ยา', X + 14, y + 18, F(400, 13), '#454B7A'); } }); }
   // 2) ชื่อ + ตารางข้อมูลนัด
   { const nameH = 34; const colW = [23, 27, 22, 28].map((v) => (v / 100) * CW); const colX = [0, colW[0], colW[0] + colW[1], colW[0] + colW[1] + colW[2]].map((v) => X + v);
-    const rows = [[['วันที่ไป', `${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`], ['แผนก', a.department || '–']], [['แพทย์', d?.name || '–'], ['รพ.', h?.name || '–']], [['สาเหตุ', a.visit_reason || '–', true]]];
+    const rows = [[['วันที่ไป', `${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`], ['แผนก', a.department || '–']], [['หมอ', d?.name || '–'], ['รพ.', h?.name || '–']], [['สาเหตุ', a.visit_reason || '–', true]]];
     const items = reportBodyItems(p); for (let i = 0; i < items.length; i += 2) rows.push(items[i + 1] ? [items[i], items[i + 1]] : [[items[i][0], items[i][1], true]]);
     const dis = p.chronic_diseases || []; if (dis.length) rows.push([['โรคประจำตัว', dis.join(', '), true]]);
     const lay = rows.map((r) => { const cells = r.map((cl, ci) => { const span = !!cl[2]; const wv = span ? colW[1] + colW[2] + colW[3] : colW[ci * 2 + 1]; mctx.font = F(400, 13); return { k: cl[0], v: cl[1], span, wv, ls: cvWrapPre(mctx, cl[1], wv - 16), ci }; }); const hh = Math.max(...cells.map((x) => x.ls.length)) * 17.5 + 8; return { cells, hh }; });
@@ -285,9 +285,9 @@ async function renderReportCanvases(R) {
     blocks.push({ h: hh, gap: GAP, draw: (c, y) => { cvText(c, p.name, X, y + 17, F(700, 24), '#161A4D'); if (age) { c.font = F(700, 24); cvText(c, `อายุ ${age} ปี`, X + c.measureText(p.name).width + 10, y + 19, F(400, 13), '#454B7A'); }
       let yy = y + nameH; lay.forEach((r) => { r.cells.forEach((cell) => { const kx = colX[cell.ci * 2]; const vx = cell.span ? colX[1] : colX[cell.ci * 2 + 1]; const kw = colW[cell.ci * 2];
         cvRect(c, kx, yy, kw, r.hh, '#F4F5FC', '#C3C9EE', 1.2); cvText(c, cell.k, kx + 8, yy + 4 + 8.5, F(600, 13), '#5A6080'); cvRect(c, vx, yy, cell.wv, r.hh, '#fff', '#C3C9EE', 1.2); cell.ls.forEach((l, i) => cvText(c, l, vx + 8, yy + 4 + 8.5 + i * 17.5, F(400, 13), '#161A4D')); }); yy += r.hh; }); } }); }
-  // 3) ครั้งที่แล้วแพทย์แนะนำว่า
-  if (prev) { mctx.font = F(400, 16); const ls = cvWrapPre(mctx, String(prev.visit_summary).trim(), CW - 28); const hh = 9 + 22 + ls.length * 24 + 9;
-    blocks.push({ h: hh, gap: GAP, draw: (c, y) => { cvRound(c, X, y, CW, hh, 12, '#FFF9E5', '#F2D58B', 1.5); cvText(c, 'ครั้งที่แล้วแพทย์แนะนำว่า', X + 14, y + 20, F(700, 16), '#161A4D'); c.font = F(700, 16); cvText(c, `(${thDate(prev.appt_date)})`, X + 14 + c.measureText('ครั้งที่แล้วแพทย์แนะนำว่า').width + 8, y + 21, F(400, 13), '#454B7A'); ls.forEach((l, i) => cvText(c, l, X + 14, y + 9 + 22 + 12 + i * 24, F(400, 16), '#161A4D')); } }); }
+  // 3) ครั้งที่แล้วหมอแนะนำว่า
+  if (prev) { mctx.font = F(400, 16); const ls = cvWrapPre(mctx, String(prev.visit_summary).trim(), CW - 28); const pdoc = `หมอ: ${reportPrevDoc(prev)}`; mctx.font = F(400, 13); const dl = cvWrap(mctx, pdoc, CW - 28); const hh = 9 + 22 + dl.length * 18 + ls.length * 24 + 9;
+    blocks.push({ h: hh, gap: GAP, draw: (c, y) => { cvRound(c, X, y, CW, hh, 12, '#FFF9E5', '#F2D58B', 1.5); cvText(c, 'ครั้งที่แล้วหมอแนะนำว่า', X + 14, y + 20, F(700, 16), '#161A4D'); c.font = F(700, 16); cvText(c, `(${thDate(prev.appt_date)})`, X + 14 + c.measureText('ครั้งที่แล้วหมอแนะนำว่า').width + 8, y + 21, F(400, 13), '#454B7A'); dl.forEach((l, i) => cvText(c, l, X + 14, y + 9 + 22 + 6 + i * 18, F(400, 13), '#454B7A')); const oy = dl.length * 18; ls.forEach((l, i) => cvText(c, l, X + 14, y + 9 + 22 + 12 + oy + i * 24, F(400, 16), '#161A4D')); } }); }
   // 4) ตารางยา
   { const sub = meds.length < allMeds.length && a.department ? ` (แผนก${a.department})` : '';
     blocks.push({ h: 34, gap: GAP, keep: true, draw: (c, y) => { cvRound(c, X, y, CW, 34, 10, pcs, null); cvText(c, 'ยาที่เกี่ยวกับแผนกนี้', X + 12, y + 17, F(700, 19), p.color); if (sub) { c.font = F(700, 19); cvText(c, sub, X + 12 + c.measureText('ยาที่เกี่ยวกับแผนกนี้').width, y + 18, F(400, 14), '#454B7A'); } } });
@@ -297,7 +297,7 @@ async function renderReportCanvases(R) {
       const head = { h: 30, gap: 0, keep: true, isHead: true, draw: (c, y) => { ['รหัส', 'ชื่อยา', 'ทานครั้งละ · เวลา', 'ยาเหลือ', 'บันทึกของยา'].forEach((t, i) => { cvRect(c, cxI[i], y, cwI[i], 30, p.color, p.color, 1.2); cvText(c, t, i === 0 ? cxI[i] + cwI[i] / 2 : cxI[i] + 8, y + 15, F(700, 13.5), '#fff', i === 0 ? 'center' : 'left'); }); } };
       blocks.push(head);
       meds.forEach((m) => { const left = tracksStock(m) ? `${qtyText(stockLeft(m))} ${unitOf(m)}` : '–'; const note = normTxt(m.note || '') ? String(m.note).trim().slice(0, 220) : ''; const extra = reportExtraNote(m, a.department);
-        mctx.font = F(700, 16.5); const nm = cvWrap(mctx, m.name, cwI[1] - 16); mctx.font = F(400, 13); const pu = m.purpose ? cvWrap(mctx, m.purpose, cwI[1] - 16) : [];
+        mctx.font = F(700, 16.5); const nm = cvWrap(mctx, m.name, cwI[1] - 16); mctx.font = F(400, 13); const pu = [...(m.purpose ? cvWrap(mctx, m.purpose, cwI[1] - 16) : []), ...cvWrap(mctx, `หมอ: ${reportMedDoc(m)}`, cwI[1] - 16)]; // บรรทัดสุดท้าย = ชื่อหมอที่จ่ายยา (ไม่มี = -)
         mctx.font = F(400, 14.5); const ds = cvWrap(mctx, m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${unitOf(m)}`, cwI[2] - 16); mctx.font = F(400, 13); const wh = cvWrap(mctx, medWhen(m), cwI[2] - 16);
         mctx.font = F(700, 14.5); const lf = cvWrap(mctx, left, cwI[3] - 16); mctx.font = F(400, 13.5); const nl = note ? cvWrapPre(mctx, note, cwI[4] - 16) : []; mctx.font = F(700, 13.5); const xl = extra ? cvWrapPre(mctx, extra, cwI[4] - 16) : [];
         const hh = Math.max(40, 12 + Math.max(nm.length * 22 + pu.length * 17, ds.length * 20 + wh.length * 17, lf.length * 20, (nl.length + xl.length) * 18.5 + (note && extra ? 2 : 0), 24));
@@ -324,9 +324,9 @@ async function renderReportCanvases(R) {
     put(b, y); y += b.h + b.gap;
   }
   // หัวกระดาษ + ท้ายกระดาษ ทุกหน้า
-  const foot = `${APP_DISCLAIMER} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)`;
+  const foot = `${PDF_APP_NOTE} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)`;
   pages.forEach((pp, i) => { const c = pp.c;
-    cvText(c, 'สรุปก่อนพบแพทย์', X, TOP + 16, F(700, 19), '#161A4D');
+    cvText(c, 'สรุปก่อนพบหมอ', X, TOP + 16, F(700, 19), '#161A4D');
     cvText(c, `${p.name} · นัด ${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.${a.department ? ` · ${a.department}` : ''}`, W - X, TOP + 18, F(400, 14), '#454B7A', 'right'); cvRect(c, X, TOP + HEAD - 6, CW, 3, p.color);
     cvRect(c, X, H - BOT - FOOT + 8, CW, 1.5, '#D5D9F5'); mctx.font = F(400, 10.5); cvWrap(mctx, foot, CW - 90).slice(0, 2).forEach((l, k) => cvText(c, l, X, H - BOT - FOOT + 8 + 12 + k * 14, F(400, 10.5), '#5A6080')); cvText(c, `หน้า ${i + 1}/${pages.length}`, W - X, H - BOT - FOOT + 8 + 12, F(700, 10.5), '#161A4D', 'right'); });
   const issues = [...cvAuditReport(R, CV_LOG), ...CV_ISSUES]; CV_LOG = null;

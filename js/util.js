@@ -1,4 +1,4 @@
-﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — ค่าคงที่และตัวช่วยที่ใช้ร่วมกัน */
 'use strict';
 
@@ -25,15 +25,15 @@ const weekdaysText = (m) => (m.weekdays?.length && m.weekdays.length < 7 ? 'เ�
 const RELATIONS = ['ปู่', 'ย่า', 'ตา', 'ยาย', 'พ่อ', 'แม่', 'ตัวเอง', 'พี่สาว', 'พี่ชาย', 'น้องสาว', 'น้องชาย'];
 const BLOOD_TYPES = ['A', 'B', 'AB', 'O'];
 const DEPARTMENTS = ['ตรวจโรคทั่วไป', 'อายุรกรรม', 'จักษุแพทย์', 'สูตินรีเวช', 'ศัลยกรรม', 'กระดูกและข้อ', 'หัวใจ', 'ผิวหนัง', 'หู คอ จมูก', 'ทันตกรรม'];
-const VISIT_REASONS = ['ติดตามอาการ', 'รับยาต่อเนื่อง', 'ตรวจสุขภาพประจำปี', 'มีอาการผิดปกติ', 'ผ่าตัด/หัตถการ'];
+const VISIT_REASONS = ['ติดตามการรักษา', 'รับยาต่อเนื่อง', 'ตรวจสุขภาพประจำปี', 'มีอาการผิดปกติ', 'ผ่าตัด/หัตถการ'];
 const MED_STATUS = { active: 'กำลังทาน', paused: 'งดชั่วคราว', stopped: 'หยุดแล้ว' };
 const PRESET_COLORS = ['#4D55F5', '#CA7FFE', '#DAFF7C', '#5CC8FF', '#FF7AD9', '#FFB347', '#3DDC97', '#FFE45C']; // สีประจำตัว: สดใส สว่าง เข้าชุดกับสีหลัก (น้ำเงิน ลิลลี เขียวมะนาว + สีคู่)
 const LEGACY_COLORS = { '#3FA796': '#3DDC97', '#EF5B4C': '#FF7AD9', '#7C6CF2': '#CA7FFE', '#F2A93B': '#FFB347', '#3B82F6': '#5CC8FF', '#D9548F': '#FF7AD9', '#5BAA3C': '#DAFF7C', '#8C6E5D': '#FFE45C', '#A855F7': '#CA7FFE', '#5E9E0F': '#DAFF7C', '#1E88E5': '#5CC8FF', '#E0399B': '#FF7AD9', '#E8590C': '#FFB347', '#0F9D8A': '#3DDC97', '#8A6A4F': '#FFE45C', '#20C58D': '#3DDC97', '#FE8046': '#FFB347', '#FFCF34': '#FFE45C', '#E5675F': '#FF7AD9' }; // สีชุดเก่า → ชุดใหม่ (ย้ายให้อัตโนมัติ)
 /** สีตัวหนังสือที่อ่านออกบนพื้นสีนั้น (พื้นสว่างใช้น้ำเงินเข้ม พื้นเข้มใช้ขาว) */
 const inkOn = (hex) => { const n = parseInt(String(hex).slice(1), 16); const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; const L = .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255); return L > .4 ? '#161A4D' : '#fff'; };
-const REMIND_DAYS = [5, 2, 1]; // ค่าเริ่มต้น — ผู้ใช้เลือกเองได้ที่ ตั้งค่า > การแจ้งเตือน > เตือนนัดพบแพทย์ (user_settings.appt_remind_days)
+const REMIND_DAYS = [5, 2, 1]; // ค่าเริ่มต้น — ผู้ใช้เลือกเองได้ที่ ตั้งค่า > การแจ้งเตือน > เตือนนัดพบหมอ (user_settings.appt_remind_days)
 const REMIND_DAY_OPTIONS = [7, 5, 3, 2, 1]; // เตือนล่วงหน้า (วัน)
-const apptRemindTime = () => { const t = (typeof S !== 'undefined' && S?.settings?.appt_remind_time); return /^([01]\d|2[0-3]):[0-5]\d$/.test(t || '') ? t : '08:00'; }; // เวลาเตือนนัดแพทย์ (ผู้ใช้กำหนดเองได้ ค่าเริ่มต้น 08:00)
+const apptRemindTime = () => { const t = (typeof S !== 'undefined' && S?.settings?.appt_remind_time); return /^([01]\d|2[0-3]):[0-5]\d$/.test(t || '') ? t : '08:00'; }; // เวลาเตือนนัดหมอ (ผู้ใช้กำหนดเองได้ ค่าเริ่มต้น 08:00)
 const remindDays = () => { const d = (typeof S !== 'undefined' && S?.settings?.appt_remind_days); return Array.isArray(d) ? d.map(Number).filter((x) => x >= 1) : REMIND_DAYS; };
 const LOW_STOCK_DAYS = 7; const LOW_STOCK_QTY = 5; // ค่าเริ่มต้น: ใกล้หมด = เหลือไม่เกิน 5 เม็ด (ผู้ใช้ตั้งเองได้ที่ ตั้งค่า > การแจ้งเตือน > ยาใกล้หมด = user_settings.low_stock_qty)
 const lowStockQty = () => { const q = (typeof S !== 'undefined' && S?.settings?.low_stock_qty); return Number.isFinite(Number(q)) && q !== null && Number(q) >= 0 ? Math.floor(Number(q)) : LOW_STOCK_QTY; };
@@ -49,22 +49,22 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 3) | 8).toString(16); }));
 const pad = (n) => String(n).padStart(2, '0');
 // หน่วยยา: เลือกจากรายการ หรือพิมพ์เอง · นับจำนวนคงเหลือ/วันยาหมดเฉพาะหน่วยที่นับเป็นชิ้น
-const UNITS = ['เม็ด', 'แคปซูล', 'หยด', 'ครั้ง', 'ช้อนชา', 'มล.', 'ซอง', 'แผ่น'];
-const STOCK_UNITS = ['เม็ด', 'แคปซูล', 'ซอง', 'แผ่น'];
-const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 นัดแพทย์
+const UNITS = ['เม็ด', 'แคปซูล', 'หยด', 'ครั้ง', 'ช้อนชา', 'มล.', 'ซอง', 'แผ่น', 'หลอด'];
+const STOCK_UNITS = ['เม็ด', 'แคปซูล', 'ซอง', 'แผ่น', 'หลอด'];
+const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 นัดหมอ
 const unitOf = (m) => m.unit || 'เม็ด';
 const tracksStock = (m) => STOCK_UNITS.includes(unitOf(m));
 // ยาที่ "ทาน" (กินเข้าปาก): ไม่นับยาหยอดตา/ป้ายตา/ครีม/แผ่นแปะ ฯลฯ — ดูจากหน่วยของยา
 // ชื่อยาแบบสั้นสำหรับตารางกินยา: ตัดความแรง (mg, มก., ml, IU ฯลฯ) ออก ถ้าตัดแล้วว่างให้ใช้ชื่อเดิม
 const STRENGTH_RE = /\s*\(?\s*\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)*\s*(?:mg|mcg|µg|ug|g|ml|iu|units?|มก\.?|มล\.?|มิลลิกรัม|กรัม)(?:\s*\/\s*\d+(?:[.,]\d+)?\s*(?:mg|mcg|ml|g|มก\.?|มล\.?))?\s*\)?/gi;
 const medShort = (m) => { const n = String(m.name || '').replace(STRENGTH_RE, ' ').replace(/\s{2,}/g, ' ').replace(/\s+([+,/])/g, ' $1').trim(); return n || String(m.name || ''); };
-// หมายเหตุที่แสดงในแอพ: ไม่แสดงข้อความ "เก็บในที่ทึบแสง"
+// หมายเหตุที่แสดงในแอป: ไม่แสดงข้อความ "เก็บในที่ทึบแสง"
 const noteShown = (m) => String(m.note || '').split(/\s*(?:·|\n)\s*/).filter((x) => x.trim() && !/ทึบแสง/.test(x)).join(' · ');
 const isOralMed = (m) => { const u = String(m.unit || ''); return !(['หยด', 'ครั้ง', 'แผ่น'].includes(u) || /หยอด|ป้าย|ทา|ครีม|พ่น|สูด|ตา/.test(u)); };
 // รหัสเลขลำดับยาเริ่มต้น = พยัญชนะตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ) เช่น ปู่หวาน → ป, แม่ → ม
 const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
 const defaultPrefix =(name) => String(name || '').trim().replace(/^[เแโใไ]+/, '').charAt(0);
-const PDPA_VERSION = '2026-10c';
+const PDPA_VERSION = '2026-10d';
 const MOODS = [
   { k: 'tired', img: 'assets/moods/tired.png', label: 'ขำไม่ไหว', color: '#D8F368' },
   { k: 'happy', img: 'assets/moods/happy.png', label: 'สดใสใจฟู', color: '#F3D668' },
@@ -132,8 +132,12 @@ const tint = (hex, a) => { const n = parseInt(String(hex).replace('#', '').padEn
 const showAsn = (m) => !!m.as_needed && !/เมื่อมีอาการ/.test([m.table_hint, m.warning, m.note].join(' '));
 /** ข้อความกำกับ "ไม่ใช่คำแนะนำทางการแพทย์" — ใช้ค่าเดียวนี้ทุกหน้าที่ต้องแสดง (intro, หน้าต้อนรับ, ตั้งค่า, PDF) */
 const APP_DISCLAIMER = 'สุขใจช่วยเตือนและจดบันทึก ไม่ใช่คำแนะนำทางการแพทย์';
+/** คำแนะนำให้ตรวจรายการยา (กรอกผิด/ระบบผิดพลาดได้) — ใช้ค่าเดียวนี้ทุกที่: ฟอร์มยา ตารางกินยา PDF หน้าขออนุญาต และหน้า intro */
+/** ฉบับสั้นสำหรับฟอร์มบันทึกยา (กรอกเสร็จแล้ว ตรวจอีกครั้ง) — ส่วนที่อื่นใช้ CHECK_MEDS_NOTE ("เป็นระยะ") */
+const CHECK_MEDS_FORM = 'ควรตรวจสอบรายการยาเทียบกับซองยาหรือใบสั่งยาอีกครั้ง';
+const CHECK_MEDS_NOTE = 'ควรตรวจสอบรายการยาเทียบกับซองยาหรือใบสั่งยาเป็นระยะ';
 
-/** จัดการตัดบรรทัดข้อความไทยทั้งแอพ: ผูกตัวเลขกับคำข้างเคียง (เช่น "ใน 1 วัน" "1 เม็ด" "5 ครั้ง") ด้วยช่องว่างไม่ตัดบรรทัด — กันตัวเลข/หน่วยตกบรรทัดเดี่ยว · ทำกับข้อความที่เพิ่งแสดงขึ้นใน #app และ #modal (ไม่แตะช่องกรอก) */
+/** จัดการตัดบรรทัดข้อความไทยทั้งแอป: ผูกตัวเลขกับคำข้างเคียง (เช่น "ใน 1 วัน" "1 เม็ด" "5 ครั้ง") ด้วยช่องว่างไม่ตัดบรรทัด — กันตัวเลข/หน่วยตกบรรทัดเดี่ยว · ทำกับข้อความที่เพิ่งแสดงขึ้นใน #app และ #modal (ไม่แตะช่องกรอก) */
 function tidyThaiText(root) {
   if (!root || !root.ownerDocument) return;
   const skip = /^(INPUT|TEXTAREA|SCRIPT|STYLE|SELECT|OPTION)$/;

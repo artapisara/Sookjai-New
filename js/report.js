@@ -1,7 +1,7 @@
-﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
-/* สุขใจ — สรุปก่อนพบแพทย์ (PDF A4 แนวตั้ง) · Premium
- * ใส่เฉพาะที่ใช้จริงในห้องตรวจ (แอพเป็นเครื่องช่วยจำ ไม่เก็บ/สรุปข้อมูลสุขภาพเกินจำเป็น):
- *   1) แพ้ยา  2) ใครไปหาแพทย์ + นัดครั้งนี้  3) ผลการพบแพทย์ครั้งก่อน (ที่ผู้ใช้จดไว้ในนัดครั้งก่อน ข้อ 10)  4) ยาที่เกี่ยวกับแผนกนี้ + บันทึก (หมายเหตุ) ของยาแต่ละตัว * สั่งทำ PDF ได้เมื่อใกล้วันนัด (ภายใน REPORT_WINDOW_DAYS วันก่อนนัด) · สร้างจากข้อมูลปัจจุบันทุกครั้ง · ตรวจก่อนบันทึกไฟล์ (สร้างซ้ำ 2 รอบต้องเหมือนกัน + ข้อมูลครบ ไม่ล้นหน้า)
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* สุขใจ — สรุปก่อนพบหมอ (PDF A4 แนวตั้ง) · Premium
+ * ใส่เฉพาะที่ใช้จริงในห้องตรวจ (แอปเป็นเครื่องช่วยจำ ไม่เก็บ/สรุปข้อมูลสุขภาพเกินจำเป็น):
+ *   1) แพ้ยา  2) ใครไปหาหมอ + นัดครั้งนี้  3) ผลการพบหมอครั้งก่อน (ที่ผู้ใช้จดไว้ในนัดครั้งก่อน ข้อ 10)  4) ยาที่เกี่ยวกับแผนกนี้ + บันทึก (หมายเหตุ) ของยาแต่ละตัว * สั่งทำ PDF ได้เมื่อใกล้วันนัด (ภายใน REPORT_WINDOW_DAYS วันก่อนนัด) · สร้างจากข้อมูลปัจจุบันทุกครั้ง · ตรวจก่อนบันทึกไฟล์ (สร้างซ้ำ 2 รอบต้องเหมือนกัน + ข้อมูลครบ ไม่ล้นหน้า)
  */
 'use strict';
 
@@ -14,7 +14,7 @@ function reportButtonHtml(a) {
   const st = reportState(a); if (st.n < 0) return '';
   // กรอบสรุป (สำคัญกว่า) อยู่ก่อน แล้วค่อยปุ่มโหลดไฟล์
   return `<div class="report-box">
-    <details class="rp-prev" data-appt="${a.id}"><summary><span class="mi rp-ic" style="--ic:url(assets/icons/report-notes.png)"></span>สรุปก่อนพบแพทย์</summary><div class="rp-prev-body small muted">กำลังเตรียมสรุป…</div></details>
+    <details class="rp-prev" data-appt="${a.id}"><summary><span class="mi rp-ic" style="--ic:url(assets/icons/report-notes.png)"></span>สรุปก่อนพบหมอ</summary><div class="rp-prev-body small muted">กำลังเตรียมสรุป…</div></details>
     <button type="button" class="btn ghost rp-dl ${st.ok ? '' : 'rp-dl-off'}" data-act="appt-report" data-id="${a.id}">📄 ไฟล์ PDF</button>
     ${st.ok ? '' : `<p class="small muted center" style="margin:4px 0 0;flex-basis:100%">สร้างไฟล์ได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)</p>`}</div>`;
 }
@@ -22,7 +22,7 @@ function reportButtonHtml(a) {
 const reportDeptNorm = (s) => norm(String(s || '').replace(/^แผนก/, ''));
 /** ยานี้เกี่ยวกับแผนกของนัดไหม — เทียบกับ "แผนกที่จ่ายยา" ในฟอร์มยา (ตรงทั้งคำหรือเป็นส่วนหนึ่งของกัน เช่น "อายุรกรรม" กับ "อายุรกรรมโรคหัวใจ") */
 const reportMedMatches = (m, dept) => { const x = reportDeptNorm(m.prescribed_dept), y = reportDeptNorm(dept); return !!x && !!y && (x.includes(y) || y.includes(x)); };
-/** "บันทึกเพิ่มเติม" ของยา (extra_note) แสดงในตารางยาของสรุปก่อนพบแพทย์ เฉพาะยาที่เกี่ยวข้องกับแผนกของนัดนี้ (ยาที่ผู้ใช้เลือกเพิ่มเองแต่ไม่เกี่ยวกับแผนก ไม่แสดงบันทึกนี้) */
+/** "บันทึกเพิ่มเติม" ของยา (extra_note) แสดงในตารางยาของสรุปก่อนพบหมอ เฉพาะยาที่เกี่ยวข้องกับแผนกของนัดนี้ (ยาที่ผู้ใช้เลือกเพิ่มเองแต่ไม่เกี่ยวกับแผนก ไม่แสดงบันทึกนี้) */
 const reportExtraNote = (m, dept) => (dept && reportMedMatches(m, dept) ? String(m.extra_note || '').trim() : '');
 function reportMedNoteHtml(m, dept) {
   const note = normTxt(m.note || '') ? esc(String(m.note).trim().slice(0, 220)) : ''; const extra = reportExtraNote(m, dept);
@@ -33,12 +33,16 @@ function reportDefaultMedIds(a) {
   const meds = medsOf(a.profile_id); const matched = a.department ? meds.filter((m) => reportMedMatches(m, a.department)) : [];
   return (matched.length ? matched : meds).map((m) => m.id);
 }
-/** "ครั้งที่แล้วแพทย์แนะนำว่า": นัดที่ผ่านมาของคนนี้ที่จดข้อ 8 ไว้ — ต้องเป็นแพทย์คนเดิมและแผนกเดิมเท่านั้น (ไม่ตรง = ไม่แสดง) ใช้ครั้งล่าสุด */
+/** "ครั้งที่แล้วหมอแนะนำว่า": นัดที่ผ่านมาของคนนี้ที่จดข้อ 8 ไว้ — ต้องเป็นแผนกเดิม (หมอต่างคนได้ แต่ระบุชื่อหมอของนัดนั้นด้วย) ใช้ครั้งล่าสุด */
 function reportPrevVisit(a) {
-  const dept = reportDeptNorm(a.department); if (!a.doctor_id || !dept) return null;
-  return S.appointments.filter((x) => x.profile_id === a.profile_id && x.id !== a.id && x.appt_date < a.appt_date && x.doctor_id === a.doctor_id && reportDeptNorm(x.department) === dept && normTxt(x.visit_summary || ''))
+  const dept = reportDeptNorm(a.department); if (!dept) return null;
+  return S.appointments.filter((x) => x.profile_id === a.profile_id && x.id !== a.id && x.appt_date < a.appt_date && reportDeptNorm(x.department) === dept && normTxt(x.visit_summary || ''))
     .sort((x, y) => y.appt_date.localeCompare(x.appt_date))[0] || null;
 }
+/** ชื่อหมอของนัดครั้งก่อน (ไม่มี = "-") */
+const reportPrevDoc = (prev) => String(doctorById(prev.doctor_id)?.name || '').trim() || '-';
+/** ชื่อหมอที่จ่ายยา (ไม่มี = "-") */
+const reportMedDoc = (m) => String(m.prescriber || '').trim() || '-';
 
 /** รวมข้อมูลที่จะใส่ในสรุป (ดึงจากข้อมูลปัจจุบันทุกครั้ง) */
 function reportData(a, opt = {}) {
@@ -65,7 +69,7 @@ function reportBodyRows(p, cell) {
   return html;
 }
 
-/** สร้างรายการ "บล็อก" ของเนื้อหา — ใช้ชุดเดียวกันทั้ง "สรุป" ที่เปิดดูในแอพและไฟล์ PDF · หัวข้อ/แถวตารางที่ไม่มีข้อมูลจะไม่แสดง
+/** สร้างรายการ "บล็อก" ของเนื้อหา — ใช้ชุดเดียวกันทั้ง "สรุป" ที่เปิดดูในแอปและไฟล์ PDF · หัวข้อ/แถวตารางที่ไม่มีข้อมูลจะไม่แสดง
  *  title = หัวข้อ (ต้องอยู่หน้าเดียวกับบล็อกถัดไป) · hdrKey/rowKey = หัวตาราง/แถวของตารางเดียวกัน (ขึ้นหน้าใหม่แล้วใส่หัวตารางซ้ำ) · tight = ไม่เว้นช่องว่างใต้บล็อก (แถวต่อกันเป็นตาราง) */
 function reportBlocks(R) {
   const { a, p, meds, allMeds, prev } = R; const B = []; const e = esc;
@@ -75,16 +79,16 @@ function reportBlocks(R) {
   // 1) แพ้ยา — บนสุด
   if (p.drug_allergies?.length) C(`<div class="rp-allergy"><b>⚠️ แพ้ยา</b><span>${p.drug_allergies.map(e).join(' · ')}</span></div>`, 'rp-red');
   else C('<span class="s">ยังไม่ได้บันทึกว่าแพ้ยา</span>', 'rp-note');
-  // 2) ใครไปหาแพทย์ — ตารางข้อมูลนัด (ตัวเล็ก)
-  // (ไม่มีหัวข้อ "ใครไปหาแพทย์" — แสดงชื่อและตารางข้อมูลนัดต่อจากกรอบแพ้ยาเลย)
+  // 2) ใครไปหาหมอ — ตารางข้อมูลนัด (ตัวเล็ก)
+  // (ไม่มีหัวข้อ "ใครไปหาหมอ" — แสดงชื่อและตารางข้อมูลนัดต่อจากกรอบแพ้ยาเลย)
   const cell = (k, v) => `<th>${k}</th><td>${v}</td>`;
   B.push({ html: `<div class="rp-name">${e(p.name)}${age ? ` <span class="s">อายุ ${age} ปี</span>` : ''}</div>
     <table class="rp-t rp-info-t"><colgroup><col style="width:23%"><col style="width:27%"><col style="width:22%"><col style="width:28%"></colgroup>
       <tr>${cell('วันที่ไป', `${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`)}${cell('แผนก', e(a.department || '–'))}</tr>
-      <tr>${cell('แพทย์', e(d?.name || '–'))}${cell('รพ.', e(h?.name || '–'))}</tr>
+      <tr>${cell('หมอ', e(d?.name || '–'))}${cell('รพ.', e(h?.name || '–'))}</tr>
       <tr>${cell('สาเหตุ', `<span class="rp-wide">${e(a.visit_reason || '–')}</span>`).replace('<td>', '<td colspan="3">')}</tr>${reportBodyRows(p, cell)}</table>`, info: true });
-  // 3) ครั้งที่แล้วแพทย์แนะนำว่า — ข้อ 8 ของนัดครั้งก่อน เฉพาะนัดที่เป็นแพทย์คนเดิมและแผนกเดิม (แทนกรอบ "หมายเหตุ" เดิม)
-  if (prev) C(`<b class="rp-nt">🩺 ครั้งที่แล้วแพทย์แนะนำว่า</b> <span class="s">(${thDate(prev.appt_date)})</span><div class="rp-notetext">${e(String(prev.visit_summary).trim())}</div>`, 'rp-notebox');
+  // 3) ครั้งที่แล้วหมอแนะนำว่า — ข้อ 8 ของนัดครั้งก่อน เฉพาะนัดที่เป็นแผนกเดิม (หมอต่างกันได้ ระบุชื่อหมอของนัดนั้น) (แทนกรอบ "หมายเหตุ" เดิม)
+  if (prev) C(`<b class="rp-nt">🩺 ครั้งที่แล้วหมอแนะนำว่า</b> <span class="s">(${thDate(prev.appt_date)})</span><div class="s">หมอ: ${e(reportPrevDoc(prev))}</div><div class="rp-notetext">${e(String(prev.visit_summary).trim())}</div>`, 'rp-notebox');
   // 4) ตารางยาที่เกี่ยวกับแผนกนี้
   T(`💊 ยาที่เกี่ยวกับแผนกนี้${meds.length < allMeds.length && a.department ? ` <span class="rp-sub">(แผนก${e(a.department)})</span>` : ''}`);
   if (!meds.length) C('ยังไม่ได้เลือกยา');
@@ -94,7 +98,7 @@ function reportBlocks(R) {
     meds.forEach((m) => {
       const left = tracksStock(m) ? `${e(qtyText(stockLeft(m)))} ${e(unitOf(m))}` : '–';
       B.push({ html: `<table class="rp-t rp-med">${cols}<tr><td class="rp-no"><b>${m.as_needed ? '*' : ''}${e(medNo(m))}</b></td>
-        <td><b class="rp-mn">${e(m.name)}</b>${m.purpose ? `<div class="s">${e(m.purpose)}</div>` : ''}</td>
+        <td><b class="rp-mn">${e(m.name)}</b>${m.purpose ? `<div class="s">${e(m.purpose)}</div>` : ''}<div class="s">หมอ: ${e(reportMedDoc(m))}</div></td>
         <td data-label="ทานครั้งละ">${m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${e(unitOf(m))}`}<div class="s">${e(medWhen(m))}</div></td>
         <td class="rp-left" data-label="ยาเหลือ">${left}</td>
         <td class="rp-mnote" data-label="บันทึก">${reportMedNoteHtml(m, a.department)}</td></tr></table>`, med: true, rowKey: 'meds', tight: true });
@@ -125,7 +129,7 @@ const RPT_CSS = `.rp-wrap{position:fixed;left:-12000px;top:0;background:#fff;fon
 .rp-lines i{display:block;height:30px;border-bottom:1.2px solid #9BA2CC}.rp-ask .rp-lines{margin-top:2px}
 .rp-foot{position:absolute;left:${RPT.padX}px;right:${RPT.padX}px;bottom:${RPT.padBottom}px;height:${RPT.footH - 8}px;border-top:1.5px solid #D5D9F5;padding-top:4px;font-size:10.5px;line-height:1.35;color:#5A6080;display:flex;justify-content:space-between;gap:12px}
 .rp-foot .pg{flex:none;font-weight:700;color:#161A4D}`;
-/** สรุปที่เปิดดูในแอพบนจอแคบ (มือถือ): ยังเป็นตารางเหมือนไฟล์ PDF แต่ย่อตัวอักษร/ช่องไฟให้พอดีหน้าจอ — ไม่มีผลกับไฟล์ PDF (ใช้เฉพาะภายใน .rp-view) */
+/** สรุปที่เปิดดูในแอปบนจอแคบ (มือถือ): ยังเป็นตารางเหมือนไฟล์ PDF แต่ย่อตัวอักษร/ช่องไฟให้พอดีหน้าจอ — ไม่มีผลกับไฟล์ PDF (ใช้เฉพาะภายใน .rp-view) */
 const RPT_NARROW = `@media (max-width:640px){
 .rp-view .rp-t{font-size:11.5px;line-height:1.3}
 .rp-view .rp-t th,.rp-view .rp-t td{padding:3px 4px}
@@ -163,9 +167,9 @@ function reportPaginate(wrap, blocks) {
 }function reportPagesHtml(R, blocks, wrap) {
   const pages = reportPaginate(wrap, blocks); const { a, p } = R;
   return pages.map((pg, i) => `<section class="rp-page" style="--pc:${p.color};--pcs:${tint(p.color, .16)}" data-i="${i + 1}">
-    <div class="rp-top"><b>สรุปก่อนพบแพทย์</b><span>${esc(p.name)} · นัด ${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.${a.department ? ` · ${esc(a.department)}` : ''}</span></div>
+    <div class="rp-top"><b>สรุปก่อนพบหมอ</b><span>${esc(p.name)} · นัด ${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.${a.department ? ` · ${esc(a.department)}` : ''}</span></div>
     <div class="rp-body">${pg.map((x) => `<div class="rp-b ${x.b.tight ? 'tight' : ''}">${x.b.html}</div>`).join('')}</div>
-    <div class="rp-foot"><span>${APP_DISCLAIMER} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)</span><span class="pg">หน้า ${i + 1}/${pages.length}</span></div></section>`).join('');
+    <div class="rp-foot"><span>${PDF_APP_NOTE} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)</span><span class="pg">หน้า ${i + 1}/${pages.length}</span></div></section>`).join('');
 }
 
 /** ตรวจสรุปที่สร้างแล้ว — คืนรายการปัญหา (ว่าง = ผ่าน) */
@@ -183,7 +187,7 @@ function auditReport(wrap, R) {
     const last = pg.querySelector('.rp-body').lastElementChild; if (last && last.querySelector('.rp-h') && last.children.length === 1) issues.push(`${t}: หัวข้อค้างท้ายหน้า`);
     pg.querySelectorAll('.rp-card, .rp-t').forEach((c) => { if (c.scrollWidth > c.clientWidth + 1) issues.push(`${t}: ข้อความล้นกรอบ "${nz(c.textContent).slice(0, 24)}"`); });
   });
-  const medCards = [...wrap.querySelectorAll('.rp-med')]; if (medCards.length !== meds.length) issues.push(`รายการยา: ในแอพ ${meds.length} แต่ในสรุป ${medCards.length}`);
+  const medCards = [...wrap.querySelectorAll('.rp-med')]; if (medCards.length !== meds.length) issues.push(`รายการยา: ในแอป ${meds.length} แต่ในสรุป ${medCards.length}`);
   meds.forEach((m, i) => { const c = medCards[i]; if (!c) return; const tx = nz(c.textContent);
     if (!tx.includes(nz(m.name)) || !tx.includes(medNo(m))) issues.push(`ยา ${medNo(m)} ${m.name}: ข้อมูลไม่ตรง`);
     if (!tx.includes(nz(medWhen(m)))) issues.push(`ยา ${medNo(m)}: เวลากินไม่ตรง`);
@@ -192,7 +196,7 @@ function auditReport(wrap, R) {
     if (!extra && m.extra_note && nz(m.extra_note).length > 3 && tx.includes(nz(m.extra_note).slice(0, 40))) issues.push(`ยา ${medNo(m)}: แสดงบันทึกเพิ่มเติมของยาที่ไม่เกี่ยวกับแผนก`);
     if (tracksStock(m) && !tx.includes(`${qtyText(stockLeft(m))} ${nz(unitOf(m))}`)) issues.push(`ยา ${medNo(m)}: จำนวนยาที่เหลือไม่ตรง`); });
   const headRows = wrap.querySelectorAll('.rp-head-t').length; const pagesWithMeds = pages.filter((pg) => pg.querySelector('.rp-med')).length; if (meds.length && headRows < pagesWithMeds) issues.push('ตารางยาบางหน้าไม่มีหัวตาราง');
-  if (prev && !text.includes(nz(prev.visit_summary).slice(0, 40))) issues.push('ไม่มีข้อความ "ครั้งที่แล้วแพทย์แนะนำว่า"');
+  if (prev && !text.includes(nz(prev.visit_summary).slice(0, 40))) issues.push('ไม่มีข้อความ "ครั้งที่แล้วหมอแนะนำว่า"');
   if (R.p.drug_allergies?.length && !R.p.drug_allergies.every((x) => text.includes(nz(x)))) issues.push('ข้อมูลแพ้ยาไม่ครบ');
   if (!text.includes(`${thDate(R.a.appt_date)} ${hhmm(R.a.appt_time)}`)) issues.push('ไม่มีวันนัด');
   reportBodyItems(R.p).forEach(([k, v]) => { if (!text.includes(nz(k)) || !text.includes(nz(v))) issues.push(`ไม่มีข้อมูล${k}`); });
@@ -209,7 +213,7 @@ async function buildReportFrame(apptId, opt = {}) {
   const stage = wrap.querySelector('.rp-stage'); stage.innerHTML = reportPagesHtml(R, reportBlocks(R), wrap);
   return { wrap, R };
 }
-/** สร้างไฟล์สรุปก่อนพบแพทย์: วาดตรงด้วย Canvas (ตัวหนังสือไม่เพี้ยน) + ตรวจข้อมูลก่อนบันทึก · ไม่ผ่าน/มีปัญหา = ใช้วิธีเดิมสำรอง (ตรวจ 2 รอบ) */
+/** สร้างไฟล์สรุปก่อนพบหมอ: วาดตรงด้วย Canvas (ตัวหนังสือไม่เพี้ยน) + ตรวจข้อมูลก่อนบันทึก · ไม่ผ่าน/มีปัญหา = ใช้วิธีเดิมสำรอง (ตรวจ 2 รอบ) */
 async function makeReportPdf(apptId, opt = {}) {
   await refreshForPdf();
   const a0 = S.appointments.find((x) => x.id === apptId); if (!a0) throw new Error('NO_APPT');
@@ -223,8 +227,8 @@ async function makeReportPdf(apptId, opt = {}) {
       if (ink / (120 * 170) < 0.004) throw new PdfAuditError([`[วาดตรง] หน้า ${i + 1}: ภาพแทบว่าง`]);
       if (i) pdf.addPage('a4', 'portrait'); pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
     });
-    return { pdf, pages: canvases.length, name: `สรุปก่อนพบแพทย์-${R.p.name}-${a0.appt_date}.pdf` };
-  } catch (e) { console.warn('วาดสรุปก่อนพบแพทย์ตรงไม่สำเร็จ ใช้วิธีสำรอง', e, e.issues); }
+    return { pdf, pages: canvases.length, name: `สรุปก่อนพบหมอ-${R.p.name}-${a0.appt_date}.pdf` };
+  } catch (e) { console.warn('วาดสรุปก่อนพบหมอตรงไม่สำเร็จ ใช้วิธีสำรอง', e, e.issues); }
   return makeReportPdfHtml(apptId, opt);
 }
 async function makeReportPdfHtml(apptId, opt = {}) {
@@ -247,11 +251,11 @@ async function makeReportPdfHtml(apptId, opt = {}) {
       pdf.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
     }
     if (i3.length) throw new PdfAuditError(i3);
-    const a = f1.R.a; return { pdf, pages: pages.length, name: `สรุปก่อนพบแพทย์-${f1.R.p.name}-${a.appt_date}.pdf` };
+    const a = f1.R.a; return { pdf, pages: pages.length, name: `สรุปก่อนพบหมอ-${f1.R.p.name}-${a.appt_date}.pdf` };
   } finally { f1.wrap.remove(); }
 }
 
-/** สรุปที่ซ่อนไว้ในหน้ารายละเอียดนัด: กดเปิดดูได้ทันทีโดยไม่ต้องสร้างไฟล์ (แสดงใน Shadow DOM จึงไม่ปนกับสไตล์ของแอพ) */
+/** สรุปที่ซ่อนไว้ในหน้ารายละเอียดนัด: กดเปิดดูได้ทันทีโดยไม่ต้องสร้างไฟล์ (แสดงใน Shadow DOM จึงไม่ปนกับสไตล์ของแอป) */
 function renderReportPreview(det) {
   const a = S.appointments.find((x) => x.id === det.dataset.appt); const box = det.querySelector('.rp-prev-body'); if (!a || !box) return;
   try {

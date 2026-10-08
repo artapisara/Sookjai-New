@@ -1,4 +1,4 @@
-﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — สติกเกอร์ช่วงเวลากินยา (PDF A4 แนวนอน) 3 ขนาด · ใช้สีกรอบตามสีประจำตัวของโปรไฟล์
    1) ถุงซิปล็อก 4 × 2.7 ซม.  2) ช่องกล่องยา 2.5 × 1.5 ซม.  3) กล่องยาใหญ่ 6 × 4 ซม. */
 'use strict';
@@ -159,7 +159,7 @@ function stkStack(ctx, a, items, padTop = 0) {
   for (const it of items) { y += it.mt || 0; it.draw(cx, y); y += it.h; }
   ctx.restore();
 }
-/** คำว่า ก่อน/หลัง ขีดเส้นใต้ให้เห็นชัด (กันสับสน) — ช่วงก่อนนอนไม่ขีด เหมือนในแอพ */
+/** คำว่า ก่อน/หลัง ขีดเส้นใต้ให้เห็นชัด (กันสับสน) — ช่วงก่อนนอนไม่ขีด เหมือนในแอป */
 const stkKeyword = (lab) => { const m = /^(ก่อน|หลัง)(?!นอน)/.exec(lab); return m ? m[1] : ''; };
 function stkLabel(ctx, lab, cx, cy, font, fsMm, color) {
   const kw = stkKeyword(lab); ctx.font = font; ctx.fillStyle = color; ctx.textBaseline = 'middle';

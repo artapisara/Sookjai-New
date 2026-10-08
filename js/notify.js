@@ -1,9 +1,9 @@
 /* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — การแจ้งเตือน
- * - เมื่อเชื่อม Supabase + ตั้ง VAPID key: สมัคร Web Push แล้วให้ Edge Function "send-reminders" ส่งตามเวลา (เตือนได้แม้ปิดแอพ)
- * - โหมดทดลอง: ตรวจทุก 1 นาทีขณะเปิดแอพ แล้วแสดงแจ้งเตือนผ่าน Service Worker
- * กติกาเดียวกันทั้งสองฝั่ง: นัดแพทย์เตือน 5/2/1 วันก่อนเสมอ · ยาเตือนเฉพาะคน+ช่วงเวลาที่เปิด 🔔
- *                          · ติดตามอาการเตือน 09:00 วันที่ถึงกำหนด (ถ้าเปิด 🔔 ไว้)
+ * - เมื่อเชื่อม Supabase + ตั้ง VAPID key: สมัคร Web Push แล้วให้ Edge Function "send-reminders" ส่งตามเวลา (เตือนได้แม้ปิดแอป)
+ * - โหมดทดลอง: ตรวจทุก 1 นาทีขณะเปิดแอป แล้วแสดงแจ้งเตือนผ่าน Service Worker
+ * กติกาเดียวกันทั้งสองฝั่ง: นัดหมอเตือน 5/2/1 วันก่อนเสมอ · ยาเตือนเฉพาะคน+ช่วงเวลาที่เปิด 🔔
+ *                          · ติดตามการรักษาเตือน 09:00 วันที่ถึงกำหนด (ถ้าเปิด 🔔 ไว้)
  */
 'use strict';
 
@@ -18,7 +18,7 @@ const Notifier = (() => {
 
   async function show(title, body, tag, med) {
     if (!('Notification' in window) || Notification.permission !== 'granted') { toast(`🔔 ${title}`); return; }
-    const actions = med ? [{ action: 'taken', title: '✓ กินแล้ว' }, { action: 'snooze', title: '⏰ เตือนอีก 15 นาที' }] : undefined; // ปุ่มกดจากการแจ้งเตือน (โหมดไม่มีเซิร์ฟเวอร์: SW ส่งคำสั่งให้แอพทำ)
+    const actions = med ? [{ action: 'taken', title: '✓ กินแล้ว' }, { action: 'snooze', title: '⏰ เตือนอีก 15 นาที' }] : undefined; // ปุ่มกดจากการแจ้งเตือน (โหมดไม่มีเซิร์ฟเวอร์: SW ส่งคำสั่งให้แอปทำ)
     try { const reg = await navigator.serviceWorker.ready; await reg.showNotification(title, { body, tag, icon: 'icon.svg', badge: 'icon.svg', actions, data: { url: '/', med } }); }
     catch { try { new Notification(title, { body, tag, icon: 'icon.svg' }); } catch { toast(`🔔 ${title}`); } }
   }
@@ -71,7 +71,7 @@ const Notifier = (() => {
   const SNOOZE_KEY = 'sukjai-snooze';
   const snoozes = () => { try { return JSON.parse(localStorage.getItem(SNOOZE_KEY)) || {}; } catch { return {}; } };
   const saveSnoozes = (o) => { try { localStorage.setItem(SNOOZE_KEY, JSON.stringify(o)); } catch { /* ไม่รองรับ */ } };
-  /** รับคำสั่งจากปุ่มในการแจ้งเตือน (มาจาก Service Worker หรือ ?nact= ตอนเปิดแอพ) */
+  /** รับคำสั่งจากปุ่มในการแจ้งเตือน (มาจาก Service Worker หรือ ?nact= ตอนเปิดแอป) */
   async function applyAction(m) {
     if (!S || !m || m.d !== todayKey() || !m.p || !m.s) return;
     if (m.action === 'taken') {
@@ -79,7 +79,7 @@ const Notifier = (() => {
       for (const x of left) await toggleTake(x.id, m.s);
       if (!left.length) toast('ช่วงนี้บันทึกว่ากินแล้วทั้งหมด');
     } else if (m.action === 'snooze') {
-      const sn = snoozes(); sn[`${m.p}:${m.s}`] = { p: m.p, s: m.s, d: m.d, until: Date.now() + 15 * 60000 }; saveSnoozes(sn); toast('⏰ จะเตือนอีกครั้งใน 15 นาที (เปิดแอพค้างไว้)');
+      const sn = snoozes(); sn[`${m.p}:${m.s}`] = { p: m.p, s: m.s, d: m.d, until: Date.now() + 15 * 60000 }; saveSnoozes(sn); toast('⏰ จะเตือนอีกครั้งใน 15 นาที (เปิดแอปค้างไว้)');
     }
   }
   if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', (e) => {
@@ -87,7 +87,7 @@ const Notifier = (() => {
     if (m.type === 'notif-action') applyAction(m);
     else if (m.type === 'refresh' && typeof refreshLogs === 'function') refreshLogs();
   });
-  function consumeUrlAction() { // เปิดแอพจากปุ่มในการแจ้งเตือนตอนแอพปิดอยู่
+  function consumeUrlAction() { // เปิดแอปจากปุ่มในการแจ้งเตือนตอนแอปปิดอยู่
     try { const q = new URLSearchParams(location.search); const a = q.get('nact'); if (!a) return;
       history.replaceState(history.state, '', location.pathname); applyAction({ action: a, p: q.get('p'), s: q.get('s'), d: q.get('d') }); } catch { /* ไม่มีอะไรต้องทำ */ }
   }
@@ -96,13 +96,13 @@ const Notifier = (() => {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return toast('เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน');
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') return toast('ยังไม่ได้อนุญาตการแจ้งเตือน — เปิดได้ในการตั้งค่าเบราว์เซอร์');
-    if (!pushConfigured()) { toast('เปิดการแจ้งเตือนแล้ว 🔔 (ขณะเปิดแอพ)'); return check(); }
+    if (!pushConfigured()) { toast('เปิดการแจ้งเตือนแล้ว 🔔 (ขณะเปิดแอป)'); return check(); }
     try {
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(CFG.VAPID_PUBLIC_KEY) });
       await DB.savePushSubscription(sub);
-      toast('เปิด Web Push แล้ว 🔔 เตือนได้แม้ปิดแอพ');
+      toast('เปิด Web Push แล้ว 🔔 เตือนได้แม้ปิดแอป');
     } catch (e) { console.error(e); toast('สมัครรับการแจ้งเตือนไม่สำเร็จ: ' + e.message); }
   }
 
