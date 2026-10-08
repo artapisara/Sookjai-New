@@ -2,7 +2,7 @@
 /* สุขใจ v1.2 — หน้าจอตามดีไซน์ใหม่: ภาพรวมวันนี้ · เมนูยา · สรุปการกินยา/อารมณ์ (ดูย้อนหลังได้) · สมาชิก · ตั้งค่า */
 'use strict';
 
-const APP_VERSION = '1.3.17';
+const APP_VERSION = '1.3.18';
 // โลโก้: ขวดยาสี 4 สีหลัก (เขียว มิ้นต์ ส้ม เหลือง) วาดเป็น SVG — ขยับด้วย CSS (ปิดอัตโนมัติถ้าผู้ใช้ตั้งลดการเคลื่อนไหว)
 const LOGO_MARK = '<g class="lg-bottle"><path class="lg-star s1" d="M98 24l2.6 6.4 6.4 2.6-6.4 2.6L98 42l-2.6-6.4L89 33l6.4-2.6z" fill="#fff"/><path class="lg-star s2" d="M20 38l1.9 4.6 4.6 1.9-4.6 1.9L20 51l-1.9-4.6-4.6-1.9 4.6-1.9z" fill="#fff"/><rect x="39" y="12" width="42" height="20" rx="6" fill="#DAFF3A"/><rect x="39" y="20" width="42" height="5" fill="#4D55F5"/><rect x="45" y="31" width="30" height="9" rx="2" fill="#fff"/><rect class="lg-body" x="26" y="38" width="68" height="72" rx="18" fill="#fff"/><path d="M26 76q17-9 34 0t34 0v16q0 18-18 18H44q-18 0-18-18z" fill="#CA7FFE"/><rect x="32" y="46" width="5" height="30" rx="2.5" fill="#DDE0FF"/><g class="lg-cross"><rect x="53" y="46" width="14" height="34" rx="4" fill="#4D55F5"/><rect x="43" y="56" width="34" height="14" rx="4" fill="#4D55F5"/></g></g>';
 const logoSvg = () => `<svg viewBox="0 0 120 120" aria-hidden="true">${LOGO_MARK}</svg>`;
@@ -248,7 +248,7 @@ function viewMoodSummary() {
   const top = [...counts].sort((a, b) => b.n - a.n)[0]; const max = Math.max(1, ...counts.map((c) => c.n));
   const [y, m] = ym.split('-').map(Number); const nDays = new Date(y, m, 0).getDate(); const firstDow = new Date(y, m - 1, 1).getDay();
   return `${head}
-    <div class="card praise"><div class="praise-ic">${moodIcon(top, 'lg')}</div><div class="praise-h">ส่วนใหญ่รู้สึก${top.label}</div>
+    <div class="card praise mood-praise"><div class="praise-ic">${moodIcon(top, 'lg')}</div><div class="praise-h">ส่วนใหญ่รู้สึก${top.label}</div>
       <p class="small">บันทึกแล้ว ${logs.length} วัน ในเดือนนี้ — ขอบคุณที่ดูแลใจตัวเองนะ 💛</p></div>
     ${calCard}
     <div class="card"><b>จำนวนวันของแต่ละอารมณ์</b>
@@ -440,7 +440,7 @@ function viewSettings() {
       ${CFG.SUPPORT_URL ? row('💬', 'ช่องทางการสนับสนุน', support) : ''}
       <details class="set-det"><summary class="set-row"><span class="sr-ic">🎨</span><span class="sr-l">เครดิตไอคอน</span><span class="muted chev">›</span></summary>
         <table class="credits"><thead><tr><th>ไอคอน</th><th>designed by … from <a href="https://www.flaticon.com" target="_blank" rel="noopener">Flaticon</a></th></tr></thead><tbody>${ICON_CREDITS.map(([use, who]) => `<tr><td>${esc(use)}</td><td>${esc(who)}</td></tr>`).join('')}</tbody></table>
-        <p class="credits-note">ไอคอนจาก Flaticon ตามสัญญาอนุญาตแบบ Free (with attribution)</p></details></div>
+        <p class="credits-note">ไอคอนจาก Flaticon ตามสัญญาอนุญาตแบบ Free (with attribution)</p><p class="credits-note">ไอคอนอารมณ์ (ชุด Emoticon reaction collection): <a href="http://www.freepik.com" target="_blank" rel="noopener">Designed by Freepik</a></p></details></div>
     ${supa ? '<button class="btn ghost block" data-act="logout">ออกจากระบบ</button>'
       : '<p class="small muted">ยังไม่ได้เชื่อม Supabase — ข้อมูลอยู่ในเครื่องนี้เท่านั้น</p><div class="row"><button class="btn ghost" data-act="demo">ข้อมูลตัวอย่าง</button><button class="btn danger" data-act="wipe">ล้างข้อมูล</button></div>'}
     <p class="small muted center set-copy"><span class="sc-line">${APP_DISCLAIMER}</span><br>© 2026 สุขใจ (Sookjai)<br>สงวนลิขสิทธิ์ ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต</p>`;
@@ -491,7 +491,7 @@ function showSplash() {
       <span class="app-ic ic-xl sp-logo">${logoSvg()}</span>
       <h1 class="sp-name">สุขใจ</h1>
       <p class="sp-stars" aria-hidden="true">✱ ✱ ✱</p>
-      <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดแพทย์</span><span><b>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน</b></span></p>
+      <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดแพทย์</span><span><b>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน <span class="kt">ในแอปเดียว</span></b></span></p>
       <p class="sp-ask">บันทึกยาเสร็จ สุขใจจัดตารางให้เลย!</p></div>
     <p class="sp-foot"><span class="sf-a">${APP_DISCLAIMER}</span><span class="sf-b">© 2026 สุขใจ (Sookjai) สงวนลิขสิทธิ์</span></p>`;
   document.body.appendChild(el);

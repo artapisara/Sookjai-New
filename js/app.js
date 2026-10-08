@@ -331,7 +331,7 @@ function viewLogin(mode = 'in', msg = '') {
           <span class="app-ic ic-xl sp-logo">${logoSvg()}</span>
           <h1 class="sp-name">สุขใจ</h1>
           <p class="sp-stars" aria-hidden="true">✱ ✱ ✱</p>
-          <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดแพทย์</span><span><b>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน</b></span></p>
+          <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดแพทย์</span><span><b>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน <span class="kt">ในแอปเดียว</span></b></span></p>
           <p class="sp-ask">บันทึกยาเสร็จ สุขใจจัดตารางให้เลย!</p>
         </div>
         <div class="wel-actions">

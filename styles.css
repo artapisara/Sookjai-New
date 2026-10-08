@@ -1915,3 +1915,26 @@ select { padding-top: 12px; padding-bottom: 12px; }
 .mood-img.lg { width: 72px; height: 72px; }
 .mood-cal .ad-d small { min-height: 32px; }
 .mood-cal .ad-d { min-height: 78px; }
+
+/* v1.3.17 — ชื่อตารางกินยาในหน้าแอพ: ไม่ให้คำว่า "วัน" ตกบรรทัดเดียวโดดๆ (ขึ้นบรรทัดใหม่ทั้งก้อน "ใน 1 วัน") */
+.dt-head > div:not(.av) b { text-wrap: balance; }
+
+/* v1.3.17 — การตัดบรรทัดข้อความไทยทั้งแอพ: หัวข้อ/ปุ่ม/ป้าย จัดให้สมดุล · ข้อความยาวไม่ปล่อยคำเดี่ยวท้ายย่อหน้า (ใช้ร่วมกับ tidyThaiText ใน util.js ที่ผูกตัวเลขกับหน่วย) */
+h1, h2, h3, h4, .btn, button, .tag, .chip, .pill-btn, .alert b, .card > b, .praise-h, .ad-title, .set-h, .mr-nm .name, label > span { text-wrap: balance; }
+p, li, .small, .muted, small { text-wrap: pretty; }
+
+/* v1.3.17 — วลีที่ต้องเป็นก้อนเดียวกัน (KEEP_TOGETHER ใน util.js): ย้ายขึ้นบรรทัดใหม่ทั้งก้อน ไม่แตกกลางวลี */
+.kt { display: inline-block; }
+
+/* v1.3.18 — ชื่ออารมณ์ในการ์ดใช้ตัวบางลง (600 จาก 700) */
+.mood-opt b { font-weight: var(--fw-semi, 600); }
+
+/* v1.3.18 — การ์ดสรุปอารมณ์ 1 เดือน: "ส่วนใหญ่รู้สึก…" ห่างจากไอคอน ขนาดเท่าชื่อเดือน (22px) แต่บางกว่า (600) */
+.mood-praise .praise-h { margin-top: var(--sp-4, 16px); font-size: var(--fs-h2, 22px); font-weight: var(--fw-semi, 600); line-height: var(--lh-title, 1.3); }
+
+/* v1.3.18 — "ส่วนใหญ่รู้สึก…" ชิดกับข้อความ "บันทึกแล้ว … วัน" ด้านล่าง */
+.mood-praise .praise-h { margin-bottom: 0; }
+.mood-praise p.small { margin-top: var(--sp-1, 4px); }
+
+/* v1.3.18 — หน้า intro: ขยับเนื้อหาลงมา ลดพื้นที่ว่างระหว่างปุ่มกับข้อความท้ายหน้า (เว้นด้านบนมากขึ้นตามความสูงจอ จอเตี้ยเว้นน้อยลงอัตโนมัติ) */
+#splash { padding-top: clamp(24px, 17vh, 130px); }

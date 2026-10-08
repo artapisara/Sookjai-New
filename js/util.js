@@ -66,12 +66,12 @@ const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null
 const defaultPrefix =(name) => String(name || '').trim().replace(/^[เแโใไ]+/, '').charAt(0);
 const PDPA_VERSION = '2026-10c';
 const MOODS = [
-  { k: 'happy', img: 'assets/moods/happy.png', label: 'ดีใจ', color: '#F3D668' },
-  { k: 'calm', img: 'assets/moods/calm.png', label: 'ชิลๆ', color: '#F3A34C' },
-  { k: 'meh', img: 'assets/moods/meh.png', label: 'เรื่อยๆ', color: '#B4CA7D' },
-  { k: 'tired', img: 'assets/moods/tired.png', label: 'หงุดหงิด', color: '#D8F368' },
-  { k: 'sad', img: 'assets/moods/sad.png', label: 'กังวล', color: '#7A7FF0' },
-  { k: 'worried', img: 'assets/moods/worried.png', label: 'โกรธ', color: '#F06A7D' },
+  { k: 'tired', img: 'assets/moods/tired.png', label: 'ขำไม่ไหว', color: '#D8F368' },
+  { k: 'happy', img: 'assets/moods/happy.png', label: 'สดใสใจฟู', color: '#F3D668' },
+  { k: 'calm', img: 'assets/moods/calm.png', label: 'ยิ้มเบาๆ', color: '#F3A34C' },
+  { k: 'meh', img: 'assets/moods/meh.png', label: 'เรื่อยๆ ชิลๆ', color: '#B4CA7D' },
+  { k: 'sad', img: 'assets/moods/sad.png', label: 'เศร้านะ', color: '#7A7FF0' },
+  { k: 'worried', img: 'assets/moods/worried.png', label: 'หัวร้อนแล้วนะ', color: '#F06A7D' },
 ]; // คีย์ k เดิม (ฐานข้อมูลเก็บเป็นคีย์ มี check constraint) — เปลี่ยนเฉพาะชื่อที่แสดงและรูป
 /** ไอคอนอารมณ์ (รูปการ์ตูนใน assets/moods) — cls: ขนาดเสริม xs/sm/lg */
 const moodIcon = (mo, cls = '') => `<img class="mood-img ${cls}" src="${mo.img}" alt="" width="48" height="48" loading="lazy">`;const moodOf = (k) => MOODS.find((x) => x.k === k);
@@ -132,3 +132,23 @@ const tint = (hex, a) => { const n = parseInt(String(hex).replace('#', '').padEn
 const showAsn = (m) => !!m.as_needed && !/เมื่อมีอาการ/.test([m.table_hint, m.warning, m.note].join(' '));
 /** ข้อความกำกับ "ไม่ใช่คำแนะนำทางการแพทย์" — ใช้ค่าเดียวนี้ทุกหน้าที่ต้องแสดง (intro, หน้าต้อนรับ, ตั้งค่า, PDF) */
 const APP_DISCLAIMER = 'สุขใจช่วยเตือนและจดบันทึก ไม่ใช่คำแนะนำทางการแพทย์';
+
+/** จัดการตัดบรรทัดข้อความไทยทั้งแอพ: ผูกตัวเลขกับคำข้างเคียง (เช่น "ใน 1 วัน" "1 เม็ด" "5 ครั้ง") ด้วยช่องว่างไม่ตัดบรรทัด — กันตัวเลข/หน่วยตกบรรทัดเดี่ยว · ทำกับข้อความที่เพิ่งแสดงขึ้นใน #app และ #modal (ไม่แตะช่องกรอก) */
+function tidyThaiText(root) {
+  if (!root || !root.ownerDocument) return;
+  const skip = /^(INPUT|TEXTAREA|SCRIPT|STYLE|SELECT|OPTION)$/;
+  const w = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (skip.test(n.parentNode?.nodeName || '') || n.parentNode?.classList?.contains('kt') || !/[ก-๙]/.test(n.data) || !/\d/.test(n.data) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  const list = []; while (w.nextNode()) list.push(w.currentNode);
+  list.forEach((n) => {
+    const t = n.data.replace(/([ก-๙]) (?=\d)/g, '$1\u00A0').replace(/(\d) (?=[ก-๙])/g, '$1\u00A0'); if (t !== n.data) n.data = t;
+    for (const re of KEEP_TOGETHER_RE) { const m = re.exec(n.data); if (!m) continue; // วลีที่ต้องเป็นก้อนเดียวกัน ห้ามแตกคนละบรรทัด
+      const doc = n.ownerDocument; const after = n.splitText(m.index); after.data = after.data.slice(m[0].length); const kt = doc.createElement('span'); kt.className = 'kt'; kt.textContent = m[0]; n.parentNode.insertBefore(kt, after); break; }
+  });
+}
+/** วลีที่ต้องเป็นก้อนเดียวกันเสมอ (ผู้ใช้สั่งไว้) — ใช้กับทุกสมาชิก/ทุกหน้าที่แสดงวลีนี้ · เพิ่มวลีใหม่ที่นี่ที่เดียว */
+const KEEP_TOGETHER = ['ตารางการกินยาใน 1 วัน'];
+const KEEP_TOGETHER_RE = KEEP_TOGETHER.map((s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '[\\s\\u00A0]')));
+document.addEventListener('DOMContentLoaded', () => {
+  const obs = new MutationObserver((muts) => { muts.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) tidyThaiText(n); else if (n.nodeType === 3 && n.parentNode) tidyThaiText(n.parentNode); })); });
+  ['app', 'modal'].forEach((id) => { const el = document.getElementById(id); if (el) { tidyThaiText(el); obs.observe(el, { childList: true, subtree: true }); } });
+});
