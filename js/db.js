@@ -9,6 +9,8 @@
 const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors', 'med_logs', 'care_plans', 'care_logs', 'circles', 'circle_members', 'circle_care_for', 'circle_invites', 'emergency_contacts', 'mood_logs', 'treatment_records', 'health_logs', 'reminder_recipients'];
 const HISTORY_MONTHS = 24; // ดูสรุปย้อนหลังได้กี่เดือน (ข้อมูลเก็บในฐานข้อมูลไม่หาย — โหลดมาทีละเดือนตอนเปิดดู)
 const BUCKET = 'attachments';
+/** ข้อมูลที่บันทึกไว้ด้วยคำเดิม → แสดงเป็นคำใหม่ทุกหน้า (ในหน่วยความจำเท่านั้น · ค่าในฐานข้อมูลเปลี่ยนเมื่อมีการบันทึกนัดนั้นใหม่) */
+const legacyFix = (d) => { (d?.appointments || []).forEach((a) => { if (a.visit_reason === 'ติดตามอาการ') a.visit_reason = 'ติดตามการรักษา'; }); return d; };
 
 // ---------------- Supabase ----------------
 class SupaDB {
@@ -68,11 +70,11 @@ class SupaDB {
   guard() { if (this.offline) throw new Error('ออฟไลน์ — ดูข้อมูลได้อย่างเดียว'); }
   async loadAll() {
     try {
-      const d = await this.loadAllOnline(); d.ent = await this.loadEntitlement(); this.offline = false; this.snapshotAt = null; this.saveSnapshot(d); return d;
+      const d = await this.loadAllOnline(); d.ent = await this.loadEntitlement(); this.offline = false; this.snapshotAt = null; legacyFix(d); this.saveSnapshot(d); return d;
     } catch (e) {
       const snap = this.readSnapshot();
       const net = navigator.onLine === false || /fetch|network|load failed/i.test(String(e?.message || e));
-      if (snap && net && (!this.user || snap.user.id === this.user.id)) { this.offline = true; this.snapshotAt = snap.at; return snap.data; }
+      if (snap && net && (!this.user || snap.user.id === this.user.id)) { this.offline = true; this.snapshotAt = snap.at; return legacyFix(snap.data); }
       throw e;
     }
   }
@@ -181,7 +183,7 @@ class LocalDB {
   async getUser() { return this.user; }
   onAuth() {}
   async signOut() {}
-  async loadAll() { return JSON.parse(JSON.stringify(this.data)); }
+  async loadAll() { return legacyFix(JSON.parse(JSON.stringify(this.data))); }
   async loadMonthLogs() { return { med_logs: [], mood_logs: [] }; } // โหมดทดลองโหลดครบตั้งแต่แรกแล้ว
   async insert(t, row) { this.data[t].push(JSON.parse(JSON.stringify(row))); this.persist(); }
   async update(t, id, patch) { const r = this.data[t].find((x) => x.id === id); if (r) Object.assign(r, JSON.parse(JSON.stringify(patch))); this.persist(); }
