@@ -1,4 +1,4 @@
-/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — สถานะแอพ หน้าจอหลัก และการเริ่มทำงาน */
 'use strict';
 
@@ -52,7 +52,8 @@ const shareTag = (pid) => {
 // เลขลำดับยา: เรียงต่อเนื่องรายคน + รหัสของคนนั้น เช่น ป1 ป2 ป3
 const medPrefix = (pid) => { const p = profileById(pid); return p.med_prefix != null ? p.med_prefix : defaultPrefix(p.name); };
 const medNo = (m) => `${medPrefix(m.profile_id)}${m.sort_order}`;
-const nextNoFor = (pid) => Math.max(0, ...S.medications.filter((m) => m.profile_id === pid).map((m) => num(m.sort_order))) + 1;
+/** รหัสยาถัดไปของคนนี้ = เลขว่างต่ำสุดที่ยังไม่มียา "กำลังทาน" ใช้ — ยางดชั่วคราว/หยุดแล้วปล่อยเลขคืน คนอื่นเอาไปใช้ซ้ำได้ */
+const nextNoFor = (pid, exceptId = null) => { const used = new Set(S.medications.filter((m) => m.profile_id === pid && m.status === 'active' && m.id !== exceptId).map((m) => num(m.sort_order))); let n = 1; while (used.has(n)) n++; return n; };
 const medsOf = (pid, status = 'active') => S.medications.filter((m) => m.profile_id === pid && (status === 'any' || m.status === status)).sort((a, b) => a.sort_order - b.sort_order);
 const dailyUse = (m) => (m.slots?.length || 0) * num(m.dose, 1) * ((m.weekdays?.length || 7) / 7);
 const daysLeft = (m) => (tracksStock(m) && dailyUse(m) && !m.as_needed ? Math.floor(stockLeft(m) / dailyUse(m)) : Infinity);
@@ -152,7 +153,7 @@ function apptAlerts(ids) {
       const p = profileById(a.profile_id); const h = hospitalById(a.hospital_id); const d = doctorById(a.doctor_id);
       return `<button class="alert ${n <= 1 ? 'red' : 'sun'}" data-act="appt-detail" data-id="${a.id}">
         ${avatarHtml(p, 'sm')}<div>
-        <b>${esc(p.name)} นัดหมอ${whenText(n)}</b>
+        <b>${esc(p.name)} นัดแพทย์${whenText(n)}</b>
         <span class="small">${thDate(a.appt_date)} · ${hhmm(a.appt_time)} น. · ${esc(departmentOf(a))}${d ? ' · ' + esc(d.name) : ''}${h ? ' · ' + esc(h.name) : ''}</span>
         ${a.note ? `<span class="small note">📝 ${esc(a.note)}</span>` : ''}
       </div></button>`;
@@ -198,7 +199,7 @@ function dayTable(p, nextKey) {
         <div class="dtop"><span class="wi">${m.warning ? '⚠️' : ''}</span>${tick}</div>
         <div class="dmain" data-act="edit-med" data-id="${m.id}" role="button" tabindex="0" aria-label="ดูรายละเอียดยารหัส ${esc(medNo(m))} ${esc(m.name)}">
           <b class="onum">${m.as_needed ? '*' : ''}<small class="pfx">${esc(pre)}</small>${m.sort_order}</b>
-          <span class="mname">${esc(medShort(m))}</span>${m.as_needed ? '<small class="asn">เมื่อมีอาการ</small>' : ''}
+          <span class="mname">${esc(medShort(m))}</span>${showAsn(m) ? '<small class="asn">เมื่อมีอาการ</small>' : ''}
         </div>
         ${num(m.dose, 1) !== 1 ? `<span class="dpill">${doseLabel(m.dose)} ${esc(unitOf(m))}</span>` : ''}
         ${m.table_hint ? `<small class="hint">${esc(m.table_hint)}</small>` : ''}
@@ -213,7 +214,7 @@ function dayTable(p, nextKey) {
     <div class="dt-note">ทานยาครั้งละ 1 เม็ด${odd.length ? ` <b>ยกเว้นรหัส ${odd.map(esc).join(', ')}</b> <span>(ดูจำนวนในช่อง)</span>` : ' ทุกรายการ'}</div>
     <table>${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${meds.some((m) => m.as_needed) ? '<p class="small muted dt-star">* กินเฉพาะตอนมีอาการเท่านั้น (ช่องสีชมพู)</p>' : ''}
-    ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b>${warns.map((m) => `<div>${esc(medNo(m))}. ${esc(m.name)} → ${esc(m.warning)}</div>`).join('')}</div>` : ''}
+    ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b><table class="dt-wt"><colgroup><col style="width:17%"><col style="width:29%"><col></colgroup><thead><tr><th>รหัสยา</th><th>ชื่อยา</th><th>ข้อควรระวัง</th></tr></thead><tbody>${warns.map((m) => `<tr><td class="c">${esc(medNo(m))}</td><td>${esc(m.name)}</td><td>${esc(m.warning)}</td></tr>`).join('')}</tbody></table></div>` : ''}
 
   </section>`;
 }
@@ -224,10 +225,10 @@ function medCard(m) {
   const wd = weekdaysText(m); const open = !!ui.medOpen?.[m.id];
   const slotsTxt = m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${wd ? `<b>วัน</b>${esc(wd)} · ` : ''}${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && reminderOn(p) ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน</span>';
   const kv = (k, v) => `<div class="mr-kv"><span>${k}</span><b>${v}</b></div>`;
-  const stock = tracksStock(m) ? kv('จำนวนที่เหลือ', `<span class="${isLowStock(m) ? 'red-t' : ''}">${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? `<br><small>หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)</small>` : ''}</span>`) : '';
+  const stock = tracksStock(m) ? kv('จำนวนที่เหลือ', `<span class="${isLowStock(m) ? 'red-t' : ''}">${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? `<br><small>หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)</small>` : ''}</span>`) : (m.bottles != null ? kv('จำนวนขวดที่มี', `${qtyText(num(m.bottles))} ขวด` +'<br><small>ต้องนับจำนวนที่เหลือเอง</small>') : '');
   return `<div class="mrow ${open ? 'open' : ''}" data-id="${m.id}">
     <button type="button" class="mr-main" data-act="med-toggle" data-id="${m.id}" aria-expanded="${open}">
-      <span class="mr-no">${m.status === 'paused' ? '' : `<span class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="รหัสยา ${esc(medNo(m))}">${esc(medNo(m))}</span>`}</span>
+      <span class="mr-no">${m.status !== 'active' ? '' : `<span class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="รหัสยา ${esc(medNo(m))}">${esc(medNo(m))}</span>`}</span>
       <span class="mr-nm"><b class="name">${esc(m.name)}</b>${m.as_needed ? ' <span class="tag pn-tag">ทานเฉพาะเมื่อมีอาการ</span>' : ''}<span class="tags">${slotsTxt}<span class="tag dose-tag">ครั้งละ <b>${doseLabel(m.dose)} ${esc(unitOf(m))}</b></span></span>${m.purpose ? `<small class="muted">รักษา: ${esc(m.purpose)}</small>` : ''}${m.status !== 'active' ? `<small><span class="tag ${m.status === 'stopped' ? 'allergy' : 'sun'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</small>` : ''}</span>
       <span class="mr-chev">${open ? '▴' : '▾'}</span>
     </button>
@@ -235,7 +236,7 @@ function medCard(m) {
       ${stock}
       ${m.prescriber ? kv('แพทย์ที่จ่ายยา', esc(m.prescriber)) : ''}${m.prescribed_dept ? kv('แผนกที่จ่ายยา', esc(m.prescribed_dept)) : ''}
       ${m.warning ? kv('หมายเหตุ / ข้อควรระวัง', `<span class="red-t">${esc(m.warning)}</span>`) : ''}${noteShown(m) ? kv('หมายเหตุ', esc(noteShown(m))) : ''}${m.extra_note ? kv('บันทึกเพิ่มเติม', `<span style="white-space:pre-line">${esc(m.extra_note)}</span>`) : ''}
-      <div class="mr-foot"><span class="med-upd">อัปเดต ${thDateTime(m.updated_at)}</span><button type="button" class="btn sm" data-act="edit-med" data-id="${m.id}">✏️ แก้ไขยา</button></div>
+      <div class="mr-foot"><span class="med-upd">อัปเดต ${thDateTime(m.updated_at)}</span><span class="mr-btns">${canEditProfile(m.profile_id) ? `<button type="button" class="btn sm ghost" data-act="add-stock" data-id="${m.id}">➕ ได้ยามาเพิ่ม</button>` : ''}<button type="button" class="btn sm" data-act="edit-med" data-id="${m.id}">✏️ แก้ไขยา</button></span></div>
     </div>
   </div>`;
 }
@@ -302,7 +303,7 @@ function viewCalendar() {
     ${sel.map(apptBrief).join('') || `<div class="card empty small">ไม่มีนัดวันนี้</div>`}
     <h2>นัดที่กำลังจะถึง <span class="small muted">${upcoming.length} นัด</span></h2>
     ${upcoming.slice(0, 20).map(apptBrief).join('') || `<div class="card empty small">ยังไม่มีนัดล่วงหน้า</div>`}
-    <button class="fab" data-act="add-appt" data-id="${ui.calSel}" aria-label="เพิ่มนัดหมอ">+</button>
+    <button class="fab" data-act="add-appt" data-id="${ui.calSel}" aria-label="เพิ่มนัดแพทย์">+</button>
   `;
 }
 
@@ -313,7 +314,7 @@ function apptBrief(a) {
     <div class="info">
       <div class="line"><b>${esc(p.name)}</b>${n >= 0 && n <= 5 ? `<span class="countdown ${n <= 1 ? 'hot' : ''}">${whenText(n)}</span>` : ''}</div>
       <div class="small">🕘 ${hhmm(a.appt_time)} น. · ${esc(departmentOf(a))}${a.attachments?.length ? ` · 📎 ${a.attachments.length}` : ''}</div>
-      <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุหมอ'}</div>
+      <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุแพทย์'}</div>
     </div><span class="muted">›</span></button>`;
 }
 
@@ -330,13 +331,13 @@ function viewLogin(mode = 'in', msg = '') {
           <span class="app-ic ic-xl sp-logo">${logoSvg()}</span>
           <h1 class="sp-name">สุขใจ</h1>
           <p class="sp-stars" aria-hidden="true">✱ ✱ ✱</p>
-          <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดหมอ</span><span>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน<b>ในแอพเดียว</b></span></p>
-          <p class="sp-ask">วันนี้ทานยาแล้วหรือยัง?</p>
+          <p class="sp-slogan"><span>จัดตารางยา จัดใบนัดแพทย์</span><span><b>แชร์ข้อมูลดูแลครอบครัวพร้อมกัน</b></span></p>
+          <p class="sp-ask">บันทึกยาเสร็จ สุขใจจัดตารางให้เลย!</p>
         </div>
         <div class="wel-actions">
           <button class="btn block wel-go" type="button" data-login-mode="in">เริ่มใช้งาน</button>
           <button class="btn ghost block wel-have" type="button" data-login-mode="in">มีบัญชีแล้ว เข้าสู่ระบบ</button>
-          <p class="wel-note">แอพช่วยจัดการตารางยาใน 1 วัน ไม่สามารถทดแทนคำแนะนำของแพทย์/เภสัชกรได้</p>
+          <p class="wel-note">${APP_DISCLAIMER}</p>
         </div>
       </div>`;    $$('[data-login-mode]').forEach((b) => (b.onclick = () => viewLogin(b.dataset.loginMode)));
     return;
@@ -466,7 +467,7 @@ function animateLogos() {
 
 /** รูปใบนัดเก็บ 1 ปี (APPOINTMENT_IMAGE_RETENTION_DAYS) นับจาก "วันนัด" แล้วลบอัตโนมัติ — ใช้กับทุกแพ็กเกจ (รูปอื่นๆ เช่นรูปติดตามอาการ เก็บไว้จนกว่าผู้ใช้จะลบเอง)
  *  ตัวหลักคือ Edge Function purge-appointment-images + pg_cron (ลบทุกรูป ทุกบัญชี) — ฟังก์ชันนี้เป็นตัวสำรองตอนเปิดแอพ (ลบเฉพาะไฟล์ในโฟลเดอร์ของเรา ของนัดที่เราเป็นเจ้าของ)
- *  ลบเฉพาะ "ไฟล์รูป" และลิงก์รูป — ตัวนัด (ข้อความ วันที่ แผนก หมอ บันทึกหลังพบหมอ) ไม่ถูกลบ · ลบไฟล์ก่อนแล้วค่อยล้างลิงก์ (ไม่ปล่อยไฟล์ค้าง · รันซ้ำได้) */
+ *  ลบเฉพาะ "ไฟล์รูป" และลิงก์รูป — ตัวนัด (ข้อความ วันที่ แผนก แพทย์ บันทึกหลังพบแพทย์) ไม่ถูกลบ · ลบไฟล์ก่อนแล้วค่อยล้างลิงก์ (ไม่ปล่อยไฟล์ค้าง · รันซ้ำได้) */
 async function purgeOldSlips() {
   const cutoff = dk(addDays(new Date(), -LIMITS.APPOINTMENT_IMAGE_RETENTION_DAYS)); let changed = 0;
   for (const a of S.appointments) {
@@ -508,7 +509,16 @@ async function refreshInvites() { // กลับมาเปิดแอพ/ส
     if (JSON.stringify(rows.map((i) => i.id).sort()) !== old) { updateInviteDot(); const m = document.getElementById('modal'); if (ui.tab === 'family' && (!m || m.classList.contains('hidden'))) render(); }
   } catch (e) { console.warn('refreshInvites', e); }
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refreshInvites(); } });
+/** กันกรณีเปิดแอพแล้วข้อมูลว่างทั้งที่มีข้อมูลในบัญชี (เช่น iPad เปิดค้างนานแล้วโหลดตอนสิทธิ์เข้าสู่ระบบยังไม่ต่ออายุ ได้รายการว่าง ไม่มี error) — ถ้าโหลดแล้วไม่มีโปรไฟล์เลย ลองโหลดใหม่ให้เองสูงสุด 3 ครั้ง และลองอีกเมื่อกลับมาเปิดหน้าจอ */
+let emptyTries = 0;
+function retryIfEmpty() {
+  if (!S || !DB || DB.mode !== 'supabase' || DB.offline || S.profiles.length || emptyTries >= 3) return;
+  emptyTries++;
+  setTimeout(async () => {
+    try { const n = await DB.loadAll(); if (n.profiles.length) { S = n; resetMonths(); sortProfiles(); const m = document.getElementById('modal'); if (!m || m.classList.contains('hidden')) render(); } else retryIfEmpty(); } catch (e) { console.warn('retryIfEmpty', e); }
+  }, 1500 * emptyTries);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refreshInvites(); emptyTries = 0; retryIfEmpty(); } });
 
 // ---------- โหลดบันทึกกินยาของเดือนนี้ใหม่ (ใช้หลังกดปุ่ม "กินแล้ว" จากการแจ้งเตือน ซึ่งบันทึกที่เซิร์ฟเวอร์ ไม่ผ่านหน้าจอ) ----------
 let logsBusy = false;
@@ -560,6 +570,7 @@ async function boot() {
       render();
       Notifier.start();
       showSplash();
+      emptyTries = 0; retryIfEmpty();
     } finally { loading = null; }
   };
   // กดลิงก์ "ตั้งรหัสผ่านใหม่" จากอีเมล → เข้าแอพแล้วเด้งหน้าตั้งรหัสผ่านใหม่ทันที

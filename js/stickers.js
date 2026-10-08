@@ -43,7 +43,7 @@ function stkCellHtml(t, p, s) {
   const lab = t.long ? s.label : s.short;
   return `<div class="sx" style="width:${t.w}mm;height:${t.h}mm;border:${t.bd}mm solid ${p.color};border-radius:${Math.min(t.w, t.h) * .08}mm;gap:${t.gp}mm;padding-top:${t.pt || 0}mm">
     <img src="assets/slots/${STK_ICON[s.key]}.png" style="width:${t.icon}mm;height:${t.icon}mm" alt="">
-    <b style="font-size:${t.fLabel}pt;margin-top:${t.lm || 0}mm">${stkEsc(lab)}</b>${t.name ? `<span style="font-size:${t.fName}pt;margin-top:${t.nm}mm">(${stkEsc(p.name)})</span>` : ''}</div>`;
+    <b style="font-size:${t.fLabel}pt;margin-top:${t.lm || 0}mm">${stkKeyword(lab) ? '<u>' + stkEsc(stkKeyword(lab)) + '</u>' + stkEsc(lab.slice(stkKeyword(lab).length)) : stkEsc(lab)}</b>${t.name ? `<span style="font-size:${t.fName}pt;margin-top:${t.nm}mm">(${stkEsc(p.name)})</span>` : ''}</div>`;
 }
 
 /** เลือกแนวกระดาษ (นอน/ตั้ง) ที่วางได้จำนวนมากกว่า — เท่ากันใช้แนวนอน */
@@ -136,7 +136,7 @@ const STK_CSS = `.sx-wrap{position:fixed;left:-12000px;top:0;background:#fff;fon
 .sx-page{box-sizing:border-box;background:#fff;position:relative;overflow:hidden}
 .sx-grid{display:flex;flex-direction:column;align-items:center}.sx-row{display:flex}
 .sx{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;text-align:center;line-height:1.18;overflow:hidden;flex:none}
-.sx img{display:block;object-fit:contain}.sx b{font-weight:700;white-space:nowrap}.sx span{font-weight:500;white-space:nowrap}
+.sx img{display:block;object-fit:contain}.sx b u{text-decoration:underline;text-underline-offset:.5mm;text-decoration-thickness:.25mm}.sx b{font-weight:700;white-space:nowrap}.sx span{font-weight:500;white-space:nowrap}
 .sx-n{font-family:Sarabun,'TH Sarabun New','Leelawadee UI',sans-serif}.sx-n .sx-cap{font-size:12pt;font-weight:600;color:#2B3060;line-height:1;margin-bottom:1mm}.sx-n .sx-code{font-weight:700;line-height:1;letter-spacing:0;color:#000}.sx-n .sx-th{white-space:nowrap;font-weight:700;line-height:1.15;padding:0 2mm;color:#000}.sx-n .sx-en{display:block;white-space:normal;font-weight:600;line-height:1.2;margin-top:.8mm;padding:0 2mm;overflow-wrap:anywhere;color:#2B3060}
 .sx-gap{flex:none}.sx-foot{position:absolute;left:${STK_PAGE.m}mm;right:${STK_PAGE.m}mm;bottom:2mm;margin:0;font:400 6pt Sarabun,sans-serif;color:#5A6080;text-align:center}`;
 
@@ -159,6 +159,17 @@ function stkStack(ctx, a, items, padTop = 0) {
   for (const it of items) { y += it.mt || 0; it.draw(cx, y); y += it.h; }
   ctx.restore();
 }
+/** คำว่า ก่อน/หลัง ขีดเส้นใต้ให้เห็นชัด (กันสับสน) — ช่วงก่อนนอนไม่ขีด เหมือนในแอพ */
+const stkKeyword = (lab) => { const m = /^(ก่อน|หลัง)(?!นอน)/.exec(lab); return m ? m[1] : ''; };
+function stkLabel(ctx, lab, cx, cy, font, fsMm, color) {
+  const kw = stkKeyword(lab); ctx.font = font; ctx.fillStyle = color; ctx.textBaseline = 'middle';
+  if (!kw) { ctx.textAlign = 'center'; ctx.fillText(lab, cx, cy); return; }
+  const wAll = ctx.measureText(lab).width, wKw = ctx.measureText(kw).width, x0 = cx - wAll / 2;
+  ctx.textAlign = 'left'; ctx.fillText(kw, x0, cy); ctx.fillText(lab.slice(kw.length), x0 + wKw, cy);
+  // เส้นใต้ชิดตัวหนังสือ: วัดก้นตัวอักษรจริงของคำ (ก่อน/หลัง) แล้วเว้นแค่ ~0.08 ของขนาดตัวอักษร (เดิมคิดจากกึ่งกลางบรรทัด ทำให้ห่างเกิน)
+  const tm = ctx.measureText(kw); const bottom = cy + (tm.actualBoundingBoxDescent || fsMm * 0.36);
+  ctx.fillRect(x0, bottom + fsMm * 0.07, wKw, Math.max(0.18, fsMm * 0.075));
+}
 function stkDrawCell(ctx, t, p, s, x, y, imgs) {
   if (t.num) {
     const m = s.m; const w = t.w * s.span; if (!m) return; // ช่องว่างท้ายแถว
@@ -178,7 +189,7 @@ function stkDrawCell(ctx, t, p, s, x, y, imgs) {
   const a = stkFrame(ctx, x, y, t.w, t.h, t.bd, Math.min(t.w, t.h) * .08, p.color); const lab = t.long ? s.label : s.short;
   const lhL = t.fLabel * STK_PT * 1.18, lhN = t.fName * STK_PT * 1.18; const img = imgs[STK_ICON[s.key]];
   const items = [{ h: t.icon, draw: (cx, top) => { if (img) ctx.drawImage(img, cx - t.icon / 2, top, t.icon, t.icon); } },
-    { h: lhL, mt: t.gp + (t.lm || 0), draw: (cx, top) => cvText(ctx, lab, cx, top + lhL / 2, stkFont(700, t.fLabel, 'Prompt'), '#161A4D', 'center') }];
+    { h: lhL, mt: t.gp + (t.lm || 0), draw: (cx, top) => stkLabel(ctx, lab, cx, top + lhL / 2, stkFont(700, t.fLabel, 'Prompt'), t.fLabel * STK_PT, '#161A4D') }];
   if (t.name) items.push({ h: lhN, mt: t.gp + t.nm, draw: (cx, top) => cvText(ctx, `(${p.name})`, cx, top + lhN / 2, stkFont(500, t.fName, 'Prompt'), '#161A4D', 'center') });
   stkStack(ctx, a, items, t.pt || 0);
 }

@@ -238,7 +238,7 @@ function demoData() {
       med(2, P[0], 'Metformin 500 mg', 'เบาหวาน', ['after_breakfast', 'after_dinner'], { slot_reminders: { after_breakfast: true, after_dinner: false } }),
       med(3, P[0], 'Glipizide 5 mg', 'เบาหวาน', ['before_breakfast']),
       med(4, P[0], 'Aspirin 81 mg', 'ป้องกันหลอดเลือดอุดตัน', ['after_breakfast'], {
-        status: 'paused', status_reason: 'หมอให้งดก่อนถอนฟัน', status_history: [{ date: todayKey(), status: 'paused', reason: 'หมอให้งดก่อนถอนฟัน' }] }),
+        status: 'paused', status_reason: 'แพทย์ให้งดก่อนถอนฟัน', status_history: [{ date: todayKey(), status: 'paused', reason: 'แพทย์ให้งดก่อนถอนฟัน' }] }),
       med(1, P[1], 'Simvastatin 20 mg', 'ไขมันในเลือดสูง', ['bedtime']),
       med(2, P[1], 'Calcium + Vit D', 'กระดูกพรุน', ['after_lunch'], { stock: 60 }),
       med(1, P[2], 'Losartan 50 mg', 'ความดันโลหิตสูง', ['after_breakfast']),

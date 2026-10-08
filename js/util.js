@@ -1,4 +1,4 @@
-/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
 /* สุขใจ — ค่าคงที่และตัวช่วยที่ใช้ร่วมกัน */
 'use strict';
 
@@ -33,7 +33,7 @@ const LEGACY_COLORS = { '#3FA796': '#3DDC97', '#EF5B4C': '#FF7AD9', '#7C6CF2': '
 const inkOn = (hex) => { const n = parseInt(String(hex).slice(1), 16); const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; const L = .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255); return L > .4 ? '#161A4D' : '#fff'; };
 const REMIND_DAYS = [5, 2, 1]; // ค่าเริ่มต้น — ผู้ใช้เลือกเองได้ที่ ตั้งค่า > การแจ้งเตือน > เตือนนัดพบแพทย์ (user_settings.appt_remind_days)
 const REMIND_DAY_OPTIONS = [7, 5, 3, 2, 1]; // เตือนล่วงหน้า (วัน)
-const apptRemindTime = () => { const t = (typeof S !== 'undefined' && S?.settings?.appt_remind_time); return /^([01]\d|2[0-3]):[0-5]\d$/.test(t || '') ? t : '08:00'; }; // เวลาเตือนนัดหมอ (ผู้ใช้กำหนดเองได้ ค่าเริ่มต้น 08:00)
+const apptRemindTime = () => { const t = (typeof S !== 'undefined' && S?.settings?.appt_remind_time); return /^([01]\d|2[0-3]):[0-5]\d$/.test(t || '') ? t : '08:00'; }; // เวลาเตือนนัดแพทย์ (ผู้ใช้กำหนดเองได้ ค่าเริ่มต้น 08:00)
 const remindDays = () => { const d = (typeof S !== 'undefined' && S?.settings?.appt_remind_days); return Array.isArray(d) ? d.map(Number).filter((x) => x >= 1) : REMIND_DAYS; };
 const LOW_STOCK_DAYS = 7; const LOW_STOCK_QTY = 5; // ค่าเริ่มต้น: ใกล้หมด = เหลือไม่เกิน 5 เม็ด (ผู้ใช้ตั้งเองได้ที่ ตั้งค่า > การแจ้งเตือน > ยาใกล้หมด = user_settings.low_stock_qty)
 const lowStockQty = () => { const q = (typeof S !== 'undefined' && S?.settings?.low_stock_qty); return Number.isFinite(Number(q)) && q !== null && Number(q) >= 0 ? Math.floor(Number(q)) : LOW_STOCK_QTY; };
@@ -51,7 +51,7 @@ const pad = (n) => String(n).padStart(2, '0');
 // หน่วยยา: เลือกจากรายการ หรือพิมพ์เอง · นับจำนวนคงเหลือ/วันยาหมดเฉพาะหน่วยที่นับเป็นชิ้น
 const UNITS = ['เม็ด', 'แคปซูล', 'หยด', 'ครั้ง', 'ช้อนชา', 'มล.', 'ซอง', 'แผ่น'];
 const STOCK_UNITS = ['เม็ด', 'แคปซูล', 'ซอง', 'แผ่น'];
-const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 นัดหมอ
+const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 นัดแพทย์
 const unitOf = (m) => m.unit || 'เม็ด';
 const tracksStock = (m) => STOCK_UNITS.includes(unitOf(m));
 // ยาที่ "ทาน" (กินเข้าปาก): ไม่นับยาหยอดตา/ป้ายตา/ครีม/แผ่นแปะ ฯลฯ — ดูจากหน่วยของยา
@@ -66,14 +66,15 @@ const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null
 const defaultPrefix =(name) => String(name || '').trim().replace(/^[เแโใไ]+/, '').charAt(0);
 const PDPA_VERSION = '2026-10c';
 const MOODS = [
-  { k: 'happy', icon: '😊', label: 'มีความสุข', color: '#F7B731' },
-  { k: 'calm', icon: '😌', label: 'สบายใจ', color: '#3FA796' },
-  { k: 'meh', icon: '😐', label: 'เฉยๆ', color: '#9AA5AB' },
-  { k: 'tired', icon: '😴', label: 'เหนื่อย', color: '#7C6CF2' },
-  { k: 'sad', icon: '😢', label: 'เศร้า', color: '#3B82F6' },
-  { k: 'worried', icon: '😟', label: 'กังวล', color: '#EF5B4C' },
-];
-const moodOf = (k) => MOODS.find((x) => x.k === k);
+  { k: 'happy', img: 'assets/moods/happy.png', label: 'ดีใจ', color: '#F3D668' },
+  { k: 'calm', img: 'assets/moods/calm.png', label: 'ชิลๆ', color: '#F3A34C' },
+  { k: 'meh', img: 'assets/moods/meh.png', label: 'เรื่อยๆ', color: '#B4CA7D' },
+  { k: 'tired', img: 'assets/moods/tired.png', label: 'หงุดหงิด', color: '#D8F368' },
+  { k: 'sad', img: 'assets/moods/sad.png', label: 'กังวล', color: '#7A7FF0' },
+  { k: 'worried', img: 'assets/moods/worried.png', label: 'โกรธ', color: '#F06A7D' },
+]; // คีย์ k เดิม (ฐานข้อมูลเก็บเป็นคีย์ มี check constraint) — เปลี่ยนเฉพาะชื่อที่แสดงและรูป
+/** ไอคอนอารมณ์ (รูปการ์ตูนใน assets/moods) — cls: ขนาดเสริม xs/sm/lg */
+const moodIcon = (mo, cls = '') => `<img class="mood-img ${cls}" src="${mo.img}" alt="" width="48" height="48" loading="lazy">`;const moodOf = (k) => MOODS.find((x) => x.k === k);
 const doseLabel =(d) => { d = Number(d); if (Number.isInteger(d)) return String(d); const fr = { 0.25: '¼', 0.5: '½', 0.75: '¾' }[+(d % 1).toFixed(2)]; return fr ? `${Math.floor(d) || ''}${fr}` : String(d); };
 const dk = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseDk = (s) => { const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
@@ -127,3 +128,7 @@ const blobToDataUrl = (b) => new Promise((r) => { const fr = new FileReader(); f
 
 /** ผสมสีกับสีขาว (a = 0..1 ยิ่งมากยิ่งเข้ม) — ใช้ทำสีตารางตามสีโปรไฟล์ */
 const tint = (hex, a) => { const n = parseInt(String(hex).replace('#', '').padEnd(6, '0').slice(0, 6), 16); const m = (v) => Math.round(255 - (255 - v) * a).toString(16).padStart(2, '0'); return '#' + m(n >> 16) + m((n >> 8) & 255) + m(n & 255); };
+/** แสดงคำว่า "เมื่อมีอาการ" ให้อัตโนมัติ เฉพาะยากินเมื่อมีอาการที่ผู้ใช้ยังไม่ได้พิมพ์คำนี้ไว้เองในคำกำกับ/ข้อควรระวัง/หมายเหตุ (กันขึ้นซ้ำ) */
+const showAsn = (m) => !!m.as_needed && !/เมื่อมีอาการ/.test([m.table_hint, m.warning, m.note].join(' '));
+/** ข้อความกำกับ "ไม่ใช่คำแนะนำทางการแพทย์" — ใช้ค่าเดียวนี้ทุกหน้าที่ต้องแสดง (intro, หน้าต้อนรับ, ตั้งค่า, PDF) */
+const APP_DISCLAIMER = 'สุขใจช่วยเตือนและจดบันทึก ไม่ใช่คำแนะนำทางการแพทย์';

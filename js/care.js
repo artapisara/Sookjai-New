@@ -26,7 +26,7 @@ function careMessage(c) {
   const p = profileById(c.profile_id);
   return {
     title: `🩹 ${p.name} ถึงวันติดตามอาการ`,
-    body: `${c.title} — ถ่ายรูป/บันทึกอาการวันนี้${c.care_steps?.length ? '\n' + c.care_steps.map((s) => '• ' + s).join('\n') : ''}`,
+    body: `${c.title} — ถ่ายรูป/บันทึกอาการวันนี้`,
   };
 }
 
@@ -47,7 +47,6 @@ function careAlerts(ids) {
       ${avatarHtml(p, 'sm')}<div>
       <b>🩹 ${esc(p.name)}: ติดตาม${esc(c.title)}</b>
       <span class="small">${n < 0 ? `เลยกำหนด ${-n} วัน · ` : ''}ถ่ายรูป/บันทึกอาการวันนี้ (${intervalText(c.interval_days)})</span>
-      ${c.care_steps?.length ? `<span class="small note">📋 ${c.care_steps.map(esc).join(' · ')}</span>` : ''}
     </div></button>`;
   }).join('');
 }
@@ -66,8 +65,7 @@ function careCard(c) {
       </div>
       ${photo ? `<div class="thumb sm"><img data-path="${esc(photo)}" alt="รูปล่าสุด"></div>` : `<div class="thumb sm nopic">${noPicHtml()}</div>`}
     </div>
-    ${active && c.care_steps?.length ? `<div class="steps-box"><b class="small">📋 แนวทางการดูแล</b>${careStepsList(c)}</div>` : ''}
-    ${active && canEditProfile(c.profile_id) ? `<button class="btn block sm" data-act="care-log" data-id="${c.id}">📷 บันทึกอาการ${n <= 0 ? 'วันนี้' : ''}</button>` : ''}
+    ${(active && canEditProfile(c.profile_id)) || (canEditProfile(c.profile_id) && canDeleteRow(c, c.profile_id)) ? `<div class="care-actions">${active && canEditProfile(c.profile_id) ? `<button class="btn block sm" data-act="care-log" data-id="${c.id}">บันทึกอาการเพิ่มเติม</button>` : ''}${canEditProfile(c.profile_id) && canDeleteRow(c, c.profile_id) ? `<button class="btn danger sm care-del" data-act="del-care" data-id="${c.id}" aria-label="ลบเรื่องนี้">ลบ</button>` : ''}</div>` : ''}
   </div>`;
 }
 
@@ -110,20 +108,17 @@ function careDetail(c) {
       ${row('บันทึกแล้ว', `${logs.length} ครั้ง`)}
       ${row('แจ้งเตือน', c.remind !== false ? `🔔 ${CARE_REMIND_AT} น. วันที่ถึงกำหนด` : '🔕 ปิด')}
     </div>
-    ${c.care_steps?.length ? `<div class="alert sun"><div class="ic">📋</div><div><b>แนวทางการดูแล</b>${careStepsList(c)}</div></div>` : ''}
     ${c.note ? `<div class="alert sun"><div class="ic">📝</div><div><b>หมายเหตุ</b><span>${esc(c.note)}</span></div></div>` : ''}
     ${first && latest && first !== latest ? `<h4>เทียบรูปแรกกับล่าสุด</h4><div class="compare">${fig(first, 'แรก')}${fig(latest, 'ล่าสุด')}</div>` : ''}
     <h4>บันทึกอาการ</h4>
     ${logs.map((l) => `<div class="log">
-      <div class="log-head"><b>${thDate(l.log_date)}</b>${trendTag(l.trend)}${canEdit ? `<button class="btn ghost sm mini" data-act="care-log-edit" data-id="${l.id}">แก้ไข</button>` : ''}${canEdit && canDeleteRow(l, c.profile_id) ? `<button class="btn ghost sm mini danger" data-act="del-care-log" data-id="${l.id}">ลบ</button>` : ''}</div>
+      <div class="log-head"><b>${thDate(l.log_date)}</b>${trendTag(l.trend)}${canEdit ? `<span class="log-btns"><button class="btn ghost sm mini" data-act="care-log-edit" data-id="${l.id}">แก้ไข</button>${canDeleteRow(l, c.profile_id) ? `<button class="btn sm mini danger" data-act="del-care-log" data-id="${l.id}">ลบ</button>` : ''}</span>` : ''}</div>
       ${l.note ? `<div class="small">${esc(l.note)}</div>` : ''}
       ${l.photos?.length ? `<div class="thumbs">${l.photos.map((ph) => `<div class="thumb"><img class="zoom" data-path="${esc(ph)}" alt="รูปบันทึกติดตามอาการ"></div>`).join('')}</div>` : ''}
     </div>`).join('') || '<div class="card flat empty small">ยังไม่มีบันทึก</div>'}
     <div class="row sticky-actions">
-      <button class="btn ghost" data-act="close">ปิด</button>
-      ${canEdit ? `<button class="btn ghost" data-act="edit-care" data-id="${c.id}">✏️ แก้ไข</button>` : ''}
-      ${canDel ? `<button class="btn ghost danger" data-act="del-care" data-id="${c.id}">🗑️ ลบ</button>` : ''}
-      ${active && canEdit ? `<button class="btn" data-act="care-log" data-id="${c.id}">📷 บันทึก</button>` : ''}
+      ${canEdit ? `<button class="btn ghost" data-act="edit-care" data-id="${c.id}">แก้ไข</button>` : ''}
+      ${active && canEdit ? `<button class="btn" data-act="care-log" data-id="${c.id}">บันทึก</button>` : ''}
     </div>
   `);
   hydrateImgs(sheet);
@@ -139,23 +134,15 @@ function careForm(c) {
       <label class="f"><span>บันทึกติดตามอาการของใคร</span>${profileRadio(e.profile_id)}</label>
       <label class="f"><span>อาการ/สิ่งที่ติดตาม</span><input type="text" name="title" required value="${esc(e.title)}" placeholder="เช่น แผลที่ขาซ้าย, แผลกดทับ, ผื่นที่แขน"></label>
       <label class="f"><span>เริ่มติดตามวันที่</span><input type="date" name="started_on" required value="${e.started_on}"></label>
-      <div class="f"><span class="lbl">ถ่ายรูป/บันทึกอาการทุกกี่วัน</span>
-        <div class="pick">${CARE_INTERVALS.map((d) => `<label><input type="radio" name="iv" value="${d}" ${d === num(e.interval_days) ? 'checked' : ''}><span class="opt">${intervalText(d)}</span></label>`).join('')}
-          <label class="opt iv-custom">ทุก <input type="number" name="interval_days" min="1" max="365" inputmode="numeric" required value="${num(e.interval_days, 1)}"> วัน</label>
-        </div></div>
-      <label class="f"><span>แนวทางการดูแล <small>(บรรทัดละ 1 ข้อ)</small></span><textarea name="care_steps" rows="4" placeholder="เช่น&#10;ล้างแผลด้วยน้ำเกลือ เปลี่ยนผ้าก๊อซ เช้า-เย็น&#10;ทายาฆ่าเชื้อ เช้า-เย็น&#10;ระวังอย่าให้แผลโดนน้ำ">${esc((e.care_steps || []).join('\n'))}</textarea></label>
-      <label class="f"><span>หมายเหตุ / สิ่งที่หมอสั่ง</span><textarea name="note" placeholder="เช่น ถ้าแผลบวมแดงหรือมีหนองให้กลับไปพบแพทย์">${esc(e.note)}</textarea></label>
+      <input type="hidden" name="interval_days" value="${num(e.interval_days, 1)}"> <!-- ถอดตัวเลือก "ถ่ายรูป/บันทึกอาการทุกกี่วัน" ออกจากฟอร์มแล้ว — คงค่าเดิมของเรื่อง (เรื่องใหม่ = ทุกวัน) -->
+      <label class="f"><span>หมายเหตุ / สิ่งที่แพทย์สั่ง</span><textarea name="note" placeholder="เช่น ถ้าแผลบวมแดงหรือมีหนองให้กลับไปพบแพทย์">${esc(e.note)}</textarea></label>
       ${c ? `<div class="f"><span class="lbl">สถานะ</span><div class="seg">${Object.entries(CARE_STATUS).map(([k, v]) => `<label><input type="radio" name="status" value="${k}" ${c.status === k ? 'checked' : ''}><span>${v}</span></label>`).join('')}</div></div>` : ''}
       <div class="row sticky-actions">
-        ${c ? `<button type="button" class="btn danger" data-act="del-care" data-id="${c.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button>
         <button class="btn" type="submit">บันทึก</button>
       </div>
     </form>`);
   const f = $('#f', sheet);
-  const ivIn = $('input[name=interval_days]', f);
-  $$('input[name=iv]', f).forEach((r) => r.addEventListener('change', () => (ivIn.value = r.value)));
-  ivIn.addEventListener('input', () => $$('input[name=iv]', f).forEach((r) => (r.checked = r.value === ivIn.value)));
   f.onsubmit = async (ev) => {
     ev.preventDefault();
     if (c && !(await askConfirm(`ต้องการ <b>แก้ไขเรื่องที่ติดตามนี้</b> ใช่หรือไม่?<br><small class="muted">กด "ใช่ แก้ไข" เพื่อบันทึกการเปลี่ยนแปลง</small>`, 'ใช่ แก้ไข'))) return;
@@ -163,7 +150,6 @@ function careForm(c) {
     const data = {
       profile_id: fd.get('profile_id'), title: fd.get('title').trim(), started_on: fd.get('started_on'),
       interval_days: Math.min(365, Math.max(1, Math.round(num(fd.get('interval_days'), 1)))),
-      care_steps: String(fd.get('care_steps')).split('\n').map((s) => s.trim()).filter(Boolean),
       note: fd.get('note').trim(), remind: c ? c.remind !== false : true, // เปิด/ปิดที่ ตั้งค่า > การแจ้งเตือน
     };
     if (c) {
@@ -210,7 +196,6 @@ function careLogForm(c, log) {
   const e = log || { log_date: todayKey(), photos: [] };
   const sheet = openSheet(`<h3>${log ? 'แก้ไขบันทึกอาการ' : 'บันทึกอาการ'}</h3>
     <div class="detail-head">${avatarHtml(p, 'sm')}<div><b>${esc(c.title)}</b><div class="small muted">${esc(p.name)} · ${intervalText(c.interval_days)}</div></div></div>
-    ${c.care_steps?.length ? `<div class="alert sun"><div class="ic">📋</div><div><b>แนวทางการดูแล</b>${careStepsList(c)}</div></div>` : ''}
     <form id="f">
       <label class="f"><span>วันที่</span><input type="date" name="log_date" required max="${todayKey()}" value="${e.log_date}"></label>
       <div class="f"><span class="lbl">รูปถ่าย</span>
@@ -228,7 +213,6 @@ function careLogForm(c, log) {
         <p class="small red-t ${e.trend === 'worse' ? '' : 'hidden'}" id="worseTip">⚠️ ถ้าบวมแดง ร้อน มีหนอง มีกลิ่น หรือมีไข้ ควรพาไปพบแพทย์</p>
       </div>
       <label class="f"><span>บันทึกเพิ่มเติม</span><textarea name="note" placeholder="เช่น แผลแห้งขึ้น ไม่มีหนอง / ขอบแผลแดงขึ้น">${esc(e.note)}</textarea></label>
-      <label class="switch-row"><span>ไปโรงพยาบาลหรือไม่<small class="small muted" style="display:block">ติ๊กถ้าครั้งนี้ไป รพ. จะขึ้นในบันทึกการไปหาหมอ</small></span><span class="switch"><input type="checkbox" name="hospital_visit" ${e.hospital_visit ? 'checked' : ''}><i></i></span></label>
       <div class="row sticky-actions">
         ${log ? `<button type="button" class="btn danger" data-act="del-care-log" data-id="${log.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button>
@@ -247,8 +231,7 @@ function careLogForm(c, log) {
     if (log && !(await askConfirm(`ต้องการ <b>แก้ไขบันทึกอาการนี้</b> ใช่หรือไม่?<br><small class="muted">กด "ใช่ แก้ไข" เพื่อบันทึกการเปลี่ยนแปลง</small>`, 'ใช่ แก้ไข'))) return;
     const btn = $('button[type=submit]', f); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try {
-      const hv = !!fd.get('hospital_visit');
-      const data = { log_date: fd.get('log_date'), trend, note, photos: await photos.save(c.id, profileById(c.profile_id).user_id), ...(hv || log?.hospital_visit ? { hospital_visit: hv } : {}) }; // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกปกติได้)
+      const data = { log_date: fd.get('log_date'), trend, note, photos: await photos.save(c.id, profileById(c.profile_id).user_id) }; // ช่อง "ไปโรงพยาบาลหรือไม่" ถูกถอดออกจากฟอร์มแล้ว — ไม่ส่งค่า hospital_visit (ค่าเดิมของบันทึกเก่ายังอยู่ไม่ถูกแก้)
       if (log) { await DB.update('care_logs', log.id, data); Object.assign(log, data); }
       else { const row = { id: uuid(), plan_id: c.id, created_at: new Date().toISOString(), ...data }; await DB.insert('care_logs', row); S.care_logs.push(row); }
       if (photos.removed.length) DB.removeFiles(photos.removed).catch(() => {});

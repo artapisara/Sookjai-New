@@ -1,7 +1,7 @@
-/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
-/* สุขใจ — รายงานก่อนพบแพทย์ (PDF A4 แนวตั้ง) · Premium
+﻿/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* สุขใจ — สรุปก่อนพบแพทย์ (PDF A4 แนวตั้ง) · Premium
  * ใส่เฉพาะที่ใช้จริงในห้องตรวจ (แอพเป็นเครื่องช่วยจำ ไม่เก็บ/สรุปข้อมูลสุขภาพเกินจำเป็น):
- *   1) แพ้ยา  2) ใครไปหาหมอ + นัดครั้งนี้  3) ผลการพบแพทย์ครั้งก่อน (ที่ผู้ใช้จดไว้ในนัดครั้งก่อน ข้อ 10)  4) ยาที่เกี่ยวกับแผนกนี้ + บันทึก (หมายเหตุ) ของยาแต่ละตัว * สั่งทำ PDF ได้เมื่อใกล้วันนัด (ภายใน REPORT_WINDOW_DAYS วันก่อนนัด) · สร้างจากข้อมูลปัจจุบันทุกครั้ง · ตรวจก่อนบันทึกไฟล์ (สร้างซ้ำ 2 รอบต้องเหมือนกัน + ข้อมูลครบ ไม่ล้นหน้า)
+ *   1) แพ้ยา  2) ใครไปหาแพทย์ + นัดครั้งนี้  3) ผลการพบแพทย์ครั้งก่อน (ที่ผู้ใช้จดไว้ในนัดครั้งก่อน ข้อ 10)  4) ยาที่เกี่ยวกับแผนกนี้ + บันทึก (หมายเหตุ) ของยาแต่ละตัว * สั่งทำ PDF ได้เมื่อใกล้วันนัด (ภายใน REPORT_WINDOW_DAYS วันก่อนนัด) · สร้างจากข้อมูลปัจจุบันทุกครั้ง · ตรวจก่อนบันทึกไฟล์ (สร้างซ้ำ 2 รอบต้องเหมือนกัน + ข้อมูลครบ ไม่ล้นหน้า)
  */
 'use strict';
 
@@ -40,7 +40,7 @@ function reportPrevVisit(a) {
     .sort((x, y) => y.appt_date.localeCompare(x.appt_date))[0] || null;
 }
 
-/** รวมข้อมูลที่จะใส่ในรายงาน (ดึงจากข้อมูลปัจจุบันทุกครั้ง) */
+/** รวมข้อมูลที่จะใส่ในสรุป (ดึงจากข้อมูลปัจจุบันทุกครั้ง) */
 function reportData(a, opt = {}) {
   const p = profileById(a.profile_id); const allMeds = medsOf(p.id); const meds = opt.medIds ? allMeds.filter((m) => opt.medIds.includes(m.id)) : allMeds;
   return { a, p, meds, allMeds, prev: reportPrevVisit(a) };
@@ -75,13 +75,13 @@ function reportBlocks(R) {
   // 1) แพ้ยา — บนสุด
   if (p.drug_allergies?.length) C(`<div class="rp-allergy"><b>⚠️ แพ้ยา</b><span>${p.drug_allergies.map(e).join(' · ')}</span></div>`, 'rp-red');
   else C('<span class="s">ยังไม่ได้บันทึกว่าแพ้ยา</span>', 'rp-note');
-  // 2) ใครไปหาหมอ — ตารางข้อมูลนัด (ตัวเล็ก)
-  // (ไม่มีหัวข้อ "ใครไปหาหมอ" — แสดงชื่อและตารางข้อมูลนัดต่อจากกรอบแพ้ยาเลย)
+  // 2) ใครไปหาแพทย์ — ตารางข้อมูลนัด (ตัวเล็ก)
+  // (ไม่มีหัวข้อ "ใครไปหาแพทย์" — แสดงชื่อและตารางข้อมูลนัดต่อจากกรอบแพ้ยาเลย)
   const cell = (k, v) => `<th>${k}</th><td>${v}</td>`;
   B.push({ html: `<div class="rp-name">${e(p.name)}${age ? ` <span class="s">อายุ ${age} ปี</span>` : ''}</div>
     <table class="rp-t rp-info-t"><colgroup><col style="width:23%"><col style="width:27%"><col style="width:22%"><col style="width:28%"></colgroup>
       <tr>${cell('วันที่ไป', `${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.`)}${cell('แผนก', e(a.department || '–'))}</tr>
-      <tr>${cell('หมอ', e(d?.name || '–'))}${cell('รพ.', e(h?.name || '–'))}</tr>
+      <tr>${cell('แพทย์', e(d?.name || '–'))}${cell('รพ.', e(h?.name || '–'))}</tr>
       <tr>${cell('สาเหตุ', `<span class="rp-wide">${e(a.visit_reason || '–')}</span>`).replace('<td>', '<td colspan="3">')}</tr>${reportBodyRows(p, cell)}</table>`, info: true });
   // 3) ครั้งที่แล้วแพทย์แนะนำว่า — ข้อ 8 ของนัดครั้งก่อน เฉพาะนัดที่เป็นแพทย์คนเดิมและแผนกเดิม (แทนกรอบ "หมายเหตุ" เดิม)
   if (prev) C(`<b class="rp-nt">🩺 ครั้งที่แล้วแพทย์แนะนำว่า</b> <span class="s">(${thDate(prev.appt_date)})</span><div class="rp-notetext">${e(String(prev.visit_summary).trim())}</div>`, 'rp-notebox');
@@ -163,12 +163,12 @@ function reportPaginate(wrap, blocks) {
 }function reportPagesHtml(R, blocks, wrap) {
   const pages = reportPaginate(wrap, blocks); const { a, p } = R;
   return pages.map((pg, i) => `<section class="rp-page" style="--pc:${p.color};--pcs:${tint(p.color, .16)}" data-i="${i + 1}">
-    <div class="rp-top"><b>รายงานก่อนพบแพทย์</b><span>${esc(p.name)} · นัด ${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.${a.department ? ` · ${esc(a.department)}` : ''}</span></div>
+    <div class="rp-top"><b>สรุปก่อนพบแพทย์</b><span>${esc(p.name)} · นัด ${thDate(a.appt_date)} ${hhmm(a.appt_time)} น.${a.department ? ` · ${esc(a.department)}` : ''}</span></div>
     <div class="rp-body">${pg.map((x) => `<div class="rp-b ${x.b.tight ? 'tight' : ''}">${x.b.html}</div>`).join('')}</div>
-    <div class="rp-foot"><span>แอพสุขใจเป็นเครื่องช่วยจำ ไม่ใช่เอกสารทางการแพทย์ · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)</span><span class="pg">หน้า ${i + 1}/${pages.length}</span></div></section>`).join('');
+    <div class="rp-foot"><span>${APP_DISCLAIMER} · สร้างไฟล์เมื่อ ${madeAt()} · © 2026 สุขใจ (Sookjai)</span><span class="pg">หน้า ${i + 1}/${pages.length}</span></div></section>`).join('');
 }
 
-/** ตรวจรายงานที่สร้างแล้ว — คืนรายการปัญหา (ว่าง = ผ่าน) */
+/** ตรวจสรุปที่สร้างแล้ว — คืนรายการปัญหา (ว่าง = ผ่าน) */
 function auditReport(wrap, R) {
   const issues = []; const pages = [...wrap.querySelectorAll('.rp-page')]; const nz = normTxt; const { p, meds, prev } = R;
   if (!pages.length) issues.push('ไม่มีหน้าเลย');
@@ -183,7 +183,7 @@ function auditReport(wrap, R) {
     const last = pg.querySelector('.rp-body').lastElementChild; if (last && last.querySelector('.rp-h') && last.children.length === 1) issues.push(`${t}: หัวข้อค้างท้ายหน้า`);
     pg.querySelectorAll('.rp-card, .rp-t').forEach((c) => { if (c.scrollWidth > c.clientWidth + 1) issues.push(`${t}: ข้อความล้นกรอบ "${nz(c.textContent).slice(0, 24)}"`); });
   });
-  const medCards = [...wrap.querySelectorAll('.rp-med')]; if (medCards.length !== meds.length) issues.push(`รายการยา: ในแอพ ${meds.length} แต่ในรายงาน ${medCards.length}`);
+  const medCards = [...wrap.querySelectorAll('.rp-med')]; if (medCards.length !== meds.length) issues.push(`รายการยา: ในแอพ ${meds.length} แต่ในสรุป ${medCards.length}`);
   meds.forEach((m, i) => { const c = medCards[i]; if (!c) return; const tx = nz(c.textContent);
     if (!tx.includes(nz(m.name)) || !tx.includes(medNo(m))) issues.push(`ยา ${medNo(m)} ${m.name}: ข้อมูลไม่ตรง`);
     if (!tx.includes(nz(medWhen(m)))) issues.push(`ยา ${medNo(m)}: เวลากินไม่ตรง`);
@@ -209,7 +209,25 @@ async function buildReportFrame(apptId, opt = {}) {
   const stage = wrap.querySelector('.rp-stage'); stage.innerHTML = reportPagesHtml(R, reportBlocks(R), wrap);
   return { wrap, R };
 }
+/** สร้างไฟล์สรุปก่อนพบแพทย์: วาดตรงด้วย Canvas (ตัวหนังสือไม่เพี้ยน) + ตรวจข้อมูลก่อนบันทึก · ไม่ผ่าน/มีปัญหา = ใช้วิธีเดิมสำรอง (ตรวจ 2 รอบ) */
 async function makeReportPdf(apptId, opt = {}) {
+  await refreshForPdf();
+  const a0 = S.appointments.find((x) => x.id === apptId); if (!a0) throw new Error('NO_APPT');
+  try {
+    const jsPDF = await loadPdfLibs(); const R = reportData(a0, opt); const { canvases, issues } = await renderReportCanvases(R);
+    if (issues.length) throw new PdfAuditError(issues.map((x) => '[วาดตรง] ' + x));
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    canvases.forEach((cv, i) => {
+      const t = document.createElement('canvas'); t.width = 120; t.height = 170; const tc = t.getContext('2d'); tc.drawImage(cv, 0, 0, 120, 170); const d = tc.getImageData(0, 0, 120, 170).data; let ink = 0;
+      for (let k = 0; k < d.length; k += 4) if (d[k] + d[k + 1] + d[k + 2] < 690) ink++;
+      if (ink / (120 * 170) < 0.004) throw new PdfAuditError([`[วาดตรง] หน้า ${i + 1}: ภาพแทบว่าง`]);
+      if (i) pdf.addPage('a4', 'portrait'); pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
+    });
+    return { pdf, pages: canvases.length, name: `สรุปก่อนพบแพทย์-${R.p.name}-${a0.appt_date}.pdf` };
+  } catch (e) { console.warn('วาดสรุปก่อนพบแพทย์ตรงไม่สำเร็จ ใช้วิธีสำรอง', e, e.issues); }
+  return makeReportPdfHtml(apptId, opt);
+}
+async function makeReportPdfHtml(apptId, opt = {}) {
   await refreshForPdf();
   const jsPDF = await loadPdfLibs();
   const f1 = await buildReportFrame(apptId, opt);
@@ -229,11 +247,11 @@ async function makeReportPdf(apptId, opt = {}) {
       pdf.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
     }
     if (i3.length) throw new PdfAuditError(i3);
-    const a = f1.R.a; return { pdf, pages: pages.length, name: `รายงานก่อนพบแพทย์-${f1.R.p.name}-${a.appt_date}.pdf` };
+    const a = f1.R.a; return { pdf, pages: pages.length, name: `สรุปก่อนพบแพทย์-${f1.R.p.name}-${a.appt_date}.pdf` };
   } finally { f1.wrap.remove(); }
 }
 
-/** สรุปรายงานที่ซ่อนไว้ในหน้ารายละเอียดนัด: กดเปิดดูได้ทันทีโดยไม่ต้องสร้างไฟล์ (แสดงใน Shadow DOM จึงไม่ปนกับสไตล์ของแอพ) */
+/** สรุปที่ซ่อนไว้ในหน้ารายละเอียดนัด: กดเปิดดูได้ทันทีโดยไม่ต้องสร้างไฟล์ (แสดงใน Shadow DOM จึงไม่ปนกับสไตล์ของแอพ) */
 function renderReportPreview(det) {
   const a = S.appointments.find((x) => x.id === det.dataset.appt); const box = det.querySelector('.rp-prev-body'); if (!a || !box) return;
   try {
@@ -250,35 +268,35 @@ document.addEventListener('toggle', (ev) => {
   renderReportPreview(det);
 }, true);
 
-/** เลือกยาที่จะใส่ในรายงาน: ติ๊กไว้ให้ตามแผนกของนัด (ถ้าไม่มียาไหนระบุแผนกเลย จะติ๊กทุกตัวให้ แล้วให้เลือกเอง) */
+/** เลือกยาที่จะใส่ในสรุป: ติ๊กไว้ให้ตามแผนกของนัด (ถ้าไม่มียาไหนระบุแผนกเลย จะติ๊กทุกตัวให้ แล้วให้เลือกเอง) */
 function reportPickSheet(a) {
   const p = profileById(a.profile_id); const meds = medsOf(p.id);
   const matched = a.department ? meds.filter((m) => reportMedMatches(m, a.department)) : [];
   const useAll = !matched.length; const on = new Set((useAll ? meds : matched).map((m) => m.id));
-  const sh = openSheet(`<h3>📄 เลือกยาที่จะใส่ในรายงาน</h3>
+  const sh = openSheet(`<h3>📄 เลือกยาที่จะใส่ในสรุป</h3>
     <p class="small muted">นัด${a.department ? `แผนก <b>${esc(a.department)}</b>` : ''} ของ ${esc(p.name)} · ${thDate(a.appt_date)}</p>
     ${useAll ? `<div class="alert sun"><div class="ic">💡</div><div><b>ยังไม่มียาที่ระบุว่าเป็นของแผนกนี้</b><span class="small">เลยติ๊กทุกตัวไว้ให้ก่อน — เลือกเฉพาะยาที่เกี่ยวข้องได้ และถ้ากรอก "แผนกที่จ่ายยา" ในฟอร์มยา ครั้งหน้าระบบจะเลือกให้เอง</span></div></div>` : `<p class="small">ติ๊กยาที่ตรงกับแผนกนี้ไว้ให้แล้ว (${matched.length} จาก ${meds.length} รายการ) ปรับเพิ่ม/ลดได้</p>`}
     <div class="row" style="margin:6px 0"><button type="button" class="btn ghost sm" id="rpAll">เลือกทั้งหมด</button><button type="button" class="btn ghost sm" id="rpNone">ไม่เลือกเลย</button></div>
     <div class="rp-pick">${meds.map((m) => `<label class="card flat rp-pick-row"><input type="checkbox" name="rpmed" value="${m.id}" ${on.has(m.id) ? 'checked' : ''}><b class="rp-pick-no">${esc(medNo(m))}</b><span class="rp-pick-nm">${esc(m.name)}<small class="muted">${esc([m.purpose, m.prescribed_dept && `แผนก${m.prescribed_dept}`].filter(Boolean).join(' · '))}</small></span></label>`).join('')}</div>
-    <div class="row sticky-actions"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" id="rpGo">สร้างรายงาน</button></div>`);
+    <div class="row sticky-actions"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" id="rpGo">สร้างสรุป</button></div>`);
   const boxes = () => [...sh.querySelectorAll('input[name=rpmed]')];
   $('#rpAll', sh).onclick = () => boxes().forEach((c) => { c.checked = true; });
   $('#rpNone', sh).onclick = () => boxes().forEach((c) => { c.checked = false; });
   $('#rpGo', sh).onclick = async () => {
     const medIds = boxes().filter((c) => c.checked).map((c) => c.value);
-    if (!medIds.length && meds.length && !(await askConfirm('ยังไม่ได้เลือกยาเลย ต้องการสร้างรายงานที่ไม่มีรายการยาใช่หรือไม่?', 'ใช่ สร้างเลย'))) return;
+    if (!medIds.length && meds.length && !(await askConfirm('ยังไม่ได้เลือกยาเลย ต้องการสร้างสรุปที่ไม่มีรายการยาใช่หรือไม่?', 'ใช่ สร้างเลย'))) return;
     closeSheet(); await runReport(a.id, { medIds });
   };
 }
 async function runReport(apptId, opt) {
-  toast('กำลังสร้างและตรวจสอบรายงาน…');
-  try { const { pdf, name, pages } = await makeReportPdf(apptId, opt); pdf.save(name); toast(`✓ ตรวจสอบแล้ว บันทึกรายงาน ${pages} หน้า`); }
-  catch (e) { pdfFail(e, () => toast('สร้างรายงานไม่สำเร็จ ลองใหม่อีกครั้ง')); }
+  toast('กำลังสร้างและตรวจสอบสรุป…');
+  try { const { pdf, name, pages } = await makeReportPdf(apptId, opt); pdf.save(name); toast(`✓ ตรวจสอบแล้ว บันทึกสรุป ${pages} หน้า`); }
+  catch (e) { pdfFail(e, () => toast('สร้างสรุปไม่สำเร็จ ลองใหม่อีกครั้ง')); }
 }
 async function downloadReport(apptId) {
   const a = S.appointments.find((x) => x.id === apptId); if (!a) return;
   if (!canUse('report', { pid: a.profile_id })) return premiumSheet('report'); // ไฟล์ Premium: ต้องเป็น Premium ของบัญชีตัวเอง (โปรไฟล์ที่แชร์มาก็โหลดได้)
-  const st = reportState(a); if (!st.ok) return toast(st.n < 0 ? 'นัดนี้ผ่านมาแล้ว' : `สั่งทำรายงานได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)`);
+  const st = reportState(a); if (!st.ok) return toast(st.n < 0 ? 'นัดนี้ผ่านมาแล้ว' : `สั่งทำสรุปได้ตั้งแต่วันที่ ${thDate(st.opens)} (ภายใน ${REPORT_WINDOW_DAYS} วันก่อนวันนัด)`);
   await refreshForPdf();
   if (!medsOf(a.profile_id).length) return runReport(apptId, {});
   closeSheet(); reportPickSheet(a);
