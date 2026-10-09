@@ -1996,3 +1996,44 @@ body:not(.auth) .appt .date span { display: block; margin: 0; font-size: var(--f
 .dt-check { margin: var(--sp-3, 12px) 0 0; line-height: var(--lh-sub, 1.4); }
 #splash .sp-foot .sf-a { line-height: 1.5; }
 
+/* v1.3.49 — รูปยา (ฟอร์มยา + หน้าจำนวนยาที่เหลือ) + ตัวแก้ไขรูป (หมุน/กลับด้าน/ตัดภาพ) */
+.med-photo .mp-prev { margin-bottom: var(--sp-2, 8px); }
+.med-photo .mp-prev img { width: 96px; height: 96px; object-fit: cover; border-radius: 16px; border: 1.5px solid var(--line, #D5D9FF); display: block; }
+.stk-pic { width: 44px; height: 44px; object-fit: cover; border-radius: 10px; display: block; margin-bottom: var(--sp-1, 4px); cursor: zoom-in; }
+.pe-overlay { position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, .78); display: grid; place-items: center; padding: var(--sp-3, 12px); overflow: auto; }
+.pe-box { background: #fff; border-radius: 20px; padding: var(--sp-4, 16px); width: 100%; max-width: 520px; max-height: 100%; overflow: auto; }
+.pe-box h3 { margin: 0 0 var(--sp-2, 8px); }
+.pe-wrap { text-align: center; line-height: 0; background: #F6F5F1; border-radius: 12px; padding: var(--sp-2, 8px); }
+.pe-stage { position: relative; display: inline-block; max-width: 100%; overflow: hidden; touch-action: none; }
+.pe-stage canvas { display: block; max-width: 100%; max-height: 52vh; width: auto; height: auto; }
+.pe-crop { position: absolute; border: 2px solid #DAFF3A; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); touch-action: none; cursor: move; box-sizing: border-box; }
+.pe-crop i { position: absolute; width: 28px; height: 28px; touch-action: none; }
+.pe-crop i::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #DAFF3A; border: 2px solid #4D55F5; }
+.pe-crop i[data-h="tl"] { left: -14px; top: -14px; } .pe-crop i[data-h="tl"]::after { left: 7px; top: 7px; }
+.pe-crop i[data-h="tr"] { right: -14px; top: -14px; } .pe-crop i[data-h="tr"]::after { right: 7px; top: 7px; }
+.pe-crop i[data-h="bl"] { left: -14px; bottom: -14px; } .pe-crop i[data-h="bl"]::after { left: 7px; bottom: 7px; }
+.pe-crop i[data-h="br"] { right: -14px; bottom: -14px; } .pe-crop i[data-h="br"]::after { right: 7px; bottom: 7px; }
+.pe-tip { margin: var(--sp-2, 8px) 0; }
+.pe-tools { display: flex; flex-wrap: wrap; gap: var(--sp-2, 8px); margin-bottom: var(--sp-3, 12px); }
+.pe-tools .btn { flex: 1 1 40%; }
+
+/* v1.3.50 — "ให้ญาติมารับยาแทน": กล่องพื้นเขียวในฟอร์มนัด + แถบเขียวใต้ชื่อหมอในรายการนัด */
+.proxy-box { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3, 12px); margin: var(--sp-3, 12px) 0; padding: var(--sp-3, 12px) var(--sp-4, 16px); background: #DAFF7C; border: 2px solid #A6DA3A; border-radius: 16px; color: #161A4D; cursor: pointer; }
+.proxy-box .proxy-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.proxy-box b { font-size: var(--fs-btn, 16px); font-weight: var(--fw-semi, 600); line-height: var(--lh-title, 1.3); }
+.proxy-box small { font-size: var(--fs-cap, 13px); line-height: var(--lh-sub, 1.4); color: #3B4A12; }
+.proxy-tag { display: block; text-align: center; margin-top: var(--sp-1, 4px); padding: var(--sp-1, 4px) var(--sp-2, 8px); background: #DAFF7C; border: 1.5px solid #A6DA3A; border-radius: 8px; color: #161A4D; font-size: var(--fs-cap, 13px); font-weight: var(--fw-semi, 600); line-height: var(--lh-title, 1.3); }
+
+/* v1.3.55 — กรอบข้อ 8 (หมอแนะนำว่า) เข้มขึ้น: พื้นฟ้าม่วงเข้มขึ้น เส้นขอบหนาและเข้มขึ้น */
+.post-visit { background: #D9DEFF; border: 2px solid #7C85F2; }
+
+/* v1.3.57 — ข้อความในวงเล็บข้อ 8: ขึ้นบรรทัดใหม่ใต้หัวข้อ ตัดบรรทัดเป็นก้อนความหมาย (ไม่ขาดกลางวลี) */
+.post-visit .f > span small { display: block; margin-top: var(--sp-1, 4px); font-size: var(--fs-cap, 13px); font-weight: var(--fw-regular, 400); line-height: var(--lh-sub, 1.4); }
+
+/* v1.3.61 — ชื่อทางการแพทย์ใต้ชื่อยา (ตัวเล็ก บาง) */
+.gen { display: block; margin-top: 1px; font-size: var(--fs-cap, 13px); font-weight: var(--fw-regular, 400); line-height: var(--lh-title, 1.3); color: var(--muted, #5A6080); letter-spacing: 0; }
+.mp-gen { font-size: 11px; font-weight: 400; line-height: 1.3; color: #5A6080; margin-top: 1px; }
+.rp-gen { font-size: 12px; font-weight: 400; color: #5A6080; }
+
+/* v1.3.65 — ปุ่ม [hidden] ต้องซ่อนจริง (ปุ่ม ลบรูป ในฟอร์มยา โผล่ทั้งที่ยังไม่มีรูป) */
+#mpDel[hidden] { display: none !important; }

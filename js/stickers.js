@@ -32,7 +32,7 @@ function stkNumCellHtml(t, p, item) {
   if (!m) return `<div class="sx-gap" style="width:${w}mm;height:${t.h}mm"></div>`; // ช่องว่างท้ายแถว (ป้ายยาวถัดไปวางไม่พอ)
   const st = `width:${w}mm;height:${t.h}mm;border:${t.bd}mm solid ${p.color};border-radius:${t.w * .06}mm`;
   if (!isOralMed(m)) { // ยาที่ไม่ได้กิน: ชื่อไทยตัวใหญ่ (ยาหยอดตา) + ชื่อภาษาอังกฤษตัวเล็กด้านล่าง
-    return `<div class="sx sx-n" style="${st}"><span class="sx-th" style="font-size:18pt">${stkEsc(stkKind(m))}</span><small class="sx-en" style="font-size:9pt">${stkEsc(String(m.name || ''))}</small></div>`;
+    return `<div class="sx sx-n" style="${st}"><span class="sx-th" style="font-size:18pt">${stkEsc(stkKind(m))}</span><small class="sx-en" style="font-size:9pt">${stkEsc(String(m.name || ''))}</small>${medGeneric(m) ? `<small class="sx-en sx-gn" style="font-size:8pt;font-weight:400">${stkEsc(medGeneric(m))}</small>` : ''}</div>`;
   }
   const code = medNo(m); const fs = code.length <= 3 ? 36 : code.length === 4 ? 30 : 24;
   return `<div class="sx sx-n" style="${st}"><small class="sx-cap">รหัสยา</small><b class="sx-code" style="font-size:${fs}pt">${stkEsc(code)}</b></div>`;
@@ -179,6 +179,7 @@ function stkDrawCell(ctx, t, p, s, x, y, imgs) {
       const lhTh = 18 * STK_PT * 1.15, lhEn = 9 * STK_PT * 1.2;
       const items = [{ h: lhTh, draw: (cx, top) => cvText(ctx, th, cx, top + lhTh / 2, stkFont(700, 18), '#000', 'center') }];
       enLines.forEach((l, i) => items.push({ h: lhEn, mt: i === 0 ? .8 : 0, draw: (cx, top) => cvText(ctx, l, cx, top + lhEn / 2, stkFont(600, 9), '#2B3060', 'center') }));
+      if (medGeneric(m)) { ctx.font = stkFont(400, 8); const lhG = 8 * STK_PT * 1.2; cvWrap(ctx, medGeneric(m), a.x1 - a.x0 - 4).forEach((l, i) => items.push({ h: lhG, mt: i === 0 ? .4 : 0, draw: (cx, top) => cvText(ctx, l, cx, top + lhG / 2, stkFont(400, 8), '#2B3060', 'center') })); } // ชื่อทางการแพทย์ ตัวเล็กบางใต้ชื่อยา
       stkStack(ctx, a, items);
     } else {
       const code = medNo(m); const fs = code.length <= 3 ? 36 : code.length === 4 ? 30 : 24; const hc = 12 * STK_PT, hn = fs * STK_PT;

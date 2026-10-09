@@ -30,9 +30,14 @@ function reportMedNoteHtml(m, dept) {
 }
 /** ยาที่ติ๊กไว้ให้ตามแผนกของนัด (ถ้าไม่มียาไหนระบุแผนก = ทุกตัว) */
 function reportDefaultMedIds(a) {
-  const meds = medsOf(a.profile_id); const matched = a.department ? meds.filter((m) => reportMedMatches(m, a.department)) : [];
-  return (matched.length ? matched : meds).map((m) => m.id);
+  const matched = a.department ? reportAllMeds(a.profile_id).filter((m) => reportMedMatches(m, a.department)) : []; // รวมยางดชั่วคราว/หยุดแล้วของแผนกนี้ด้วย — หมอดูประวัติยาได้ครบ
+  return (matched.length ? matched : medsOf(a.profile_id)).map((m) => m.id);
 }
+/** ยาที่เลือกใส่สรุปได้: กำลังทาน (ตามรหัส) ก่อน แล้วงดชั่วคราว/หยุดแล้ว (A-Z) */
+const reportAllMeds = (pid) => [...medsOf(pid), ...medsOf(pid, 'any').filter((m) => m.status !== 'active').sort((a, b) => String(a.name).localeCompare(String(b.name), 'en', { sensitivity: 'base' }))];
+/** รหัสยาในสรุป: ยาที่งด/หยุดไม่มีรหัส (เหมือนในแอป) · บรรทัดสถานะใต้ชื่อยา (ว่าง = กำลังทาน) */
+const reportCode = (m) => (m.status === 'active' ? medNo(m) : '-');
+const reportStatusLine = (m) => (m.status === 'active' ? '' : `สถานะ: ${MED_STATUS[m.status] || m.status}${String(m.status_reason || '').trim() ? ` — ${String(m.status_reason).trim()}` : ''}`);
 /** "ครั้งที่แล้วหมอแนะนำว่า": นัดที่ผ่านมาของคนนี้ที่จดข้อ 8 ไว้ — ต้องเป็นแผนกเดิม (หมอต่างคนได้ แต่ระบุชื่อหมอของนัดนั้นด้วย) ใช้ครั้งล่าสุด */
 function reportPrevVisit(a) {
   const dept = reportDeptNorm(a.department); if (!dept) return null;
@@ -46,7 +51,7 @@ const reportMedDoc = (m) => String(m.prescriber || '').trim() || '-';
 
 /** รวมข้อมูลที่จะใส่ในสรุป (ดึงจากข้อมูลปัจจุบันทุกครั้ง) */
 function reportData(a, opt = {}) {
-  const p = profileById(a.profile_id); const allMeds = medsOf(p.id); const meds = opt.medIds ? allMeds.filter((m) => opt.medIds.includes(m.id)) : allMeds;
+  const p = profileById(a.profile_id); const allMeds = reportAllMeds(p.id); const meds = opt.medIds ? allMeds.filter((m) => opt.medIds.includes(m.id)) : medsOf(p.id);
   return { a, p, meds, allMeds, prev: reportPrevVisit(a) };
 }
 
@@ -97,8 +102,8 @@ function reportBlocks(R) {
     B.push({ html: `<table class="rp-t rp-head-t">${cols}<tr><th>รหัส</th><th>ชื่อยา</th><th>ทานครั้งละ · เวลา</th><th>ยาเหลือ</th><th>บันทึกของยา</th></tr></table>`, title: true, hdrKey: 'meds', tight: true });
     meds.forEach((m) => {
       const left = tracksStock(m) ? `${e(qtyText(stockLeft(m)))} ${e(unitOf(m))}` : '–';
-      B.push({ html: `<table class="rp-t rp-med">${cols}<tr><td class="rp-no"><b>${m.as_needed ? '*' : ''}${e(medNo(m))}</b></td>
-        <td><b class="rp-mn">${e(m.name)}</b>${m.purpose ? `<div class="s">${e(m.purpose)}</div>` : ''}<div class="s">หมอ: ${e(reportMedDoc(m))}</div></td>
+      B.push({ html: `<table class="rp-t rp-med">${cols}<tr><td class="rp-no"><b>${m.as_needed ? '*' : ''}${e(reportCode(m))}</b></td>
+        <td><b class="rp-mn">${e(m.name)}</b>${medGeneric(m) ? `<div class="s rp-gen">${e(medGeneric(m))}</div>` : ''}${m.purpose ? `<div class="s">${e(m.purpose)}</div>` : ''}<div class="s">หมอ: ${e(reportMedDoc(m))}</div>${reportStatusLine(m) ? `<div class="s"><b>${e(reportStatusLine(m))}</b></div>` : ''}</td>
         <td data-label="ทานครั้งละ">${m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${e(unitOf(m))}`}<div class="s">${e(medWhen(m))}</div></td>
         <td class="rp-left" data-label="ยาเหลือ">${left}</td>
         <td class="rp-mnote" data-label="บันทึก">${reportMedNoteHtml(m, a.department)}</td></tr></table>`, med: true, rowKey: 'meds', tight: true });
@@ -274,14 +279,14 @@ document.addEventListener('toggle', (ev) => {
 
 /** เลือกยาที่จะใส่ในสรุป: ติ๊กไว้ให้ตามแผนกของนัด (ถ้าไม่มียาไหนระบุแผนกเลย จะติ๊กทุกตัวให้ แล้วให้เลือกเอง) */
 function reportPickSheet(a) {
-  const p = profileById(a.profile_id); const meds = medsOf(p.id);
+  const p = profileById(a.profile_id); const meds = reportAllMeds(p.id);
   const matched = a.department ? meds.filter((m) => reportMedMatches(m, a.department)) : [];
-  const useAll = !matched.length; const on = new Set((useAll ? meds : matched).map((m) => m.id));
+  const useAll = !matched.length; const on = new Set(reportDefaultMedIds(a));
   const sh = openSheet(`<h3>📄 เลือกยาที่จะใส่ในสรุป</h3>
     <p class="small muted">นัด${a.department ? `แผนก <b>${esc(a.department)}</b>` : ''} ของ ${esc(p.name)} · ${thDate(a.appt_date)}</p>
     ${useAll ? `<div class="alert sun"><div class="ic">💡</div><div><b>ยังไม่มียาที่ระบุว่าเป็นของแผนกนี้</b><span class="small">เลยติ๊กทุกตัวไว้ให้ก่อน — เลือกเฉพาะยาที่เกี่ยวข้องได้ และถ้ากรอก "แผนกที่จ่ายยา" ในฟอร์มยา ครั้งหน้าระบบจะเลือกให้เอง</span></div></div>` : `<p class="small">ติ๊กยาที่ตรงกับแผนกนี้ไว้ให้แล้ว (${matched.length} จาก ${meds.length} รายการ) ปรับเพิ่ม/ลดได้</p>`}
     <div class="row" style="margin:6px 0"><button type="button" class="btn ghost sm" id="rpAll">เลือกทั้งหมด</button><button type="button" class="btn ghost sm" id="rpNone">ไม่เลือกเลย</button></div>
-    <div class="rp-pick">${meds.map((m) => `<label class="card flat rp-pick-row"><input type="checkbox" name="rpmed" value="${m.id}" ${on.has(m.id) ? 'checked' : ''}><b class="rp-pick-no">${esc(medNo(m))}</b><span class="rp-pick-nm">${esc(m.name)}<small class="muted">${esc([m.purpose, m.prescribed_dept && `แผนก${m.prescribed_dept}`].filter(Boolean).join(' · '))}</small></span></label>`).join('')}</div>
+    <div class="rp-pick">${meds.map((m) => `<label class="card flat rp-pick-row"><input type="checkbox" name="rpmed" value="${m.id}" ${on.has(m.id) ? 'checked' : ''}><b class="rp-pick-no">${esc(reportCode(m))}</b><span class="rp-pick-nm">${esc(m.name)}<small class="muted">${esc([m.status !== 'active' && MED_STATUS[m.status], m.purpose, m.prescribed_dept && `แผนก${m.prescribed_dept}`].filter(Boolean).join(' · '))}</small></span></label>`).join('')}</div>
     <div class="row sticky-actions"><button class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" id="rpGo">สร้างสรุป</button></div>`);
   const boxes = () => [...sh.querySelectorAll('input[name=rpmed]')];
   $('#rpAll', sh).onclick = () => boxes().forEach((c) => { c.checked = true; });

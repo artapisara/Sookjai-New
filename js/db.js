@@ -121,8 +121,14 @@ class SupaDB {
   }
   /** ลบทุกแถวของตารางที่ตรงเงื่อนไข (ใช้ตอนผู้ใช้สั่งลบข้อมูลของตัวเอง — RLS ยังจำกัดให้ลบได้เฉพาะของตัวเอง) */
   async removeWhere(t, col, val) { const { error } = await this.sb.from(t).delete().eq(col, val); if (error) throw error; }
-  async insert(t, row) { this.guard(); const { error } = await this.sb.from(t).insert(row); if (error) throw error; }
-  async update(t, id, patch) { this.guard(); const { error } = await this.sb.from(t).update(patch).eq('id', id); if (error) throw error; }
+  /** คอลัมน์เสริมที่เพิ่มด้วย SQL ภายหลัง: ถ้ายังไม่ได้รัน SQL ให้บันทึกส่วนอื่นต่อได้ (ตัดคอลัมน์นั้นออก) แล้วบอกผู้ใช้ */
+  dropMissing(t, obj, error) {
+    const OPT = { medications: { generic_name: ['ชื่อทางการแพทย์', 'generic-name.sql'], photo: ['รูปยา', 'med-photo.sql'] } };
+    const hit = Object.entries(OPT[t] || {}).find(([c]) => c in obj && String(error?.message || '').includes(c)); if (!hit) return false;
+    delete obj[hit[0]]; toast(`บันทึกแล้ว แต่ยังเก็บ "${hit[1][0]}" ไม่ได้ — ต้องรัน supabase/${hit[1][1]} ก่อน`); return true;
+  }
+  async insert(t, row) { this.guard(); let { error } = await this.sb.from(t).insert(row); if (error && this.dropMissing(t, row, error)) ({ error } = await this.sb.from(t).insert(row)); if (error) throw error; }
+  async update(t, id, patch) { this.guard(); let { error } = await this.sb.from(t).update(patch).eq('id', id); if (error && this.dropMissing(t, patch, error)) ({ error } = await this.sb.from(t).update(patch).eq('id', id)); if (error) throw error; }
   async remove(t, id) { this.guard(); const { error } = await this.sb.from(t).delete().eq('id', id); if (error) throw error; }
   async saveSettings(settings) {
     this.guard();

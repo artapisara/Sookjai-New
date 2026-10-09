@@ -214,7 +214,7 @@ function dayTable(p, nextKey) {
     <div class="dt-note">ทานยาครั้งละ 1 เม็ด${odd.length ? ` <b>ยกเว้นรหัส ${odd.map(esc).join(', ')}</b> <span>(ดูจำนวนในช่อง)</span>` : ' ทุกรายการ'}</div>
     <table>${colgroup}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${meds.some((m) => m.as_needed) ? '<p class="small muted dt-star">* กินเฉพาะตอนมีอาการเท่านั้น (ช่องสีชมพู)</p>' : ''}
-    ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b><table class="dt-wt"><colgroup><col style="width:17%"><col style="width:29%"><col></colgroup><thead><tr><th>รหัสยา</th><th>ชื่อยา</th><th>ข้อควรระวัง</th></tr></thead><tbody>${warns.map((m) => `<tr><td class="c">${esc(medNo(m))}</td><td>${esc(m.name)}</td><td>${esc(m.warning)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    ${warns.length ? `<div class="dt-warn"><b>⚠️ ข้อควรระวัง</b><table class="dt-wt"><colgroup><col style="width:17%"><col style="width:29%"><col></colgroup><thead><tr><th>รหัสยา</th><th>ชื่อยา</th><th>ข้อควรระวัง</th></tr></thead><tbody>${warns.map((m) => `<tr><td class="c">${esc(medNo(m))}</td><td>${esc(m.name)}${genHtml(m)}</td><td>${esc(m.warning)}</td></tr>`).join('')}</tbody></table></div>` : ''}
     <p class="small muted dt-check">${CHECK_MEDS_NOTE}</p>
   </section>`;
 }
@@ -223,13 +223,13 @@ function dayTable(p, nextKey) {
 function medCard(m) {
   const dl = daysLeft(m); const p = profileById(m.profile_id); const out = runoutDate(m);
   const wd = weekdaysText(m); const open = !!ui.medOpen?.[m.id];
-  const slotsTxt = m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${wd ? `<b>วัน</b>${esc(wd)} · ` : ''}${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && reminderOn(p) ? '🔔' : '🔕'}</span>`).join('') : '<span class="tag sun">ไม่ได้กินประจำวัน</span>';
+  const slotsTxt = m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${wd ? `<b>วัน</b>${esc(wd)} · ` : ''}${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && reminderOn(p) ? '🔔' : '🔕'}</span>`).join('') : `<span class="tag sun">${unitOf(m) === 'หลอด' ? 'ยาทาภายนอก' : 'ไม่ได้กินประจำวัน'}</span>`;
   const kv = (k, v) => `<div class="mr-kv"><span>${k}</span><b>${v}</b></div>`;
   const stock = tracksStock(m) ? kv('จำนวนที่เหลือ', `<span class="${isLowStock(m) ? 'red-t' : ''}">${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? `<br><small>หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)</small>` : ''}</span>`) : (m.bottles != null ? kv('จำนวนขวดที่มี', `${qtyText(num(m.bottles))} ขวด` +'<br><small>ต้องนับจำนวนที่เหลือเอง</small>') : '');
   return `<div class="mrow ${open ? 'open' : ''}" data-id="${m.id}">
     <button type="button" class="mr-main" data-act="med-toggle" data-id="${m.id}" aria-expanded="${open}">
       <span class="mr-no">${m.status !== 'active' ? '' : `<span class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="รหัสยา ${esc(medNo(m))}">${esc(medNo(m))}</span>`}</span>
-      <span class="mr-nm"><b class="name">${esc(m.name)}</b>${m.as_needed ? ' <span class="tag pn-tag">ทานเฉพาะเมื่อมีอาการ</span>' : ''}<span class="tags">${slotsTxt}<span class="tag dose-tag">ครั้งละ <b>${doseLabel(m.dose)} ${esc(unitOf(m))}</b></span></span>${m.purpose ? `<small class="muted">รักษา: ${esc(m.purpose)}</small>` : ''}${m.status !== 'active' ? `<small><span class="tag ${m.status === 'stopped' ? 'allergy' : 'paused'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</small>` : ''}</span>
+      <span class="mr-nm"><b class="name">${esc(m.name)}</b>${m.as_needed ? ' <span class="tag pn-tag">ทานเฉพาะเมื่อมีอาการ</span>' : ''}${genHtml(m)}<span class="tags">${slotsTxt}<span class="tag dose-tag">ครั้งละ <b>${doseLabel(m.dose)} ${esc(unitOf(m))}</b></span></span>${m.purpose ? `<small class="muted">รักษา: ${esc(m.purpose)}</small>` : ''}${m.status !== 'active' ? `<small><span class="tag ${m.status === 'stopped' ? 'allergy' : 'paused'}">${MED_STATUS[m.status]}</span>${m.status_reason ? ' ' + esc(m.status_reason) : ''}</small>` : ''}</span>
       <span class="mr-chev">${open ? '▴' : '▾'}</span>
     </button>
     <div class="mr-more" ${open ? '' : 'hidden'}>
@@ -262,7 +262,7 @@ function viewMedList() {
     ${shareTag(p.id) ? `<div class="tags">${shareTag(p.id)}</div>` : ''}
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>${esc(p.name)} แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <h2 class="fold-h"><button type="button" class="fold-btn" data-act="meds-fold" aria-expanded="${!ui.medsFold}"><span>ยาที่กำลังทาน <span class="small muted">${act.length} ตัว</span></span><span class="fold-chev">${ui.medsFold ? '▸' : '▾'}</span></button></h2>
-    <div class="med-group" id="medsFoldBody"${ui.medsFold ? ' hidden' : ''}>${act.length ? `<input type="search" id="medQ" class="stk-search" placeholder="ค้นหาชื่อยา" value="${esc(ui.medsQ || '')}" autocomplete="off" aria-label="ค้นหาชื่อยา"><p class="small muted med-none"${act.some((m) => !mq || norm(m.name).includes(mq)) ? ' hidden' : ''}>ไม่พบยาที่ค้นหา</p>` : ''}${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map((m) => medCard(m).replace('class="mrow', `data-q="${esc(norm(m.name))}"${mq && !norm(m.name).includes(mq) ? ' hidden' : ''} class="mrow`)).join('')}</div></div>
+    <div class="med-group" id="medsFoldBody"${ui.medsFold ? ' hidden' : ''}>${act.length ? `<input type="search" id="medQ" class="stk-search" placeholder="ค้นหาชื่อยา" value="${esc(ui.medsQ || '')}" autocomplete="off" aria-label="ค้นหาชื่อยา"><p class="small muted med-none"${act.some((m) => !mq || norm(` ${medGeneric(m)}`).includes(mq)) ? ' hidden' : ''}>ไม่พบยาที่ค้นหา</p>` : ''}${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map((m) => medCard(m).replace('class="mrow', `data-q="${esc(norm(`${m.name} ${medGeneric(m)}`))}"${mq && !norm(`${m.name} ${medGeneric(m)}`).includes(mq) ? ' hidden' : ''} class="mrow`)).join('')}</div></div>
     ${act.length ? '' : `<div class="card empty"><div class="e">💊</div>ยังไม่มียา กดปุ่ม + เพื่อเพิ่ม</div>`}
     ${canEditProfile(p.id) ? '<button class="fab" data-act="add-med" aria-label="เพิ่มยา">+</button>' : ''}
     <h2${off.length ? ' class="fold-h"' : ''}>${off.length ? `<button type="button" class="fold-btn" data-act="off-fold" aria-expanded="${!ui.offFold}"><span>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} ตัว</span></span><span class="fold-chev">${ui.offFold ? '▸' : '▾'}</span></button>` : 'งดชั่วคราว / หยุดแล้ว <span class="small muted">0 ตัว</span>'}</h2>
@@ -324,7 +324,7 @@ function apptBrief(a) {
     <div class="info">
       <div class="line"><b>${esc(p.name)}</b>${n >= 0 && n <= 5 ? `<span class="countdown ${n <= 1 ? 'hot' : ''}">${whenText(n)}</span>` : ''}</div>
       <div class="small">🕘 ${hhmm(a.appt_time)} น. · ${esc(departmentOf(a))}${a.attachments?.length ? ` · 📎 ${a.attachments.length}` : ''}</div>
-      <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุหมอ'}</div>
+      <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุหมอ'}</div>${a.proxy_pickup ? '<div class="proxy-tag">ญาติมารับยาแทน</div>' : ''}
     </div><span class="muted">›</span></button>`;
 }
 

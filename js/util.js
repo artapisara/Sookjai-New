@@ -50,7 +50,7 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
 const pad = (n) => String(n).padStart(2, '0');
 // หน่วยยา: เลือกจากรายการ หรือพิมพ์เอง · นับจำนวนคงเหลือ/วันยาหมดเฉพาะหน่วยที่นับเป็นชิ้น
 const UNITS = ['เม็ด', 'แคปซูล', 'หยด', 'ครั้ง', 'ช้อนชา', 'มล.', 'ซอง', 'แผ่น', 'หลอด'];
-const STOCK_UNITS = ['เม็ด', 'แคปซูล', 'ซอง', 'แผ่น', 'หลอด'];
+const STOCK_UNITS = ['เม็ด', 'แคปซูล', 'ซอง', 'แผ่น']; // หน่วยที่นับสต็อกเป็นเม็ด (ไม่รวม หลอด — ยาทาไม่นับ/ไม่เตือนยาใกล้หมด)
 const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 นัดหมอ
 const unitOf = (m) => m.unit || 'เม็ด';
 const tracksStock = (m) => STOCK_UNITS.includes(unitOf(m));
@@ -126,6 +126,10 @@ function compressImage(file, max = 1400, quality = 0.75) {
 }
 const blobToDataUrl = (b) => new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
 
+/** ชื่อทางการแพทย์ของยา (generic_name) — ว่าง = ไม่แสดง · แสดงเป็นตัวเล็กบางใต้ชื่อยา (ยี่ห้อ) ทุกหน้า */
+const medGeneric = (m) => String(m?.generic_name || '').replace(/\s+/g, ' ').trim();
+const genHtml = (m) => (medGeneric(m) ? `<small class="gen">${esc(medGeneric(m))}</small>` : '');
+
 /** ผสมสีกับสีขาว (a = 0..1 ยิ่งมากยิ่งเข้ม) — ใช้ทำสีตารางตามสีโปรไฟล์ */
 const tint = (hex, a) => { const n = parseInt(String(hex).replace('#', '').padEnd(6, '0').slice(0, 6), 16); const m = (v) => Math.round(255 - (255 - v) * a).toString(16).padStart(2, '0'); return '#' + m(n >> 16) + m((n >> 8) & 255) + m(n & 255); };
 /** แสดงคำว่า "เมื่อมีอาการ" ให้อัตโนมัติ เฉพาะยากินเมื่อมีอาการที่ผู้ใช้ยังไม่ได้พิมพ์คำนี้ไว้เองในคำกำกับ/ข้อควรระวัง/หมายเหตุ (กันขึ้นซ้ำ) */
@@ -150,7 +154,7 @@ function tidyThaiText(root) {
   });
 }
 /** วลีที่ต้องเป็นก้อนเดียวกันเสมอ (ผู้ใช้สั่งไว้) — ใช้กับทุกสมาชิก/ทุกหน้าที่แสดงวลีนี้ · เพิ่มวลีใหม่ที่นี่ที่เดียว */
-const KEEP_TOGETHER = ['ตารางการกินยาใน 1 วัน'];
+const KEEP_TOGETHER = ['ตารางการกินยาใน 1 วัน', 'สรุปก่อนพบหมอ'];
 const KEEP_TOGETHER_RE = KEEP_TOGETHER.map((s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '[\\s\\u00A0]')));
 document.addEventListener('DOMContentLoaded', () => {
   const obs = new MutationObserver((muts) => { muts.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) tidyThaiText(n); else if (n.nodeType === 3 && n.parentNode) tidyThaiText(n.parentNode); })); });

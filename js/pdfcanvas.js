@@ -52,7 +52,7 @@ function cvAudit(p, meds, log) {
   meds.forEach((m) => {
     const code = medNo(m); const want = m.slots.length * 2 + 1; // ตารางรหัสยา + หน้าเฉพาะตัวเลข (อย่างละ 1 ต่อช่วงเวลา) + รายการยา 1
     if ((cnt[code] || 0) < want) issues.push(`รหัส ${code}: วาด ${cnt[code] || 0} ครั้ง ควร ${want}`);
-    const mustHave = [m.slots.length ? printName(medShort(m)) : null, printName(m.name), printName(m.purpose || ''), `${doseLabel(m.dose)} ${unitOf(m)}`, medWhen(m), ...remarkParts(m).map((x) => x.t)].filter(Boolean);
+    const mustHave = [m.slots.length ? printName(medShort(m)) : null, printName(m.name), medGeneric(m) ? printName(medGeneric(m)) : null, printName(m.purpose || ''), `${doseLabel(m.dose)} ${unitOf(m)}`, medWhen(m), ...remarkParts(m).map((x) => x.t)].filter(Boolean);
     mustHave.forEach((s) => { if (nz(s) && !all.includes(nz(s))) issues.push(`รหัส ${code}: ไม่พบข้อความ "${String(s).slice(0, 24)}" ใน PDF`); });
   });
   return issues;
@@ -170,19 +170,20 @@ async function renderMedsCanvases(p, meds) {
     const heads = ['รหัสยา', 'ชื่อยา', 'ใช้รักษา', 'จำนวน', 'เวลา', 'หมายเหตุ']; const headH = 38; let pg = mk(); let y = cvHead(pg.ctx, p, meds, 'list');
     const drawHeader = () => { heads.forEach((t, i) => { cvRect(pg.ctx, xs[i], y, cwOf(i), headH, pcl, CVS.LINE); cvText(pg.ctx, t, i === 0 ? xs[i] + cwOf(i) / 2 : xs[i] + 8, y + headH / 2, cvFont(700, 16.7), '#000', i === 0 ? 'center' : 'left'); }); y += headH; };
     drawHeader();
-    const f15 = cvFont(400, 15.3), fNm = cvFont(600, 16.7), fCode = cvFont(700, 24), fNote = cvFont(600, 15.3), fNoteG = cvFont(400, 15.3);
+    const f15 = cvFont(400, 15.3), fGen = cvFont(400, 12.7), fNm = cvFont(600, 16.7), fCode = cvFont(700, 24), fNote = cvFont(600, 15.3), fNoteG = cvFont(400, 15.3);
     for (const m of meds) {
       const parts = remarkParts(m); const lay = (ctx0) => {
-        const out = { nm: (ctx0.font = fNm, cvWrap(ctx0, printName(m.name), cwOf(1) - 16)), pu: (ctx0.font = f15, cvWrap(ctx0, printName(m.purpose || ''), cwOf(2) - 16)), dz: (ctx0.font = f15, cvWrap(ctx0, `${doseLabel(m.dose)} ${unitOf(m)}`, cwOf(3) - 16)), wh: (ctx0.font = f15, cvWrap(ctx0, medWhen(m), cwOf(4) - 16)) };
+        const gen = medGeneric(m); // ชื่อทางการแพทย์ ใต้ชื่อยา (ตัวเล็กบาง)
+        const out = { nm: (ctx0.font = fNm, cvWrap(ctx0, printName(m.name), cwOf(1) - 16)), gn: gen ? (ctx0.font = fGen, cvWrap(ctx0, printName(gen), cwOf(1) - 16)) : [], pu: (ctx0.font = f15, cvWrap(ctx0, printName(m.purpose || ''), cwOf(2) - 16)), dz: (ctx0.font = f15, cvWrap(ctx0, `${doseLabel(m.dose)} ${unitOf(m)}`, cwOf(3) - 16)), wh: (ctx0.font = f15, cvWrap(ctx0, medWhen(m), cwOf(4) - 16)) };
         out.notes = parts.map((x) => { ctx0.font = x.kind === 'warn' ? fNote : fNoteG; return { x, ls: cvWrap(ctx0, x.t, cwOf(5) - 16 - (x.kind === 'warn' ? 14 : 0)) }; });
         const lh = 22; const nh = out.notes.reduce((a, n) => a + n.ls.length * lh + 2, 0);
-        out.h = Math.max(46, 12 + Math.max(out.nm.length * lh, out.pu.length * lh, out.dz.length * lh, out.wh.length * lh, nh, 30)); return out; };
+        out.h = Math.max(46, 12 + Math.max(out.nm.length * lh + out.gn.length * 18, out.pu.length * lh, out.dz.length * lh, out.wh.length * lh, nh, 30)); return out; };
       const L = lay(measure);
       if (y + L.h > limitY && y > 90) { pg = mk(); y = cvHead(pg.ctx, p, meds, 'list'); drawHeader(); }
       const c = pg.ctx; for (let i = 0; i < 6; i++) cvRect(c, xs[i], y, cwOf(i), L.h, '#fff', CVS.LINE);
       cvText(c, medNo(m), xs[0] + cwOf(0) / 2, y + 12 + 15, fCode, '#000', 'center');
       const col = (lines, i, font, color, bold) => lines.forEach((l, k) => cvText(c, l, xs[i] + 8, y + 6 + 11 + k * 22, font, color));
-      col(L.nm, 1, fNm, '#000'); col(L.pu, 2, f15, CVS.INK); col(L.dz, 3, f15, CVS.INK); col(L.wh, 4, f15, CVS.INK);
+      col(L.nm, 1, fNm, '#000'); L.gn.forEach((l, k) => cvText(c, l, xs[1] + 8, y + 6 + 11 + L.nm.length * 22 + 2 + k * 18, fGen, CVS.GREY)); col(L.pu, 2, f15, CVS.INK); col(L.dz, 3, f15, CVS.INK); col(L.wh, 4, f15, CVS.INK);
       let ny = y + 6 + 11;
       for (const { x, ls } of L.notes) { const warnK = x.kind === 'warn'; ls.forEach((l, k) => { if (k === 0 && warnK) cvDot(c, xs[5] + 12, ny, 3.5); cvText(c, l, xs[5] + 8 + (warnK ? 14 : 0), ny, warnK ? fNote : fNoteG, warnK ? CVS.RED : CVS.GREY); ny += 22; }); ny += 2; }
       y += L.h;
@@ -257,7 +258,7 @@ function cvAuditReport(R, log) {
   (p.drug_allergies || []).forEach((x) => need(x, 'แพ้ยา')); if (!(p.drug_allergies || []).length) need('ยังไม่ได้บันทึกว่าแพ้ยา', 'ข้อความแพ้ยา');
   reportBodyItems(p).forEach(([k, v]) => { need(k, 'หัวข้อ'); need(v, k); }); (p.chronic_diseases || []).forEach((x) => need(x, 'โรคประจำตัว'));
   if (prev) { need('ครั้งที่แล้วหมอแนะนำว่า', 'หัวข้อ'); need(String(prev.visit_summary).trim(), 'ข้อความหมอแนะนำ'); need(`หมอ: ${reportPrevDoc(prev)}`, 'ชื่อหมอของนัดครั้งก่อน'); }
-  meds.forEach((m) => { const code = medNo(m); need(code, 'รหัสยา'); need(m.name, 'ชื่อยา'); need(`หมอ: ${reportMedDoc(m)}`, `ชื่อหมอที่จ่ายยา ${code}`); need(m.purpose || '', 'ใช้รักษา'); need(m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${unitOf(m)}`, `ทานครั้งละ ${code}`); need(medWhen(m), `เวลา ${code}`);
+  meds.forEach((m) => { const code = reportCode(m); need(code, 'รหัสยา'); need(m.name, 'ชื่อยา'); need(medGeneric(m), 'ชื่อทางการแพทย์'); need(`หมอ: ${reportMedDoc(m)}`, `ชื่อหมอที่จ่ายยา ${code}`); if (reportStatusLine(m)) need(reportStatusLine(m), `สถานะยา ${m.name}`); need(m.purpose || '', 'ใช้รักษา'); need(m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${unitOf(m)}`, `ทานครั้งละ ${code}`); need(medWhen(m), `เวลา ${code}`);
     if (tracksStock(m)) need(`${qtyText(stockLeft(m))} ${unitOf(m)}`, `ยาเหลือ ${code}`); if (normTxt(m.note || '')) need(String(m.note).trim().slice(0, 220), `บันทึก ${code}`);
     const ex = reportExtraNote(m, a.department); if (ex) need(ex, `บันทึกเพิ่มเติม ${code}`); else if (m.extra_note && nz(m.extra_note).length > 3 && all.includes(nz(m.extra_note))) issues.push(`แสดงบันทึกเพิ่มเติมของยาที่ไม่เกี่ยวกับแผนก ${code}`); });
   return issues;
@@ -297,13 +298,13 @@ async function renderReportCanvases(R) {
       const head = { h: 30, gap: 0, keep: true, isHead: true, draw: (c, y) => { ['รหัส', 'ชื่อยา', 'ทานครั้งละ · เวลา', 'ยาเหลือ', 'บันทึกของยา'].forEach((t, i) => { cvRect(c, cxI[i], y, cwI[i], 30, p.color, p.color, 1.2); cvText(c, t, i === 0 ? cxI[i] + cwI[i] / 2 : cxI[i] + 8, y + 15, F(700, 13.5), '#fff', i === 0 ? 'center' : 'left'); }); } };
       blocks.push(head);
       meds.forEach((m) => { const left = tracksStock(m) ? `${qtyText(stockLeft(m))} ${unitOf(m)}` : '–'; const note = normTxt(m.note || '') ? String(m.note).trim().slice(0, 220) : ''; const extra = reportExtraNote(m, a.department);
-        mctx.font = F(700, 16.5); const nm = cvWrap(mctx, m.name, cwI[1] - 16); mctx.font = F(400, 13); const pu = [...(m.purpose ? cvWrap(mctx, m.purpose, cwI[1] - 16) : []), ...cvWrap(mctx, `หมอ: ${reportMedDoc(m)}`, cwI[1] - 16)]; // บรรทัดสุดท้าย = ชื่อหมอที่จ่ายยา (ไม่มี = -)
+        mctx.font = F(700, 16.5); const nm = cvWrap(mctx, m.name, cwI[1] - 16); mctx.font = F(400, 13); const pu = [...(medGeneric(m) ? cvWrap(mctx, medGeneric(m), cwI[1] - 16) : []), ...(m.purpose ? cvWrap(mctx, m.purpose, cwI[1] - 16) : []), ...cvWrap(mctx, `หมอ: ${reportMedDoc(m)}`, cwI[1] - 16), ...(reportStatusLine(m) ? cvWrap(mctx, reportStatusLine(m), cwI[1] - 16) : [])]; // + ชื่อหมอที่จ่ายยา (ไม่มี = -) + สถานะงด/หยุด (ถ้ามี)
         mctx.font = F(400, 14.5); const ds = cvWrap(mctx, m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${unitOf(m)}`, cwI[2] - 16); mctx.font = F(400, 13); const wh = cvWrap(mctx, medWhen(m), cwI[2] - 16);
         mctx.font = F(700, 14.5); const lf = cvWrap(mctx, left, cwI[3] - 16); mctx.font = F(400, 13.5); const nl = note ? cvWrapPre(mctx, note, cwI[4] - 16) : []; mctx.font = F(700, 13.5); const xl = extra ? cvWrapPre(mctx, extra, cwI[4] - 16) : [];
         const hh = Math.max(40, 12 + Math.max(nm.length * 22 + pu.length * 17, ds.length * 20 + wh.length * 17, lf.length * 20, (nl.length + xl.length) * 18.5 + (note && extra ? 2 : 0), 24));
         blocks.push({ h: hh, gap: 0, rowOf: head, draw: (c, y) => {
           for (let i = 0; i < 5; i++) cvRect(c, cxI[i], y, cwI[i], hh, i === 4 ? '#FFFCEF' : '#fff', '#C3C9EE', 1.2);
-          const code = (m.as_needed ? '*' : '') + medNo(m); c.font = F(700, 12); const pw = c.measureText(code).width + 14; cvRound(c, cxI[0] + cwI[0] / 2 - pw / 2, y + 7, pw, 20, 6, p.color, null); cvText(c, code, cxI[0] + cwI[0] / 2, y + 17, F(700, 12), '#fff', 'center');
+          const code = (m.as_needed ? '*' : '') + reportCode(m); c.font = F(700, 12); const pw = c.measureText(code).width + 14; cvRound(c, cxI[0] + cwI[0] / 2 - pw / 2, y + 7, pw, 20, 6, p.color, null); cvText(c, code, cxI[0] + cwI[0] / 2, y + 17, F(700, 12), '#fff', 'center');
           let yy = y + 6 + 11; nm.forEach((l) => { cvText(c, l, cxI[1] + 8, yy, F(700, 16.5), '#161A4D'); yy += 22; }); pu.forEach((l) => { cvText(c, l, cxI[1] + 8, yy - 3, F(400, 13), '#454B7A'); yy += 17; });
           yy = y + 6 + 10; ds.forEach((l) => { cvText(c, l, cxI[2] + 8, yy, F(400, 14.5), '#161A4D'); yy += 20; }); wh.forEach((l) => { cvText(c, l, cxI[2] + 8, yy - 2, F(400, 13), '#454B7A'); yy += 17; });
           yy = y + 6 + 10; lf.forEach((l) => { cvText(c, l, cxI[3] + 8, yy, F(700, 14.5), '#2C6E3F'); yy += 20; });

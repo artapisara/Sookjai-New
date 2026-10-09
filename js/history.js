@@ -33,14 +33,14 @@ function viewStock() {
   ui.stockPid = p.id; const today = todayKey();
   if (!medsOf(p.id, 'any').length) return `${back}<h1>จำนวนยาที่เหลือ</h1>${visBtn}<div class="chips">${vis.map((x) => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-act="stock-person" data-id="${x.id}" style="--pc:${x.color};--pt:${inkOn(x.color)}"><span class="av xs">${avatarSVG(x.avatar, x.color)}</span>${esc(x.name)}</button>`).join('')}</div><h2 class="ad-title">ยาของ${esc(p.name)}</h2><div class="card empty"><div class="e">💊</div>${esc(p.name)} ยังไม่มีข้อมูลยา</div>`;
   const meds = medsOf(p.id); const tracked = meds.filter(tracksStock); const other = meds.length - tracked.length;
-  const qkey = (m) => norm(`${medNo(m)} ${m.name} ${m.purpose || ''} ${m.prescriber || ''} ${m.prescribed_dept || ''}`); const q = norm(ui.stockQ || ''); const hit = (m) => !q || qkey(m).includes(q);
+  const qkey = (m) => norm(`${medNo(m)} ${m.name} ${medGeneric(m)} ${m.purpose || ''} ${m.prescriber || ''} ${m.prescribed_dept || ''}`); const q = norm(ui.stockQ || ''); const hit = (m) => !q || qkey(m).includes(q);
   const stkRow = (m) => {
     const off = m.status !== 'active'; // งดชั่วคราว/หยุดแล้ว: ไม่มีรหัส ไม่คำนวณวันหมด แสดงป้ายสถานะ และจำนวนที่ค้างไว้ ณ วันที่เปลี่ยนสถานะ
     const left = stockLeft(m); const use = dailyUse(m); const dl = use ? Math.floor(left / use) : Infinity; const low = !off && isLowStock(m);
     const doc = [m.prescriber, m.prescribed_dept].filter(Boolean).join(' · ');
     const tag = off ? `<small><span class="tag ${m.status === 'stopped' ? 'allergy' : 'paused'}">${MED_STATUS[m.status]}</span></small>` : '';
     return `<tr class="stk-row ${low ? 'low' : ''}" data-q="${esc(qkey(m))}" ${hit(m) ? '' : 'hidden'}><td>${off ? '-' : `<b class="stk-no">${esc(medNo(m))}</b>`}</td>
-      <td><b>${esc(m.name)}</b>${tag}${doc ? `<small class="muted">👨‍⚕️ ${esc(doc)}</small>` : ''}</td>
+      <td>${m.photo ? `<img class="zoom stk-pic" data-path="${esc(m.photo)}" alt="รูป ${esc(m.name)}">` : ''}<b>${esc(m.name)}</b>${genHtml(m)}${tag}${doc ? `<small class="muted">👨‍⚕️ ${esc(doc)}</small>` : ''}</td>
       <td class="stk-pur">${esc(m.purpose || '-')}</td>
       <td class="${low ? 'red-t' : ''}">${!off && use && !m.as_needed ? `${thDate(dk(addDays(new Date(), dl)))}<small>อีก ${dl} วัน</small>` : '-'}</td>
       <td class="stk-left"><b class="${low ? 'red-t' : ''}">${qtyText(left)}</b><small>${esc(unitOf(m))}</small></td></tr>`;
@@ -52,7 +52,7 @@ function viewStock() {
   const chips = `<div class="chips">${vis.map((x) => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-act="stock-person" data-id="${x.id}" style="--pc:${x.color};--pt:${inkOn(x.color)}"><span class="av xs">${avatarSVG(x.avatar, x.color)}</span>${esc(x.name)}${lowOf(x.id) ? `<span class="low-badge sm"><i>!</i>${lowOf(x.id)}</span>` : ''}</button>`).join('')}</div>`;
   const lowList = tracked.filter((m) => m.status === 'active' && isLowStock(m));
   const lowBox = lowList.length ? `<div class="alert red low-box"><div class="ic"><svg class="ex-svg" viewBox="0 0 36 36" width="36" height="36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#fff" stroke="#E5332A" stroke-width="3"/><rect x="16" y="8" width="4" height="13" rx="2" fill="#E5332A"/><circle cx="18" cy="26.5" r="2.5" fill="#E5332A"/></svg></div><div><b>ยาใกล้หมด ${lowList.length} ตัว</b><span class="low-sub">เหลือไม่เกิน ${lowStockQty()} เม็ด</span>
-    <table class="low-t"><thead><tr><th>รหัส</th><th>ชื่อยา</th><th>ตอนนี้เหลือ</th></tr></thead><tbody>${lowList.map((m) => `<tr><td><b>${esc(medNo(m))}</b></td><td>${esc(medShort(m))}</td><td class="red-t"><b>${qtyText(stockLeft(m))}</b> ${esc(unitOf(m))}</td></tr>`).join('')}</tbody></table></div></div>` : '';
+    <table class="low-t"><thead><tr><th>รหัส</th><th>ชื่อยา</th><th>ตอนนี้เหลือ</th></tr></thead><tbody>${lowList.map((m) => `<tr><td><b>${esc(medNo(m))}</b></td><td>${esc(medShort(m))}${genHtml(m)}</td><td class="red-t"><b>${qtyText(stockLeft(m))}</b> ${esc(unitOf(m))}</td></tr>`).join('')}</tbody></table></div></div>` : '';
   return `${back}<h1>จำนวนยาที่เหลือ</h1>${visBtn}${chips}
     ${lowBox}
     <h2 class="ad-title">ยาของ${esc(p.name)} ณ วันที่ ${thDate(today)}</h2>

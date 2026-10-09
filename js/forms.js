@@ -106,12 +106,13 @@ function medForm(m) {
     <form id="f">
       <label class="f"><span>ยาของใคร</span>${profileRadio(e.profile_id, !!m)}</label>
       <div id="allergyBox">${allergyNote(pid0)}</div>
-      <div class="name-row"><label class="f"><span>ชื่อยา <b class="req" aria-hidden="true">*</b></span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น Amlodipine 5 mg"></label><button type="button" class="st-chip st-${e.status}" id="stBtn" aria-expanded="false">${MED_STATUS[e.status]} ▾</button></div>
+      <div class="name-row"><label class="f"><span>ยา <b class="req" aria-hidden="true">*</b></span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น Amlodipine 5 mg"></label><button type="button" class="st-chip st-${e.status}" id="stBtn" aria-expanded="false">${MED_STATUS[e.status]} ▾</button></div>
       ${true ? `<div class="f st-panel pn-${e.status}" id="stPanel" hidden><span class="lbl">สถานะของยา</span>
         <div class="seg">${Object.entries(MED_STATUS).map(([k, v]) => `<label><input type="radio" name="status" value="${k}" ${e.status === k ? 'checked' : ''}><span>${v}</span></label>`).join('')}</div>
         <input type="text" name="status_reason" class="${e.status === 'active' ? 'hidden' : ''}" style="margin-top:8px" value="${esc(e.status_reason)}" placeholder="เหตุผล เช่น หมอสั่งงด, แพ้ยา, หายแล้ว">
         ${(m?.status_history || []).length ? `<div class="hist">${m.status_history.slice().reverse().map((h) => `${thDate(h.date)} · ${MED_STATUS[h.status] || h.status}${h.reason ? ' — ' + esc(h.reason) : ''}`).join('<br>')}</div>` : ''}
 </div>` : ''}
+      <label class="f"><span>ชื่อทางการแพทย์ <small>(ไม่บังคับ)</small></span><input type="text" name="generic_name" maxlength="120" value="${esc(e.generic_name)}" placeholder="เช่น Paracetamol + Tramadol"></label>
 
       <div class="two">
         <label class="f"><span>ครั้งละ</span><input type="number" name="dose" min="0" step="0.25" inputmode="decimal" value="${num(e.dose, 1)}"></label>
@@ -140,6 +141,10 @@ function medForm(m) {
       <div class="f"><span class="lbl">แผนกที่จ่ายยา <small>(ไม่บังคับ)</small></span>${selectOther('prescribed_dept', DEPARTMENTS, e.prescribed_dept, 'เลือกแผนก')}</div>
       <label class="f"><span>รหัสยา <small>(เรียงต่อเนื่องของคนนี้ · อักษรนำ "<b id="noPrefix">${esc(medPrefix(pid0))}</b>")</small></span>
         <input type="number" name="sort_order" min="1" step="1" inputmode="numeric" required value="${e.sort_order || nextNoFor(pid0)}"></label>
+      <div class="f med-photo"><span class="lbl">รูปเม็ดยา <small>(ควรถ่ายเม็ดยาใกล้ๆ)</small></span>
+        <div class="mp-prev" id="mpPrev"></div>
+        <div class="row"><label class="btn ghost filebtn">ถ่ายรูป<input type="file" accept="image/*" capture="environment" class="medPhotoIn" hidden></label><label class="btn ghost filebtn">แนบรูป<input type="file" accept="image/*" class="medPhotoIn" hidden></label><button type="button" class="btn ghost" id="mpDel" hidden>ลบรูป</button></div>
+      </div>
             ${m ? `<p class="small muted">อัปเดตล่าสุด ${thDateTime(m.updated_at)} (อัตโนมัติ)</p>` : ''}
       <p class="small muted med-check"><b>โปรดตรวจสอบก่อนบันทึก:</b> ${CHECK_MEDS_FORM}</p>
       <div class="row sticky-actions">
@@ -150,6 +155,22 @@ function medForm(m) {
     </form>`);
   const f = $('#f', sheet);
   bindSelectOther(f);
+  // รูปยา 1 รูป: ถ่าย/แนบ → ตัวแก้ไขรูป (หมุน กลับด้าน ตัดภาพ) → แสดงตัวอย่าง · อัปโหลดตอนกดบันทึกยา
+  let photoNew = null; let photoRemoved = false; const oldPhoto = m?.photo || null;
+  const mpPrev = $('#mpPrev', f), mpDel = $('#mpDel', f);
+  const drawPhoto = () => {
+    const has = !!photoNew || (!!oldPhoto && !photoRemoved);
+    mpPrev.innerHTML = photoNew ? `<img src="${photoNew.url}" alt="รูปยา">` : (oldPhoto && !photoRemoved ? `<img data-path="${esc(oldPhoto)}" alt="รูปยา">` : noPicHtml('ยังไม่มีรูป'));
+    mpDel.hidden = !has; hydrateImgs(mpPrev);
+  };
+  $$('.medPhotoIn', f).forEach((inp) => inp.addEventListener('change', async () => {
+    const file = inp.files[0]; inp.value = ''; if (!file) return;
+    const blob = await editPhoto(file); if (!blob) return;
+    if (photoNew) URL.revokeObjectURL(photoNew.url);
+    photoNew = { blob, url: URL.createObjectURL(blob) }; photoRemoved = false; drawPhoto();
+  }));
+  mpDel.addEventListener('click', () => { if (photoNew) URL.revokeObjectURL(photoNew.url); photoNew = null; photoRemoved = true; drawPhoto(); });
+  drawPhoto();
   // ยาที่ไม่ใช่ยาทาน (หน่วยไม่ใช่ เม็ด/แคปซูล/ซอง/แผ่น เช่น หยด ครั้ง ช้อนชา มล.) ไม่นับสต็อกเป็นเม็ด: ซ่อนช่อง "จำนวน" ของเม็ด แล้วแสดงช่อง "จำนวน (ขวด)" ที่นับเอง
   { const stBox = f.elements.stock.closest('.stock-box'), bBox = f.elements.bottles.closest('.bottle-box'), unitSel = f.elements.unit, unitOth = f.elements.unit_other;
     const sync = () => { const u = (unitSel.value === '__other' ? String(unitOth.value || '').trim() : unitSel.value) || 'เม็ด'; const bottle = !STOCK_UNITS.includes(u); stBox.hidden = bottle; bBox.hidden = !bottle; f.elements.stock.disabled = bottle; f.elements.bottles.disabled = !bottle;
@@ -175,7 +196,7 @@ function medForm(m) {
     const saveDraft = () => { clearTimeout(tmr); tmr = setTimeout(() => { try {
       const v = {}; new FormData(f).forEach((val, k) => { (v[k] = v[k] || []).push(String(val)); });
       [...f.querySelectorAll('input[type=checkbox]')].forEach((c) => { if (c.name && !c.checked && !(c.name in v)) v[c.name] = []; });
-      const typed = ['name', 'purpose', 'warning', 'extra_note', 'prescriber'].some((k) => String(v[k]?.[0] || '').trim());
+      const typed = ['name', 'generic_name', 'purpose', 'warning', 'extra_note', 'prescriber'].some((k) => String(v[k]?.[0] || '').trim());
       if (typed) localStorage.setItem(DRAFT_KEY, JSON.stringify({ t: Date.now(), v })); } catch (e) { /* เต็ม/ปิดใช้งาน = ข้าม */ } }, 400); };
     f.addEventListener('input', saveDraft); f.addEventListener('change', saveDraft);
     sheet.addEventListener('click', (ev) => { if (ev.target.closest('[data-act="close"]')) { clearTimeout(tmr); clearDraft(); } });
@@ -241,6 +262,7 @@ ${rows.join('\n')}`;
     const bottlesRaw = bottleMode ? String(fd.get('bottles') ?? '').trim() : '';
     const data = {
       profile_id: pid, sort_order: sortNo, no_pending: false, name: fd.get('name').trim(), purpose: fd.get('purpose').trim(),
+      ...(String(fd.get('generic_name') || '').trim() || m?.generic_name ? { generic_name: String(fd.get('generic_name') || '').replace(/\s+/g, ' ').trim() } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
       ...(String(fd.get('prescriber') || '').trim() || m?.prescriber ? { prescriber: String(fd.get('prescriber') || '').trim() } : {}),
       ...(String(readSelectOther(fd, 'prescribed_dept') || '').trim() || m?.prescribed_dept ? { prescribed_dept: String(readSelectOther(fd, 'prescribed_dept') || '').trim() } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
       dose: num(fd.get('dose'), 1), unit, stock: stockNow, ...(m && stockNow !== num(m.stock) ? { stock_at: todayKey() } : {}), ...(bottleMode && (bottlesRaw !== '' || m?.bottles != null) ? { bottles: bottlesRaw === '' ? null : num(bottlesRaw) } : {}), // จำนวนขวด: ส่งเฉพาะเมื่อมีค่า (ยังไม่รัน SQL ก็บันทึกยาปกติได้) // เริ่มนับจำนวนคงเหลือใหม่จากวันที่แก้ตัวเลข
@@ -251,6 +273,11 @@ ${rows.join('\n')}`;
       warning: String(fd.get('warning') || '').trim(), as_needed: !!fd.get('as_needed'),
       ...(String(fd.get('extra_note') || '').trim() || m?.extra_note ? { extra_note: String(fd.get('extra_note') || '').trim() } : {}), // ไม่ส่งคอลัมน์ถ้าไม่ได้ใช้ (ยังไม่รัน SQL ก็บันทึกยาปกติได้)
     };
+    const newId = m ? m.id : uuid(); // รหัสยา (ใช้เป็นโฟลเดอร์รูป)
+    if (photoNew) { // อัปโหลดรูปยาไปเก็บใต้โฟลเดอร์ของเจ้าของโปรไฟล์ แล้วเก็บพาธในคอลัมน์ photo
+      try { data.photo = await DB.upload(new File([photoNew.blob], 'med.jpg', { type: 'image/jpeg' }), newId, profileById(pid)?.user_id); }
+      catch (e) { console.error(e); return toast('อัปโหลดรูปยาไม่สำเร็จ ลองใหม่อีกครั้ง'); }
+    } else if (photoRemoved && oldPhoto) data.photo = null;
     if (m) {
       const status = fd.get('status'); const reason = String(fd.get('status_reason') || '').trim();
       if (status === 'active' && m.status !== 'active' && !bottleMode && stockNow === num(m.stock)) { data.stock = stockLeft(m); data.stock_at = todayKey(); } // กลับมาทานยา: เริ่มนับจากจำนวนที่ค้างไว้ตอนงด/หยุด (ไม่หักย้อนหลังช่วงที่ไม่ได้ทาน)
@@ -259,10 +286,10 @@ ${rows.join('\n')}`;
         data.status_history = [...(m.status_history || []), { date: todayKey(), status, reason }];
       }
       Object.assign(m, data); closeSheet(); render();
-      if (await dbDo(DB.update('medications', m.id, data))) toast('บันทึกแล้ว');
+      if (await dbDo(DB.update('medications', m.id, data))) { toast('บันทึกแล้ว'); if (oldPhoto && 'photo' in data) DB.removeFiles([oldPhoto]).catch(() => {}); } // เปลี่ยน/ลบรูป → ลบไฟล์เก่า
     } else {
       const st0 = fd.get('status') || 'active'; const rs0 = st0 === 'active' ? '' : String(fd.get('status_reason') || '').trim();
-      const row = { id: uuid(), status: st0, status_reason: rs0, status_history: [{ date: todayKey(), status: st0, reason: st0 === 'active' ? 'เริ่มทานยา' : rs0 }], ...data };
+      const row = { id: newId, status: st0, status_reason: rs0, status_history: [{ date: todayKey(), status: st0, reason: st0 === 'active' ? 'เริ่มทานยา' : rs0 }], ...data };
       S.medications.push(row); ui.medsPerson = pid; clearDraft(); closeSheet(); render();
       if (await dbDo(DB.insert('medications', row))) toast('เพิ่มยาแล้ว');
     }
@@ -381,7 +408,8 @@ function apptForm(a, date, pid) {
         <a class="btn call ${h0?.phone ? '' : 'disabled'}" id="callBtn" href="${h0?.phone ? telHref(h0.phone) : '#'}">📞 โทร</a></div></label>
       <label class="f"><span>6. ตึก/ชั้นที่ตรวจ</span><input type="text" name="building" value="${esc(e.building)}" placeholder="เช่น ตึกผู้ป่วยนอก ชั้น 3"></label>
       <label class="f"><span>7. สาเหตุที่มาพบหมอ</span>${selectOther('visit_reason', VISIT_REASONS, e.visit_reason === 'ติดตามอาการ' ? 'ติดตามการรักษา' : e.visit_reason, 'เลือกสาเหตุ')}</label>
-      <div class="post-visit"><label class="f"><span>8. หมอแนะนำว่า <small>(จะขึ้นในสรุปก่อนพบหมอครั้งถัดไป ถ้าเป็นแผนกเดิม พร้อมชื่อหมอ)</small></span><textarea name="visit_summary" maxlength="1000" placeholder="เช่น ปรับยาใหม่ / ให้งดอาหารเค็ม / นัดตรวจเลือดอีก 1 เดือน">${esc(e.visit_summary)}</textarea></label></div>
+      <label class="proxy-box"><span class="proxy-tx"><b>ญาติมารับยาแทนได้</b><small><span class="kt">คนไข้ไม่ต้องมาเอง</span> <span class="kt">สามารถให้ญาติมาแทนได้</span></small></span><span class="switch"><input type="checkbox" name="proxy_pickup" ${e.proxy_pickup ? 'checked' : ''}><i></i></span></label>
+      <div class="post-visit"><label class="f"><span>8. หมอแนะนำว่า <small>(<span class="kt">จะนำข้อมูลไปแสดงใน</span> <span class="kt">"สรุปก่อนพบหมอ"</span> <span class="kt">ในนัดครั้งถัดไป</span>)</small></span><textarea name="visit_summary" maxlength="1000" placeholder="เช่น ปรับยาใหม่ / ให้งดอาหารเค็ม / นัดตรวจเลือดอีก 1 เดือน">${esc(e.visit_summary)}</textarea></label></div>
       <label class="f"><span>9. หมายเหตุ</span><textarea name="note" placeholder="เช่น เจาะเลือดต้องงดอาหาร">${esc(e.note)}</textarea></label>
       <div class="f"><span class="lbl">10. แนบรูปภาพ (ใบนัด/เอกสาร)</span>
         <div class="thumbs" id="thumbs"></div>
@@ -461,11 +489,14 @@ function apptForm(a, date, pid) {
       };
       const summary = String(fd.get('visit_summary') || '').trim();
       if (summary || (a && a.visit_summary)) data.visit_summary = summary || null; // ส่งเฉพาะเมื่อมีค่า (กันพังถ้ายังไม่ได้รัน SQL เพิ่มคอลัมน์)
+      const proxy = !!fd.get('proxy_pickup'); if (proxy || a?.proxy_pickup) data.proxy_pickup = proxy; // ส่งเฉพาะเมื่อใช้ (กันพังถ้ายังไม่ได้รัน SQL เพิ่มคอลัมน์)
       const save = async () => { if (a) { await DB.update('appointments', id, data); Object.assign(a, data); } else { await DB.insert('appointments', { id, ...data }); S.appointments.push({ id, ...data }); } };
       try { await save(); }
       catch (err) {
-        if (!/visit_summary/.test(String(err?.message || ''))) throw err;
-        delete data.visit_summary; await save(); toast('บันทึกนัดแล้ว แต่ยังบันทึก "ผลการพบหมอ" ไม่ได้ — ต้องรัน supabase/appt-summary.sql ก่อน');
+        const msg = String(err?.message || '');
+        if (/proxy_pickup/.test(msg)) { delete data.proxy_pickup; try { await save(); } catch (e2) { if (!/visit_summary/.test(String(e2?.message || ''))) throw e2; delete data.visit_summary; await save(); } toast('บันทึกนัดแล้ว แต่ยังบันทึก "ญาติมารับยาแทน" ไม่ได้ — ต้องรัน supabase/proxy-pickup.sql ก่อน'); }
+        else if (/visit_summary/.test(msg)) { delete data.visit_summary; await save(); toast('บันทึกนัดแล้ว แต่ยังบันทึก "ผลการพบหมอ" ไม่ได้ — ต้องรัน supabase/appt-summary.sql ก่อน'); }
+        else throw err;
       }
       if (removed.length) DB.removeFiles(removed).catch(() => {});
       ui.calSel = data.appt_date; const d = parseDk(data.appt_date); ui.calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -668,7 +699,7 @@ document.addEventListener('click', async (ev) => {
     case 'edit-med': medForm(S.medications.find((m) => m.id === id)); break;
     case 'add-stock': addStockSheet(S.medications.find((m) => m.id === id)); break;
     case 'del-med': confirmSheet('ลบยานี้ถาวร?<br><small class="muted">ถ้าแค่เลิกทาน แนะนำเปลี่ยนสถานะเป็น "หยุดแล้ว" เพื่อเก็บประวัติ</small>', async () => {
-      S.medications = S.medications.filter((m) => m.id !== id); S.med_logs = S.med_logs.filter((l) => l.medication_id !== id); await dbDo(DB.remove('medications', id));
+      const gone = S.medications.find((m) => m.id === id); S.medications = S.medications.filter((m) => m.id !== id); S.med_logs = S.med_logs.filter((l) => l.medication_id !== id); if (await dbDo(DB.remove('medications', id)) && gone?.photo) DB.removeFiles([gone.photo]).catch(() => {});
     }, 'ลบ'); break;
     case 'add-appt': apptForm(null, id, el.dataset.pid); break;
     case 'slips': slipsSheet(id); break;
@@ -750,7 +781,8 @@ document.addEventListener('click', async (ev) => {
     case 'del-person': confirmSheet('ลบคนนี้ พร้อมยา นัด และบันทึกติดตามการรักษาทั้งหมด?', async () => {
       const planIds = S.care_plans.filter((c) => c.profile_id === id).map((c) => c.id);
       const files = [...S.appointments.filter((a) => a.profile_id === id).flatMap((a) => a.attachments || []),
-        ...S.care_logs.filter((l) => planIds.includes(l.plan_id)).flatMap((l) => l.photos || [])];
+        ...S.care_logs.filter((l) => planIds.includes(l.plan_id)).flatMap((l) => l.photos || []),
+        ...S.medications.filter((m) => m.profile_id === id && m.photo).map((m) => m.photo)];
       S.care_plans = S.care_plans.filter((c) => c.profile_id !== id); S.care_logs = S.care_logs.filter((l) => !planIds.includes(l.plan_id));
       if (ui.careFilter === id) ui.careFilter = 'all';
       S.profiles = S.profiles.filter((p) => p.id !== id);
