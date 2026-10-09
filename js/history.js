@@ -8,7 +8,7 @@
 // ---------- จำนวนยาที่เหลือ ----------
 const stockBase = (m) => m.stock_at || (m.updated_at ? dk(new Date(m.updated_at)) : todayKey());
 /** จำนวนคงเหลือเป็นข้อความ: หมดแล้ว (0 หรือติดลบ) = 'ยาหมด' · ใช้ทุกที่ที่แสดงจำนวนเหลือ (การ์ดยา หน้าจำนวนยาที่เหลือ เตือน PDF) */
-function stockText(m) { const l = stockLeft(m); return l <= 0 ? 'ยาหมด' : ` `; }
+function stockText(m) { const l = stockLeft(m); return l <= 0 ? 'ยาหมด' : `${qtyText(l)} ${unitOf(m)}`; }
 function stockLeft(m, key = todayKey()) {
   const stock = num(m.stock);
   if (m.as_needed || !m.slots?.length) return stock; // ยาที่กินเมื่อมีอาการ หักให้อัตโนมัติไม่ได้
@@ -20,7 +20,8 @@ function stockLeft(m, key = todayKey()) {
   for (let d = parseDk(stockBase(m)); dk(d) < key; d = addDays(d, 1)) if (dueOn(m, dk(d))) used += per;
   return Math.max(0, Math.round((stock - used) * 100) / 100);
 }
-const isLowStock = (m) => tracksStock(m) && !m.as_needed && stockLeft(m) <= lowStockQty(); // ใช้จำนวนเม็ดที่ผู้ใช้ตั้งเท่านั้นconst qtyText = (n) => String(Math.round(num(n) * 100) / 100);
+const isLowStock = (m) => tracksStock(m) && !m.as_needed && stockLeft(m) <= lowStockQty(); // ใช้จำนวนเม็ดที่ผู้ใช้ตั้งเท่านั้น
+const qtyText = (n) => String(Math.round(num(n) * 100) / 100);
 
 function viewStock() {
   const back = backBar('ยาและการดูแล', 'meds-go', 'hub');
