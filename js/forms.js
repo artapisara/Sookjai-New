@@ -617,8 +617,7 @@ function personForm(p, preset = {}) {
   const e = p || { color: PRESET_COLORS[S.profiles.length % PRESET_COLORS.length], avatar: 'f-elder-smile', reminder_enabled: true, chronic_diseases: [], drug_allergies: [], ...preset };
   const relOther = e.relation && !RELATIONS.includes(e.relation);
   let avatarTouched = !!p;
-  const sheet = openSheet(`<h3>${p ? (isSelfProfile(p) ? 'แก้ไขโปรไฟล์ของฉัน' : 'แก้ไขข้อมูลคน') : preset.isSelf ? 'สร้างโปรไฟล์ของฉัน' : 'เพิ่มสมาชิกที่ฉันดูแล'}</h3>${p ? sheetX('del-person', p.id) : ''}
-    ${preset.welcome ? '<div class="alert sun welcome-note"><div class="ic">👋</div><div><b>ยินดีต้อนรับสู่สุขใจ</b><span class="small">เริ่มจากสร้างโปรไฟล์ของคุณก่อนนะ ใช้เวลาไม่ถึงนาที · คนที่คุณดูแล (พ่อ แม่ ปู่ ย่า) เพิ่มทีหลังได้</span></div></div>' : ''}
+  const sheet = openSheet(`<h3>${p ? (isSelfProfile(p) ? 'แก้ไขโปรไฟล์ของฉัน' : 'แก้ไขข้อมูลคน') : preset.isSelf ? 'สร้างโปรไฟล์ของฉัน' : 'เพิ่มสมาชิกที่ฉันดูแล'}</h3>    ${preset.welcome ? '<div class="alert sun welcome-note"><div class="ic">👋</div><div><b>ยินดีต้อนรับสู่สุขใจ</b><span class="small">เริ่มจากสร้างโปรไฟล์ของคุณก่อนนะ ใช้เวลาไม่ถึงนาที · คนที่คุณดูแล (พ่อ แม่ ปู่ ย่า) เพิ่มทีหลังได้</span></div></div>' : ''}
     <form id="f">
       <div class="detail-head" id="pvHead">${avatarHtml(e, 'lg')}<div><b id="pvName">${esc(e.name || 'ชื่อเรียก')}</b><div class="small muted" id="pvRel">${esc(e.relation || '')}</div></div></div>
       <label class="f"><span>ชื่อเล่น/ชื่อเรียก</span><input type="text" name="name" required value="${esc(e.name)}" placeholder="เช่น ย่าปลา, ปู่เค็ม"></label>
@@ -910,8 +909,7 @@ function circleForm(c) {
   const members = isNew ? [] : S.circle_members.filter((m) => m.circle_id === c.id)
     .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : String(a.joined_at).localeCompare(String(b.joined_at))));
   const mine = S.profiles.filter((p) => ownsProfile(p.id));
-  const sheet = openSheet(`<h3>${isNew ? 'สร้างกลุ่มผู้ดูแล' : 'แก้ไขกลุ่มผู้ดูแล'}</h3>${isNew ? '' : sheetX('del-circle', c.id)}
-    <form id="f">
+  const sheet = openSheet(`<h3>${isNew ? 'สร้างกลุ่มผู้ดูแล' : 'แก้ไขกลุ่มผู้ดูแล'}</h3>    <form id="f">
       <label class="f"><span>ชื่อกลุ่ม</span><span class="grp-input"><b>กลุ่ม</b><input type="text" name="name" required maxlength="40" value="${esc(String(e.name || '').replace(/^กลุ่ม\s*/, ''))}" placeholder="เช่น ดูแลปู่ย่า"></span></label>
       <label class="f"><span>คำอธิบาย (เพิ่มเติม)</span><textarea name="description" placeholder="เช่น ลูกหลานที่ช่วยกันดูแลปู่ย่า">${esc(e.description)}</textarea></label>
 

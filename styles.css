@@ -2094,3 +2094,22 @@ body:not(.auth) .appt .date span { display: block; margin: 0; font-size: var(--f
 .sheet-x { position: absolute; top: 14px; right: 16px; z-index: 3; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .92); border: 1px solid #D5D9E6; color: #9AA0B8; font-size: 16px; line-height: 1; cursor: pointer; }
 .sheet-x:active { background: #FDECEA; border-color: #E5A8A2; color: #C62828; }
 .log { position: relative; }
+
+/* v1.4.10 — ป้ายแชร์ที่การ์ดนัด (นัดของโปรไฟล์ที่แชร์มา) */
+.card.appt .appt-share { margin-top: var(--sp-1, 4px); }
+
+/* v1.4.11 — ปุ่ม แก้ไขข้อมูล + ลบ อยู่แถวเดียวกันในหน้าข้อมูลส่วนตัว */
+.prof-actions { flex-wrap: nowrap; align-items: stretch; }
+.prof-actions .btn:last-child { flex: 1 1 auto; }
+.prof-actions .btn.danger { flex: 0 0 auto; min-width: 88px; }
+.grp-btns { display: flex; gap: 8px; flex: none; }
+
+/* v1.4.17 — การ์ดนัดของโปรไฟล์ที่แชร์มา แผ่นสีเขียวมะนาวรองหลังการ์ด (สีเดียวกับป้ายญาติมารับยาแทน) */
+.appt-plate { background: #DAFF7C; border-radius: 20px; padding: 8px; margin-bottom: var(--sp-2, 8px); }
+body:not(.auth) .appt-plate .card.appt { margin-bottom: 0; background: #fff; }
+
+/* v1.4.21 — ปุ่มสีม่วงทึบ (ออกจากกลุ่ม) หน้าตาเดียวกับปุ่มแก้ไขสีน้ำเงิน */
+.btn.purple { background: linear-gradient(135deg, #A266F5 0%, #8844E6 100%); color: #fff; box-shadow: 0 3px 10px rgba(136, 68, 230, .28); }
+
+/* v1.4.25 — ป้าย 'แชร์จาก …' พื้นเขียวมะนาวสะท้อนแสง ตัวหนังสือดำ (ทุกหน้าที่ใช้ป้ายนี้) */
+body:not(.auth) .share-tag, .share-tag { background: #DAFF7C; color: #000; }

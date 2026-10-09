@@ -236,7 +236,7 @@ function medCard(m) {
       ${stock}
       ${m.prescriber ? kv('หมอที่จ่ายยา', esc(m.prescriber)) : ''}${m.prescribed_dept ? kv('แผนกที่จ่ายยา', esc(m.prescribed_dept)) : ''}
       ${m.warning ? kv('หมายเหตุ / ข้อควรระวัง', `<span class="red-t">${esc(m.warning)}</span>`) : ''}${noteShown(m) ? kv('หมายเหตุ', esc(noteShown(m))) : ''}${m.extra_note ? kv('บันทึกเพิ่มเติม', `<span style="white-space:pre-line">${esc(m.extra_note)}</span>`) : ''}
-      <div class="mr-foot"><span class="med-upd">อัปเดต ${thDateTime(m.updated_at)}</span><span class="mr-btns">${canEditProfile(m.profile_id) ? `<button type="button" class="btn sm ghost" data-act="add-stock" data-id="${m.id}">➕ ได้ยามาเพิ่ม</button>` : ''}<button type="button" class="btn sm" data-act="edit-med" data-id="${m.id}">✏️ แก้ไขยา</button></span></div>
+      <div class="mr-foot"><span class="med-upd">อัปเดต ${thDateTime(m.updated_at)}</span><span class="mr-btns">${canEditProfile(m.profile_id) ? `<button type="button" class="btn sm ghost" data-act="add-stock" data-id="${m.id}">➕ ได้ยามาเพิ่ม</button>` : ''}<button type="button" class="btn sm" data-act="edit-med" data-id="${m.id}">✏️ แก้ไข</button></span></div>
     </div>
   </div>`;
 }
@@ -319,13 +319,15 @@ function viewCalendar() {
 function apptBrief(a) {
   const p = profileById(a.profile_id); const d = doctorById(a.doctor_id); const dt = parseDk(a.appt_date); const n = daysUntil(a.appt_date);
   const pc = calColor(a.profile_id);
-  return `<button class="card appt" data-act="appt-detail" data-id="${a.id}" style="${n < 0 ? 'opacity:.6' : ''}">
+  const shared = !ownsProfile(a.profile_id);
+  const card = `<button class="card appt${shared ? ' is-shared' : ''}" data-act="appt-detail" data-id="${a.id}" style="${n < 0 ? 'opacity:.6' : ''}">
     <div class="date" style="background:${pc};color:${inkOn(pc)}"><b>${dt.getDate()}</b><span>${MONTHS_S[dt.getMonth()]}</span></div>
     <div class="info">
       <div class="line"><b>${esc(p.name)}</b>${n >= 0 && n <= 5 ? `<span class="countdown ${n <= 1 ? 'hot' : ''}">${whenText(n)}</span>` : ''}</div>
       <div class="small">🕘 ${hhmm(a.appt_time)} น. · ${esc(departmentOf(a))}${a.attachments?.length ? ` · 📎 ${a.attachments.length}` : ''}</div>
-      <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุหมอ'}</div>${a.proxy_pickup ? '<div class="proxy-tag">ญาติมารับยาแทน</div>' : ''}
+      <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุหมอ'}</div>${ownsProfile(a.profile_id) ? '' : `<div class="tags appt-share">${shareTag(a.profile_id)}</div>`}${a.proxy_pickup ? '<div class="proxy-tag">ญาติมารับยาแทน</div>' : ''}
     </div><span class="muted">›</span>${canEditProfile(a.profile_id) && canDeleteRow(a, a.profile_id) ? `<span class="appt-x" role="button" tabindex="0" data-act="del-appt" data-id="${a.id}" aria-label="ลบนัด">×</span>` : ''}</button>`;
+  return shared ? `<div class="appt-plate">${card}</div>` : card; // นัดที่แชร์มา: มีแผ่นสีเขียวรองหลังการ์ด
 }
 
 // ---------- หน้าต้อนรับ + เข้าสู่ระบบ ----------

@@ -118,7 +118,7 @@ function careDetail(c) {
       ${l.photos?.length ? `<div class="thumbs">${l.photos.map((ph) => `<div class="thumb"><img class="zoom" data-path="${esc(ph)}" alt="รูปบันทึกติดตามการรักษา"></div>`).join('')}</div>` : ''}
     </div>`).join('') || '<div class="card flat empty small">ยังไม่มีบันทึก</div>'}
     <div class="row sticky-actions">
-      ${canEdit ? `<button class="btn ghost" data-act="edit-care" data-id="${c.id}">แก้ไข</button>` : ''}
+      ${canEdit ? `<button class="btn" data-act="edit-care" data-id="${c.id}">✏️ แก้ไข</button>` : ''}
       ${active && canEdit ? `<button class="btn" data-act="care-log" data-id="${c.id}">บันทึก</button>` : ''}
     </div>
   `);

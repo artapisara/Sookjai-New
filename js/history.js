@@ -57,7 +57,7 @@ function viewStock() {
   return `${back}<h1>จำนวนยาที่เหลือ</h1>${visBtn}${chips}
     ${lowBox}
     <h2 class="ad-title">ยาของ${esc(p.name)} ณ วันที่ ${thDate(today)}</h2>
-    ${rows || offRows ? `<input type="search" id="stkQ" class="stk-search" placeholder="🔍 ค้นหายา / ชื่อทางการแพทย์" value="${esc(ui.stockQ || '')}" autocomplete="off" aria-label="ค้นหายา ชื่อทางการแพทย์ ชื่อหมอ แผนก หรือรหัส">
+    ${rows || offRows ? `<input type="search" id="stkQ" class="stk-search" placeholder="🔍 ค้นหายา / หมอ / แผนก" value="${esc(ui.stockQ || '')}" autocomplete="off" aria-label="ค้นหายา ชื่อทางการแพทย์ ชื่อหมอ แผนก หรือรหัส">
       <div class="card stk-card"><table class="stk-t"><thead><tr><th>รหัส</th><th>รูป</th><th>ชื่อยา</th><th>รักษา</th><th>หมดประมาณ</th><th>เหลือ</th></tr></thead><tbody>${rows}</tbody></table><p class="small muted center stk-none" ${[...tracked, ...offMeds].some(hit) ? 'hidden' : ''}>ไม่พบยาที่ค้นหา</p></div>
       ${offRows ? `<h2 class="ad-title">ยาที่ไม่ได้ทาน (งดชั่วคราว / หยุดแล้ว)</h2><div class="card stk-card stk-off"><table class="stk-t"><thead><tr><th>รหัส</th><th>รูป</th><th>ชื่อยา</th><th>รักษา</th><th>หมดประมาณ</th><th>เหลือ</th></tr></thead><tbody>${offRows}</tbody></table></div><p class="small muted center">ยาที่งดหรือหยุดจะไม่ถูกหักจำนวนตามตารางกินยา<br>แสดงจำนวนที่เหลือ ณ วันที่เปลี่ยนสถานะ</p>` : ''}` : '<div class="card empty"><div class="e">📦</div>ยังไม่มียาที่นับจำนวนคงเหลือ<br><span class="small">กรอก "จำนวนคงเหลือ" ในฟอร์มยา แล้วจะคำนวณให้</span></div>'}`;
 }
