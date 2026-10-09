@@ -1,0 +1,165 @@
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* สุขใจ — ค่าคงที่และตัวช่วยที่ใช้ร่วมกัน */
+'use strict';
+
+// ช่วงเวลาทานยา 7 ช่วง (เรียงตามเวลาจริงของวัน)
+// เวลา: 24 ชั่วโมง (00:00 - 23:59) ให้ผู้ใช้ไม่สับสน AM/PM
+const SLOTS = [
+  { key: 'before_breakfast', label: 'ก่อนอาหารเช้า', display: 'ก่อนเช้า (6:30)', short: 'ก่อนเช้า', icon: '🌅', time: '06:30' },
+  { key: 'after_breakfast', label: 'หลังอาหารเช้า', display: 'หลังเช้า (7:30)', short: 'หลังเช้า', icon: '🌅', time: '07:30' },
+  { key: 'before_lunch', label: 'ก่อนอาหารกลางวัน', display: 'ก่อนเที่ยง (11:30)', short: 'ก่อนเที่ยง', icon: '☀️', time: '11:30' },
+  { key: 'after_lunch', label: 'หลังอาหารกลางวัน', display: 'หลังเที่ยง (12:30)', short: 'หลังเที่ยง', icon: '☀️', time: '12:30' },
+  { key: 'before_dinner', label: 'ก่อนอาหารเย็น', display: 'ก่อนเย็น (17:30)', short: 'ก่อนเย็น', icon: '🌇', time: '17:30' },
+  { key: 'after_dinner', label: 'หลังอาหารเย็น', display: 'หลังเย็น (18:30)', short: 'หลังเย็น', icon: '🌇', time: '18:30' },
+  { key: 'bedtime', label: 'ก่อนนอน', display: 'ก่อนนอน (21:00)', short: 'ก่อนนอน', icon: '🌙', time: '21:00' },
+];
+const DEFAULT_SLOT_TIMES = Object.fromEntries(SLOTS.map((s) => [s.key, s.time]));
+const slotOf = (k) => SLOTS.find((s) => s.key === k) || { key: k, label: k, short: k, icon: '💊' };
+// ยาที่ทานเฉพาะบางวันของสัปดาห์ (m.weekdays = [0..6], 0 = อาทิตย์ · ว่าง = ทุกวัน)
+const WD_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const WD_FULL = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+const dueOn = (m, key) => !m.weekdays?.length || m.weekdays.includes(new Date(`${key}T12:00:00`).getDay());
+const dueToday = (m) => dueOn(m, todayKey());
+const weekdaysText = (m) => (m.weekdays?.length && m.weekdays.length < 7 ? 'เฉพาะวัน' + [...m.weekdays].sort((a, b) => a - b).map((i) => WD_FULL[i]).join(' · ') : '');
+
+const RELATIONS = ['ปู่', 'ย่า', 'ตา', 'ยาย', 'พ่อ', 'แม่', 'ตัวเอง', 'พี่สาว', 'พี่ชาย', 'น้องสาว', 'น้องชาย'];
+const BLOOD_TYPES = ['A', 'B', 'AB', 'O'];
+const DEPARTMENTS = ['ตรวจโรคทั่วไป', 'อายุรกรรม', 'จักษุแพทย์', 'สูตินรีเวช', 'ศัลยกรรม', 'กระดูกและข้อ', 'หัวใจ', 'ผิวหนัง', 'หู คอ จมูก', 'ทันตกรรม'];
+const VISIT_REASONS = ['ติดตามการรักษา', 'รับยาต่อเนื่อง', 'ตรวจสุขภาพประจำปี', 'มีอาการผิดปกติ', 'ผ่าตัด/หัตถการ'];
+const MED_STATUS = { active: 'กำลังทาน', paused: 'งดชั่วคราว' }; // v1.4.27: เอาสถานะ 'หยุดแล้ว' ออก — ข้อมูลเดิม stopped แปลงเป็น paused ตอนโหลด (legacyFix ใน db.js)
+const PRESET_COLORS = ['#4D55F5', '#CA7FFE', '#DAFF7C', '#5CC8FF', '#FF7AD9', '#FFB347', '#3DDC97', '#FFE45C']; // สีประจำตัว: สดใส สว่าง เข้าชุดกับสีหลัก (น้ำเงิน ลิลลี เขียวมะนาว + สีคู่)
+const LEGACY_COLORS = { '#3FA796': '#3DDC97', '#EF5B4C': '#FF7AD9', '#7C6CF2': '#CA7FFE', '#F2A93B': '#FFB347', '#3B82F6': '#5CC8FF', '#D9548F': '#FF7AD9', '#5BAA3C': '#DAFF7C', '#8C6E5D': '#FFE45C', '#A855F7': '#CA7FFE', '#5E9E0F': '#DAFF7C', '#1E88E5': '#5CC8FF', '#E0399B': '#FF7AD9', '#E8590C': '#FFB347', '#0F9D8A': '#3DDC97', '#8A6A4F': '#FFE45C', '#20C58D': '#3DDC97', '#FE8046': '#FFB347', '#FFCF34': '#FFE45C', '#E5675F': '#FF7AD9' }; // สีชุดเก่า → ชุดใหม่ (ย้ายให้อัตโนมัติ)
+/** สีตัวหนังสือที่อ่านออกบนพื้นสีนั้น (พื้นสว่างใช้น้ำเงินเข้ม พื้นเข้มใช้ขาว) */
+const inkOn = (hex) => { const n = parseInt(String(hex).slice(1), 16); const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; const L = .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255); return L > .4 ? '#161A4D' : '#fff'; };
+const REMIND_DAYS = [5, 2, 1]; // ค่าเริ่มต้น — ผู้ใช้เลือกเองได้ที่ ตั้งค่า > การแจ้งเตือน > เตือนนัดพบหมอ (user_settings.appt_remind_days)
+const REMIND_DAY_OPTIONS = [7, 5, 3, 2, 1]; // เตือนล่วงหน้า (วัน)
+const apptRemindTime = () => { const t = (typeof S !== 'undefined' && S?.settings?.appt_remind_time); return /^([01]\d|2[0-3]):[0-5]\d$/.test(t || '') ? t : '08:00'; }; // เวลาเตือนนัดหมอ (ผู้ใช้กำหนดเองได้ ค่าเริ่มต้น 08:00)
+const remindDays = () => { const d = (typeof S !== 'undefined' && S?.settings?.appt_remind_days); return Array.isArray(d) ? d.map(Number).filter((x) => x >= 1) : REMIND_DAYS; };
+const LOW_STOCK_DAYS = 7; const LOW_STOCK_QTY = 5; // ค่าเริ่มต้น: ใกล้หมด = เหลือไม่เกิน 5 เม็ด (ผู้ใช้ตั้งเองได้ที่ ตั้งค่า > การแจ้งเตือน > ยาใกล้หมด = user_settings.low_stock_qty)
+const lowStockQty = () => { const q = (typeof S !== 'undefined' && S?.settings?.low_stock_qty); return Number.isFinite(Number(q)) && q !== null && Number(q) >= 0 ? Math.floor(Number(q)) : LOW_STOCK_QTY; };
+
+const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const MONTHS_S = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const DOW_L = ['วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'];
+
+const $ = (s, root = document) => root.querySelector(s);
+const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 3) | 8).toString(16); }));
+const pad = (n) => String(n).padStart(2, '0');
+// หน่วยยา: เลือกจากรายการ หรือพิมพ์เอง · นับจำนวนคงเหลือ/วันยาหมดเฉพาะหน่วยที่นับเป็นชิ้น
+const UNITS = ['เม็ด', 'แคปซูล', 'หยด', 'ครั้ง', 'ช้อนชา', 'มล.', 'ซอง', 'แผ่น', 'หลอด'];
+const STOCK_UNITS = ['เม็ด', 'แคปซูล', 'ซอง', 'แผ่น']; // หน่วยที่นับสต็อกเป็นเม็ด (ไม่รวม หลอด — ยาทาไม่นับ/ไม่เตือนยาใกล้หมด)
+const MAX_APPT_PHOTOS = 2; // รูปแนบสูงสุดต่อ 1 นัดหมอ
+const unitOf = (m) => m.unit || 'เม็ด';
+const tracksStock = (m) => STOCK_UNITS.includes(unitOf(m));
+// ยาที่ "ทาน" (กินเข้าปาก): ไม่นับยาหยอดตา/ป้ายตา/ครีม/แผ่นแปะ ฯลฯ — ดูจากหน่วยของยา
+// ชื่อยาแบบสั้นสำหรับตารางกินยา: ตัดความแรง (mg, มก., ml, IU ฯลฯ) ออก ถ้าตัดแล้วว่างให้ใช้ชื่อเดิม
+const STRENGTH_RE = /\s*\(?\s*\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)*\s*(?:mg|mcg|µg|ug|g|ml|iu|units?|มก\.?|มล\.?|มิลลิกรัม|กรัม)(?:\s*\/\s*\d+(?:[.,]\d+)?\s*(?:mg|mcg|ml|g|มก\.?|มล\.?))?\s*\)?/gi;
+const medShort = (m) => { const n = String(m.name || '').replace(STRENGTH_RE, ' ').replace(/\s{2,}/g, ' ').replace(/\s+([+,/])/g, ' $1').trim(); return n || String(m.name || ''); };
+// หมายเหตุที่แสดงในแอป: ไม่แสดงข้อความ "เก็บในที่ทึบแสง"
+const noteShown = (m) => String(m.note || '').split(/\s*(?:·|\n)\s*/).filter((x) => x.trim() && !/ทึบแสง/.test(x)).join(' · ');
+const isOralMed = (m) => { const u = String(m.unit || ''); return !(['หยด', 'ครั้ง', 'แผ่น'].includes(u) || /หยอด|ป้าย|ทา|ครีม|พ่น|สูด|ตา/.test(u)); };
+// รหัสเลขลำดับยาเริ่มต้น = พยัญชนะตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ) เช่น ปู่หวาน → ป, แม่ → ม
+const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
+const defaultPrefix =(name) => String(name || '').trim().replace(/^[เแโใไ]+/, '').charAt(0);
+const PDPA_VERSION = '2026-10e';
+const MOODS = [
+  { k: 'tired', img: 'assets/moods/tired.png', label: 'ขำไม่ไหว', color: '#D8F368' },
+  { k: 'happy', img: 'assets/moods/happy.png', label: 'สดใสใจฟู', color: '#F3D668' },
+  { k: 'calm', img: 'assets/moods/calm.png', label: 'ยิ้มเบาๆ', color: '#F3A34C' },
+  { k: 'meh', img: 'assets/moods/meh.png', label: 'เรื่อยๆ ชิลๆ', color: '#B4CA7D' },
+  { k: 'sad', img: 'assets/moods/sad.png', label: 'เศร้านะ', color: '#7A7FF0' },
+  { k: 'worried', img: 'assets/moods/worried.png', label: 'หัวร้อนแล้วนะ', color: '#F06A7D' },
+]; // คีย์ k เดิม (ฐานข้อมูลเก็บเป็นคีย์ มี check constraint) — เปลี่ยนเฉพาะชื่อที่แสดงและรูป
+/** ไอคอนอารมณ์ (รูปการ์ตูนใน assets/moods) — cls: ขนาดเสริม xs/sm/lg */
+const moodIcon = (mo, cls = '') => `<img class="mood-img ${cls}" src="${mo.img}" alt="" width="48" height="48" loading="lazy">`;const moodOf = (k) => MOODS.find((x) => x.k === k);
+const doseLabel =(d) => { d = Number(d); if (Number.isInteger(d)) return String(d); const fr = { 0.25: '¼', 0.5: '½', 0.75: '¾' }[+(d % 1).toFixed(2)]; return fr ? `${Math.floor(d) || ''}${fr}` : String(d); };
+const dk = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseDk = (s) => { const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+const todayKey = () => dk(new Date());
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const daysUntil = (key) => Math.round((parseDk(key) - parseDk(todayKey())) / 86400000);
+const hhmm = (t) => String(t || '').slice(0, 5);
+const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const thDate = (key, style) => {
+  const d = parseDk(key);
+  if (style === 'long') return `${DOW_L[d.getDay()]}ที่ ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
+  return `${d.getDate()} ${MONTHS_S[d.getMonth()]} ${String(d.getFullYear() + 543).slice(2)}`;
+};
+/** วันที่ + เวลา จากเวลาที่บันทึก (ISO) เช่น 6 ต.ค. 69 เวลา 14:32 น. */
+const thDateTime = (iso) => { const d = new Date(iso); if (Number.isNaN(d.getTime())) return ''; return `${thDate(dk(d))} เวลา ${pad(d.getHours())}:${pad(d.getMinutes())} น.`; };
+/** เวลาอัปเดตล่าสุดของรายการยา (ISO ของยาที่แก้ไขล่าสุด) */
+const latestUpdate = (meds) => { let best = null; for (const m of meds) { const t = new Date(m.updated_at).getTime(); if (Number.isFinite(t) && (best === null || t > best)) best = t; } return best === null ? null : new Date(best).toISOString(); };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = (v, def = 0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : def; };
+const norm = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+const telHref = (p) => 'tel:' + String(p || '').replace(/[^\d+]/g, '');
+const ageOf = (y) => (y ? new Date().getFullYear() - Number(y) : null);
+const hexA = (hex, a) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.replace(/./g, '$&$&') : h, 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+
+/** ย่อรูปก่อนอัปโหลด (กว้างสุด 1400px, JPEG) */
+function compressImage(file, max = 1280, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.width, h = img.height; URL.revokeObjectURL(img.src);
+      const limit = typeof UPLOAD_MAX_BYTES === 'number' ? UPLOAD_MAX_BYTES : 1048576; // ไม่ให้เกินประมาณ 1 MB ต่อรูป (คุมต้นทุนพื้นที่เก็บไฟล์)
+      const attempt = (m, q, tries) => {
+        const s = Math.min(1, m / Math.max(w, h));
+        const c = document.createElement('canvas'); c.width = Math.round(w * s); c.height = Math.round(h * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob((b) => { if (!b) return reject(new Error('ย่อรูปไม่สำเร็จ')); if (b.size > limit && tries > 0) attempt(Math.round(m * 0.8), Math.max(0.5, q - 0.1), tries - 1); else resolve(b); }, 'image/jpeg', q);
+      };
+      attempt(max, quality, 4);
+    };
+    img.onerror = () => reject(new Error('เปิดรูปไม่ได้'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+const blobToDataUrl = (b) => new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
+
+/** ชื่อทางการแพทย์ของยา (generic_name) — ว่าง = ไม่แสดง · แสดงเป็นตัวเล็กบางใต้ชื่อยา (ยี่ห้อ) ทุกหน้า */
+const medGeneric = (m) => String(m?.generic_name || '').replace(/\s+/g, ' ').trim();
+const genHtml = (m) => (medGeneric(m) ? `<small class="gen">${esc(medGeneric(m))}</small>` : '');
+
+/** กากบาท × จางที่มุมขวาบนของหน้าต่างฟอร์ม = ลบรายการนั้น (แทนปุ่ม ลบ สีแดง) — กดแล้วมีกล่องถามยืนยันของแต่ละรายการ */
+const sheetX = (act, id, label = 'ลบ') => `<span class="sheet-x" role="button" tabindex="0" data-act="${act}" data-id="${id}" aria-label="${label}">×</span>`;
+
+/** ผสมสีกับสีขาว (a = 0..1 ยิ่งมากยิ่งเข้ม) — ใช้ทำสีตารางตามสีโปรไฟล์ */
+const tint = (hex, a) => { const n = parseInt(String(hex).replace('#', '').padEnd(6, '0').slice(0, 6), 16); const m = (v) => Math.round(255 - (255 - v) * a).toString(16).padStart(2, '0'); return '#' + m(n >> 16) + m((n >> 8) & 255) + m(n & 255); };
+/** แสดงคำว่า "เมื่อมีอาการ" ให้อัตโนมัติ เฉพาะยากินเมื่อมีอาการที่ผู้ใช้ยังไม่ได้พิมพ์คำนี้ไว้เองในคำกำกับ/ข้อควรระวัง/หมายเหตุ (กันขึ้นซ้ำ) */
+const showAsn = (m) => !!m.as_needed && !/เมื่อมีอาการ/.test([m.table_hint, m.warning, m.note].join(' '));
+/** ข้อความกำกับ "ไม่ใช่คำแนะนำทางการแพทย์" — ใช้ค่าเดียวนี้ทุกหน้าที่ต้องแสดง (intro, หน้าต้อนรับ, ตั้งค่า, PDF) */
+const APP_DISCLAIMER = 'สุขใจช่วยเตือนและจดบันทึก ไม่ใช่คำแนะนำทางการแพทย์';
+/** คำแนะนำให้ตรวจรายการยา (กรอกผิด/ระบบผิดพลาดได้) — ใช้ค่าเดียวนี้ทุกที่: ฟอร์มยา ตารางกินยา PDF หน้าขออนุญาต และหน้า intro */
+/** ฉบับสั้นสำหรับฟอร์มบันทึกยา (กรอกเสร็จแล้ว ตรวจอีกครั้ง) — ส่วนที่อื่นใช้ CHECK_MEDS_NOTE ("ทุกครั้ง") */
+const CHECK_MEDS_FORM = 'ควรตรวจสอบความถูกต้องของรายการยาทุกครั้ง'; // ข้อความเดียวกับ CHECK_MEDS_NOTE
+const CHECK_MEDS_NOTE = 'ควรตรวจสอบความถูกต้องของรายการยาทุกครั้ง';
+
+/** จัดการตัดบรรทัดข้อความไทยทั้งแอป: ผูกตัวเลขกับคำข้างเคียง (เช่น "ใน 1 วัน" "1 เม็ด" "5 ครั้ง") ด้วยช่องว่างไม่ตัดบรรทัด — กันตัวเลข/หน่วยตกบรรทัดเดี่ยว · ทำกับข้อความที่เพิ่งแสดงขึ้นใน #app และ #modal (ไม่แตะช่องกรอก) */
+function tidyThaiText(root) {
+  if (!root || !root.ownerDocument) return;
+  const skip = /^(INPUT|TEXTAREA|SCRIPT|STYLE|SELECT|OPTION)$/;
+  const w = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (skip.test(n.parentNode?.nodeName || '') || n.parentNode?.classList?.contains('kt') || !/[ก-๙]/.test(n.data) || !/\d/.test(n.data) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  const list = []; while (w.nextNode()) list.push(w.currentNode);
+  list.forEach((n) => {
+    const t = n.data.replace(/([ก-๙]) (?=\d)/g, '$1\u00A0').replace(/(\d) (?=[ก-๙])/g, '$1\u00A0'); if (t !== n.data) n.data = t;
+    for (const re of KEEP_TOGETHER_RE) { const m = re.exec(n.data); if (!m) continue; // วลีที่ต้องเป็นก้อนเดียวกัน ห้ามแตกคนละบรรทัด
+      const doc = n.ownerDocument; const after = n.splitText(m.index); after.data = after.data.slice(m[0].length); const kt = doc.createElement('span'); kt.className = 'kt'; kt.textContent = m[0]; n.parentNode.insertBefore(kt, after); break; }
+  });
+}
+/** วลีที่ต้องเป็นก้อนเดียวกันเสมอ (ผู้ใช้สั่งไว้) — ใช้กับทุกสมาชิก/ทุกหน้าที่แสดงวลีนี้ · เพิ่มวลีใหม่ที่นี่ที่เดียว */
+const KEEP_TOGETHER = ['ตารางการกินยาใน 1 วัน', 'สรุปก่อนพบหมอ'];
+const KEEP_TOGETHER_RE = KEEP_TOGETHER.map((s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '[\\s\\u00A0]')));
+document.addEventListener('DOMContentLoaded', () => {
+  const obs = new MutationObserver((muts) => { muts.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) tidyThaiText(n); else if (n.nodeType === 3 && n.parentNode) tidyThaiText(n.parentNode); })); });
+  ['app', 'modal'].forEach((id) => { const el = document.getElementById(id); if (el) { tidyThaiText(el); obs.observe(el, { childList: true, subtree: true }); } });
+});

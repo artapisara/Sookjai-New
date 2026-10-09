@@ -1,0 +1,309 @@
+/* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
+/* สุขใจ — ชั้นข้อมูล
+ * SupaDB  : ใช้ Supabase (Auth + Postgres + Storage) เมื่อกรอก config.js แล้ว
+ * LocalDB : โหมดทดลอง เก็บในเครื่อง (localStorage) เมื่อยังไม่ได้ตั้งค่า Supabase
+ * ทั้งสองแบบใช้ชื่อตาราง/คอลัมน์ชุดเดียวกัน
+ */
+'use strict';
+
+const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors', 'med_logs', 'care_plans', 'care_logs', 'circles', 'circle_members', 'circle_care_for', 'circle_invites', 'emergency_contacts', 'mood_logs', 'treatment_records', 'health_logs', 'reminder_recipients'];
+const HISTORY_MONTHS = 24; // ดูสรุปย้อนหลังได้กี่เดือน (ข้อมูลเก็บในฐานข้อมูลไม่หาย — โหลดมาทีละเดือนตอนเปิดดู)
+const BUCKET = 'attachments';
+/** ข้อมูลที่บันทึกไว้ด้วยคำเดิม → แสดงเป็นคำใหม่ทุกหน้า (ในหน่วยความจำเท่านั้น · ค่าในฐานข้อมูลเปลี่ยนเมื่อมีการบันทึกนัดนั้นใหม่) */
+const legacyFix = (d) => {
+  (d?.appointments || []).forEach((a) => { if (a.visit_reason === 'ติดตามอาการ') a.visit_reason = 'ติดตามการรักษา'; });
+  (d?.medications || []).forEach((m) => { if (m.status === 'stopped') m.status = 'paused'; (m.status_history || []).forEach((h) => { if (h.status === 'stopped') h.status = 'paused'; }); }); // สถานะ 'หยุดแล้ว' ถูกยกเลิก = งดชั่วคราว
+  return d;
+};
+
+// ---------------- Supabase ----------------
+class SupaDB {
+  constructor(cfg) {
+    this.mode = 'supabase';
+    this.cfg = cfg;
+    this.sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    this.user = null;
+  }
+  async getUser() { const { data } = await this.sb.auth.getSession(); this.user = data.session?.user || null; return this.user; }
+  // เรียก cb นอกคิวของ supabase-js (กันค้างเมื่อ cb ไปเรียก supabase ต่อ)
+  onAuth(cb) { this.sb.auth.onAuthStateChange((e, s) => { this.user = s?.user || null; setTimeout(() => cb(this.user, e), 0); }); }
+  async updatePassword(password) { const { error } = await this.sb.auth.updateUser({ password }); if (error) throw error; }
+  async signIn(email, password) { const { error } = await this.sb.auth.signInWithPassword({ email, password }); if (error) throw error; }
+  async signUp(email, password) {
+    const { data, error } = await this.sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin } });
+    if (error) throw error; return data.session ? 'ok' : 'confirm';
+  }
+  async resetPassword(email) { const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; }
+  async signOut() { this.clearSnapshot(); await this.sb.auth.signOut(); }
+  /** โทเคนเข้าสู่ระบบหมดอายุ (JWT expired): ลองต่ออายุจาก refresh token — สำเร็จ = true */
+  async recoverAuth() { try { const { data, error } = await this.sb.auth.refreshSession(); if (error || !data.session) return false; this.user = data.session.user; return true; } catch { return false; } }
+  /** ออกจากระบบเฉพาะเครื่องนี้ (ใช้เมื่อเซสชันหมดอายุและต่ออายุไม่ได้ — ไม่ต้องเรียกเซิร์ฟเวอร์) */
+  async signOutLocal() { this.clearSnapshot(); try { await this.sb.auth.signOut({ scope: 'local' }); } catch { /* ไม่เป็นไร */ } this.user = null; }
+  /** แจ้งเตือนเด้งไปหาผู้ถูกเชิญ (Edge Function notify-invite) — ทำเบื้องหลัง ล้มเหลวก็ไม่กระทบการเชิญ (ผู้ถูกเชิญยังเห็นคำเชิญเมื่อเปิดแอป) */
+  notifyInvite(inviteId) {
+    if (this.offline) return Promise.resolve();
+    return this.sb.functions.invoke('notify-invite', { body: { invite_id: inviteId } }).then((r) => { if (r.error) console.warn('notify-invite', r.error.message); return r; }).catch((e) => console.warn('notify-invite', e));
+  }
+  /** โหลดเฉพาะคำเชิญของฉันใหม่ (ใช้อัปเดตจุดแดงโดยไม่โหลดทั้งแอป) */
+  async fetchInvites() { const { data, error } = await this.sb.from('circle_invites').select('*').order('created_at'); if (error) throw error; return data; }
+  /** ลบบัญชีผู้ใช้ (อีเมล) ถาวร — ต้องรัน supabase/premium.sql ก่อน (ฟังก์ชัน delete_my_account) */
+  async deleteAccount() { const { error } = await this.sb.rpc('delete_my_account'); if (error) throw error; }
+
+  /** ดึงบันทึกกินยา/อารมณ์ของช่วงวันที่ (แบ่งหน้าละ 1000 แถว เพราะ Supabase จำกัดต่อคำขอ) */
+  async logsBetween(table, from, to) {
+    const out = []; const size = 1000;
+    for (let i = 0; ; i += size) {
+      let q = this.sb.from(table).select('*').gte('log_date', from);
+      if (to) q = q.lte('log_date', to);
+      const { data, error } = await q.order('log_date').order('id').range(i, i + size - 1);
+      if (error) throw error;
+      out.push(...data); if (data.length < size) break;
+    }
+    return out;
+  }
+  async loadMonthLogs(ym) {
+    const [y, m] = ym.split('-').map(Number); const last = new Date(y, m, 0).getDate();
+    const from = `${ym}-01`; const to = `${ym}-${pad(last)}`;
+    const [med_logs, mood_logs] = await Promise.all([this.logsBetween('med_logs', from, to), this.logsBetween('mood_logs', from, to)]);
+    return { med_logs, mood_logs };
+  }
+  // ---- ออฟไลน์: เก็บสำเนาข้อมูลล่าสุดไว้ในเครื่อง (ไม่เข้ารหัส — ล้างเมื่อออกจากระบบ) ใช้ดูอย่างเดียวตอนไม่มีเน็ต ----
+  saveSnapshot(data) { try { localStorage.setItem('sukjai-offline', JSON.stringify({ user: { id: this.user?.id, email: this.user?.email }, at: Date.now(), data })); } catch (e) { console.warn('snapshot', e); } }
+  readSnapshot() { try { const s = JSON.parse(localStorage.getItem('sukjai-offline')); return s && s.user?.id && s.data ? s : null; } catch { return null; } }
+  clearSnapshot() { try { localStorage.removeItem('sukjai-offline'); } catch { /* ไม่มีอะไรต้องทำ */ } }
+  guard() { if (this.offline) throw new Error('ออฟไลน์ — ดูข้อมูลได้อย่างเดียว'); }
+  async loadAll() {
+    try {
+      const d = await this.loadAllOnline(); d.ent = await this.loadEntitlement(); this.offline = false; this.snapshotAt = null; legacyFix(d); this.saveSnapshot(d); return d;
+    } catch (e) {
+      const snap = this.readSnapshot();
+      const net = navigator.onLine === false || /fetch|network|load failed/i.test(String(e?.message || e));
+      if (snap && net && (!this.user || snap.user.id === this.user.id)) { this.offline = true; this.snapshotAt = snap.at; return legacyFix(snap.data); }
+      throw e;
+    }
+  }
+  /** สถานะสมาชิก + สวิตช์การจำกัด (ยังไม่ได้รัน premium.sql / อ่านไม่ได้ = ไม่จำกัด ทุกคนใช้ได้ครบ) */
+  async loadEntitlement() {
+    try {
+      const [f, s, l] = await Promise.all([this.sb.from('app_flags').select('value').eq('key', 'paywall_enabled').maybeSingle(),
+        this.sb.from('subscriptions').select('premium_until, trial_used').maybeSingle(),
+        this.sb.from('app_limits').select('key, value')]);
+      if (!l.error) applyLimits(l.data); // ค่าโควตาจากตารางเดียว (limits-v2.sql) · ไม่มีตาราง = ใช้ค่าเริ่มต้นใน js/limits.js
+      return { paywall: !f.error && !!f.data?.value, premium_until: s.error ? null : (s.data?.premium_until || null), trial_used: s.error ? false : !!s.data?.trial_used, v2: !l.error };
+    } catch (e) { console.warn('entitlement', e); return { paywall: false, premium_until: null, trial_used: false, v2: false }; }
+  }
+  async loadAllOnline() {
+    const d0 = new Date(); const since = dk(new Date(d0.getFullYear(), d0.getMonth(), 1)); // เริ่มด้วยเดือนนี้ — เดือนก่อนๆ โหลดตอนกดดูย้อนหลัง
+    const q = (t) => this.sb.from(t).select('*');
+    const [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr, hl, rr] = await Promise.all([
+      q('profiles').order('created_at'), q('medications').order('sort_order'), q('appointments').order('appt_date'),
+      q('hospitals').order('name'), q('doctors').order('name'), this.logsBetween('med_logs', since).then((data) => ({ data })).catch((error) => ({ error })),
+      this.sb.from('user_settings').select('*').maybeSingle(),
+      q('care_plans').order('created_at'), q('care_logs').order('log_date'),
+      q('circles').order('created_at'), q('circle_members').order('joined_at'),
+      q('circle_care_for').order('added_at'), q('circle_invites').order('created_at'), q('emergency_contacts').order('created_at'),
+      this.logsBetween('mood_logs', since).then((data) => ({ data })).catch((error) => ({ error })),
+      q('treatment_records').order('record_date'),
+      q('health_logs').order('log_date'),
+      q('reminder_recipients').order('created_at'),
+    ]);
+    // ยังไม่ได้รัน schema.sql ล่าสุด (ไม่มีตาราง mood_logs) → เปิดแอปได้ตามปกติ แต่ยังบันทึกอารมณ์ไม่ได้
+    if (ml.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง mood_logs — รัน supabase/schema.sql ใหม่'); ml.error = null; ml.data = []; }
+    if (tr.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง treatment_records — รัน SQL ประวัติการรักษา'); tr.error = null; tr.data = []; }
+    if (hl.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง health_logs — รัน supabase/health.sql'); hl.error = null; hl.data = []; }
+    if (rr.error?.code === 'PGRST205') { console.warn('ยังไม่มีตาราง reminder_recipients — รัน supabase/share-status.sql'); rr.error = null; rr.data = []; }
+    for (const r of [p, m, a, h, d, l, s, cp, cl, c, cm, ccf, ci, ec, ml, tr, hl, rr]) if (r.error) throw r.error;
+    return { profiles: p.data, medications: m.data, appointments: a.data, hospitals: h.data, doctors: d.data, med_logs: l.data,
+      care_plans: cp.data, care_logs: cl.data, circles: c.data, circle_members: cm.data, circle_care_for: ccf.data, circle_invites: ci.data, emergency_contacts: ec.data,
+      mood_logs: ml.data, treatment_records: tr.data, health_logs: hl.data, reminder_recipients: rr.data,
+      settings: { slot_times: { ...DEFAULT_SLOT_TIMES, ...(s.data?.slot_times || {}) }, today_hidden: s.data?.today_hidden || [],
+        profile_order: s.data?.profile_order || [], pdpa_consent_at: s.data?.pdpa_consent_at || null, pdpa_version: s.data?.pdpa_version || null,
+        appt_remind_days: Array.isArray(s.data?.appt_remind_days) ? s.data.appt_remind_days : null,
+        low_stock_qty: Number.isInteger(s.data?.low_stock_qty) ? s.data.low_stock_qty : null,
+        appt_remind_time: typeof s.data?.appt_remind_time === 'string' ? s.data.appt_remind_time.slice(0, 5) : null,
+        profile_relations: s.data?.profile_relations && typeof s.data.profile_relations === 'object' ? s.data.profile_relations : {} } };
+  }
+  /** ลบทุกแถวของตารางที่ตรงเงื่อนไข (ใช้ตอนผู้ใช้สั่งลบข้อมูลของตัวเอง — RLS ยังจำกัดให้ลบได้เฉพาะของตัวเอง) */
+  async removeWhere(t, col, val) { const { error } = await this.sb.from(t).delete().eq(col, val); if (error) throw error; }
+  /** คอลัมน์เสริมที่เพิ่มด้วย SQL ภายหลัง: ถ้ายังไม่ได้รัน SQL ให้บันทึกส่วนอื่นต่อได้ (ตัดคอลัมน์นั้นออก) แล้วบอกผู้ใช้ */
+  dropMissing(t, obj, error) {
+    const OPT = { medications: { generic_name: ['ชื่อทางการแพทย์', 'generic-name.sql'], photo: ['รูปยา', 'med-photo.sql'] } };
+    const hit = Object.entries(OPT[t] || {}).find(([c]) => c in obj && String(error?.message || '').includes(c)); if (!hit) return false;
+    delete obj[hit[0]]; toast(`บันทึกแล้ว แต่ยังเก็บ "${hit[1][0]}" ไม่ได้ — ต้องรัน supabase/${hit[1][1]} ก่อน`); return true;
+  }
+  async insert(t, row) { this.guard(); let { error } = await this.sb.from(t).insert(row); if (error && this.dropMissing(t, row, error)) ({ error } = await this.sb.from(t).insert(row)); if (error) throw error; }
+  async update(t, id, patch) { this.guard(); let { error } = await this.sb.from(t).update(patch).eq('id', id); if (error && this.dropMissing(t, patch, error)) ({ error } = await this.sb.from(t).update(patch).eq('id', id)); if (error) throw error; }
+  async remove(t, id) { this.guard(); const { error } = await this.sb.from(t).delete().eq('id', id); if (error) throw error; }
+  async saveSettings(settings) {
+    this.guard();
+    const row = { user_id: this.user.id, slot_times: settings.slot_times, today_hidden: settings.today_hidden || [],
+      profile_order: settings.profile_order || [], pdpa_consent_at: settings.pdpa_consent_at || null, pdpa_version: settings.pdpa_version || null, timezone: 'Asia/Bangkok' };
+    // คอลัมน์เสริม: ส่งเฉพาะเมื่อผู้ใช้ตั้งเอง (ยังไม่รัน SQL ก็บันทึกเวลายา/การตั้งค่าอื่นได้ปกติ)
+    const OPTIONAL = ['appt_remind_days', 'low_stock_qty', 'appt_remind_time', 'profile_relations'];
+    if (Array.isArray(settings.appt_remind_days)) row.appt_remind_days = settings.appt_remind_days;
+    if (Number.isInteger(settings.low_stock_qty)) row.low_stock_qty = settings.low_stock_qty;
+    if (typeof settings.appt_remind_time === 'string') row.appt_remind_time = settings.appt_remind_time;
+    if (settings.profile_relations && (Object.keys(settings.profile_relations).length || settings._relTouched)) row.profile_relations = settings.profile_relations; // ความสัมพันธ์ที่ผู้ใช้ตั้งให้โปรไฟล์ที่คนอื่นแชร์มา
+    const { error } = await this.sb.from('user_settings').upsert(row);
+    if (error && OPTIONAL.some((c) => c in row) && (error.code === 'PGRST204' || OPTIONAL.some((c) => (error.message || '').includes(c)))) { // ยังไม่มีคอลัมน์ → บันทึกส่วนอื่นให้ก่อน แล้วแจ้งว่าต้องรัน SQL
+      OPTIONAL.forEach((c) => delete row[c]); const r2 = await this.sb.from('user_settings').upsert(row); if (r2.error) throw r2.error;
+      throw Object.assign(new Error('NEED_SQL'), { needSql: true });
+    }
+    if (error) throw error;
+  }
+  /** อัปโหลดรูป — เก็บใต้โฟลเดอร์ของ "เจ้าของโปรไฟล์" (ownerId) เพื่อนับเป็นพื้นที่ของเจ้าของและให้งานลบรูปครบกำหนดลบได้ทุกรูป
+   *  (ไม่ส่ง ownerId = โฟลเดอร์ของตัวเอง · ถ้ายังไม่ได้รัน limits-v2.sql นโยบายจะไม่อนุญาตโฟลเดอร์ของคนอื่น จึงใช้โฟลเดอร์ตัวเองแทน) */
+  async upload(file, apptId, ownerId) {
+    const blob = await compressImage(file);
+    const folder = ownerId && ownerId !== this.user.id && typeof S !== 'undefined' && S?.ent?.v2 ? ownerId : this.user.id;
+    const path = `${folder}/${apptId}/${uuid()}.jpg`;
+    const { error } = await this.sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg' });
+    if (error) throw error; return path;
+  }
+  async fileUrl(path) {
+    const { data, error } = await this.sb.storage.from(BUCKET).createSignedUrl(path, 3600);
+    if (error) throw error; return data.signedUrl;
+  }
+  async removeFiles(paths, strict = false) { // strict = true: ลบไม่สำเร็จให้ throw (ใช้ตอนลบบัญชี ไม่ให้ไฟล์ค้างโดยไม่รู้)
+    if (!paths.length) return;
+    const { error } = await this.sb.storage.from(BUCKET).remove(paths);
+    if (error && strict) throw new Error('ลบรูปไม่สำเร็จ: ' + error.message);
+  }
+  async savePushSubscription(sub) {
+    const j = sub.toJSON();
+    const { error } = await this.sb.from('push_subscriptions').upsert(
+      { user_id: this.user.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_agent: navigator.userAgent },
+      { onConflict: 'endpoint' });
+    if (error) throw error;
+  }
+}
+
+// ---------------- โหมดทดลอง (ในเครื่อง) ----------------
+class LocalDB {
+  constructor() {
+    this.mode = 'local';
+    this.key = 'sukjai-v2';
+    this.user = { id: 'local', email: 'โหมดทดลอง (เก็บในเครื่องนี้)' };
+    try { this.data = JSON.parse(localStorage.getItem(this.key)); } catch { this.data = null; }
+    if (!this.data) this.data = demoData();
+    TABLES.forEach((t) => (this.data[t] = this.data[t] || []));
+    this.data.settings = this.data.settings || { slot_times: { ...DEFAULT_SLOT_TIMES } };
+    this.persist();
+  }
+  persist() {
+    try { localStorage.setItem(this.key, JSON.stringify(this.data)); }
+    catch { toast('พื้นที่ในเครื่องเต็ม — ลองลบรูปแนบบางรูป'); throw new Error('quota'); }
+  }
+  async getUser() { return this.user; }
+  onAuth() {}
+  async signOut() {}
+  async loadAll() { return legacyFix(JSON.parse(JSON.stringify(this.data))); }
+  async loadMonthLogs() { return { med_logs: [], mood_logs: [] }; } // โหมดทดลองโหลดครบตั้งแต่แรกแล้ว
+  async insert(t, row) { this.data[t].push(JSON.parse(JSON.stringify(row))); this.persist(); }
+  async update(t, id, patch) { const r = this.data[t].find((x) => x.id === id); if (r) Object.assign(r, JSON.parse(JSON.stringify(patch))); this.persist(); }
+  async remove(t, id) {
+    this.data[t] = this.data[t].filter((x) => x.id !== id);
+    // ลบแบบต่อเนื่อง เหมือน on delete cascade ในฐานข้อมูล
+    if (t === 'profiles') {
+      const meds = this.data.medications.filter((m) => m.profile_id === id).map((m) => m.id);
+      this.data.medications = this.data.medications.filter((m) => m.profile_id !== id);
+      this.data.med_logs = this.data.med_logs.filter((l) => !meds.includes(l.medication_id));
+      this.data.appointments = this.data.appointments.filter((a) => a.profile_id !== id);
+      const plans = this.data.care_plans.filter((c) => c.profile_id === id).map((c) => c.id);
+      this.data.care_plans = this.data.care_plans.filter((c) => c.profile_id !== id);
+      this.data.care_logs = this.data.care_logs.filter((l) => !plans.includes(l.plan_id));
+      this.data.circle_care_for = this.data.circle_care_for.filter((ccf) => ccf.profile_id !== id);
+      this.data.mood_logs = this.data.mood_logs.filter((l) => l.profile_id !== id);
+      this.data.treatment_records = (this.data.treatment_records || []).filter((l) => l.profile_id !== id);
+      this.data.health_logs = (this.data.health_logs || []).filter((l) => l.profile_id !== id);
+    }
+    if (t === 'medications') this.data.med_logs = this.data.med_logs.filter((l) => l.medication_id !== id);
+    if (t === 'care_plans') this.data.care_logs = this.data.care_logs.filter((l) => l.plan_id !== id);
+    if (t === 'circles') {
+      this.data.circle_members = this.data.circle_members.filter((m) => m.circle_id !== id);
+      this.data.circle_care_for = this.data.circle_care_for.filter((ccf) => ccf.circle_id !== id);
+      this.data.circle_invites = this.data.circle_invites.filter((i) => i.circle_id !== id);
+    }
+    this.persist();
+  }
+  async saveSettings(s) { this.data.settings = s; this.persist(); }
+  async upload(file) { return blobToDataUrl(await compressImage(file, 1000, 0.6)); }
+  async fileUrl(path) { return path; }
+  async removeFiles() {}
+  reset(withDemo) { this.data = withDemo ? demoData() : { settings: { slot_times: { ...DEFAULT_SLOT_TIMES } } }; TABLES.forEach((t) => (this.data[t] = this.data[t] || [])); this.persist(); }
+}
+
+function demoData() {
+  const t = new Date();
+  const P = [uuid(), uuid(), uuid(), uuid()];
+  const H = [uuid(), uuid()];
+  const D = [uuid(), uuid(), uuid()];
+  const C = uuid();
+  const now = new Date().toISOString();
+  const med = (i, profile_id, name, purpose, slots, x = {}) => ({
+    id: uuid(), profile_id, name, purpose, slots, slot_reminders: Object.fromEntries(slots.map((s) => [s, true])),
+    dose: 1, stock: 30, sort_order: i, status: 'active', status_reason: '', status_history: [], note: '', updated_at: now, ...x,
+  });
+  return {
+    profiles: [
+      { id: P[0], name: 'ปู่เค็ม', relation: 'ปู่', birth_year: 1944, blood_type: 'O', color: '#3FA796', avatar: 'm-elder-wave',
+        chronic_diseases: ['ความดันโลหิตสูง', 'เบาหวาน'], drug_allergies: ['Penicillin'], reminder_enabled: true },
+      { id: P[1], name: 'ย่าปลา', relation: 'ย่า', birth_year: 1947, blood_type: 'A', color: '#EF5B4C', avatar: 'f-elder-heart',
+        chronic_diseases: ['ไขมันในเลือดสูง', 'กระดูกพรุน'], drug_allergies: [], reminder_enabled: true },
+      { id: P[2], name: 'พ่อ', relation: 'พ่อ', birth_year: 1970, blood_type: 'B', color: '#7C6CF2', avatar: 'm-adult-ok',
+        chronic_diseases: ['ความดันโลหิตสูง'], drug_allergies: ['Aspirin', 'ยากลุ่ม NSAIDs'], reminder_enabled: true },
+      { id: P[3], name: 'แม่', relation: 'แม่', birth_year: 1973, blood_type: 'AB', color: '#F2A93B', avatar: 'f-adult-smile',
+        chronic_diseases: [], drug_allergies: [], reminder_enabled: true },
+    ],
+    medications: [
+      med(1, P[0], 'Amlodipine 5 mg', 'ความดันโลหิตสูง', ['after_breakfast'], { stock: 5 }),
+      med(2, P[0], 'Metformin 500 mg', 'เบาหวาน', ['after_breakfast', 'after_dinner'], { slot_reminders: { after_breakfast: true, after_dinner: false } }),
+      med(3, P[0], 'Glipizide 5 mg', 'เบาหวาน', ['before_breakfast']),
+      med(4, P[0], 'Aspirin 81 mg', 'ป้องกันหลอดเลือดอุดตัน', ['after_breakfast'], {
+        status: 'paused', status_reason: 'หมอให้งดก่อนถอนฟัน', status_history: [{ date: todayKey(), status: 'paused', reason: 'หมอให้งดก่อนถอนฟัน' }] }),
+      med(1, P[1], 'Simvastatin 20 mg', 'ไขมันในเลือดสูง', ['bedtime']),
+      med(2, P[1], 'Calcium + Vit D', 'กระดูกพรุน', ['after_lunch'], { stock: 60 }),
+      med(1, P[2], 'Losartan 50 mg', 'ความดันโลหิตสูง', ['after_breakfast']),
+    ],
+    hospitals: [
+      { id: H[0], name: 'โรงพยาบาลศิริราช', phone: '02-419-7000' },
+      { id: H[1], name: 'โรงพยาบาลรามาธิบดี', phone: '02-201-1000' },
+    ],
+    doctors: [
+      { id: D[0], name: 'นพ.สมชาย ใจดี', department: 'อายุรกรรม', hospital_id: H[0] },
+      { id: D[1], name: 'พญ.วิไล รักษ์ดี', department: 'กระดูกและข้อ', hospital_id: H[1] },
+      { id: D[2], name: 'นพ.ธนา สุขสันต์', department: 'หัวใจ', hospital_id: H[0] },
+    ],
+    appointments: [
+      { id: uuid(), profile_id: P[0], department: 'อายุรกรรม', appt_date: dk(addDays(t, 2)), appt_time: '09:00', doctor_id: D[0], hospital_id: H[0],
+        building: 'ตึกผู้ป่วยนอก ชั้น 3', visit_reason: 'รับยาต่อเนื่อง', note: 'เจาะเลือด ต้องงดน้ำงดอาหารหลังเที่ยงคืน', attachments: [] },
+      { id: uuid(), profile_id: P[1], department: 'กระดูกและข้อ', appt_date: dk(addDays(t, 5)), appt_time: '13:30', doctor_id: D[1], hospital_id: H[1],
+        building: 'ตึก สก. ชั้น 2', visit_reason: 'ติดตามการรักษา', note: 'เอาผลเอกซเรย์ครั้งก่อนไปด้วย', attachments: [] },
+      { id: uuid(), profile_id: P[2], department: 'หัวใจ', appt_date: dk(addDays(t, 5)), appt_time: '10:00', doctor_id: D[2], hospital_id: H[0],
+        building: '', visit_reason: 'ตรวจสุขภาพประจำปี', note: '', attachments: [] },
+      { id: uuid(), profile_id: P[0], department: 'จักษุแพทย์', appt_date: dk(addDays(t, 18)), appt_time: '08:30', doctor_id: null, hospital_id: H[1],
+        building: '', visit_reason: 'ติดตามการรักษา', note: 'ห้ามขับรถกลับเอง (หยอดยาขยายม่านตา)', attachments: [] },
+    ],
+    med_logs: [],
+    care_plans: [
+      { id: C, profile_id: P[0], title: 'แผลที่ขาซ้าย', started_on: dk(addDays(t, -3)), interval_days: 1, remind: true, status: 'active', created_at: now,
+        care_steps: ['ล้างแผลด้วยน้ำเกลือ เปลี่ยนผ้าก๊อซ เช้า-เย็น', 'ทายาฆ่าเชื้อ เช้า-เย็น', 'ระวังอย่าให้แผลโดนน้ำ'],
+        note: 'ถ้าแผลบวมแดง มีหนอง หรือมีไข้ ให้กลับไปโรงพยาบาล' },
+    ],
+    care_logs: [
+      { id: uuid(), plan_id: C, log_date: dk(addDays(t, -3)), trend: null, note: 'แผลถลอกยาว ~3 ซม. ขอบแดงเล็กน้อย', photos: [], created_at: now },
+      { id: uuid(), plan_id: C, log_date: dk(addDays(t, -2)), trend: 'same', note: 'ยังมีน้ำเหลืองซึมเล็กน้อย', photos: [], created_at: now },
+      { id: uuid(), plan_id: C, log_date: dk(addDays(t, -1)), trend: 'better', note: 'แผลแห้งขึ้น ไม่มีหนอง', photos: [], created_at: now },
+    ],
+    circles: (() => { const cid = uuid(); window._demoCid = cid; return [
+      { id: cid, user_id: 'local', name: 'กลุ่มดูแลปู่เค็ม', description: 'ลูกหลานปู่เค็มทั้งหมด', created_at: now },
+    ]; })(),
+    circle_members: (() => { const cid = window._demoCid; return [
+      { id: uuid(), circle_id: cid, user_id: 'local', role: 'owner', joined_at: now },
+    ]; })(),
+    circle_care_for: (() => { const cid = window._demoCid; return [
+      { id: uuid(), circle_id: cid, profile_id: P[0], added_at: now },
+    ]; })(),
+    settings: { slot_times: { ...DEFAULT_SLOT_TIMES } },
+  };
+}
