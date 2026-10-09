@@ -64,7 +64,7 @@ const isOralMed = (m) => { const u = String(m.unit || ''); return !(['หยด'
 // รหัสเลขลำดับยาเริ่มต้น = พยัญชนะตัวแรกของชื่อ (ข้ามสระหน้า เ แ โ ใ ไ) เช่น ปู่หวาน → ป, แม่ → ม
 const numOrNull = (v) => { const s = String(v ?? '').trim(); if (!s) return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
 const defaultPrefix =(name) => String(name || '').trim().replace(/^[เแโใไ]+/, '').charAt(0);
-const PDPA_VERSION = '2026-10d';
+const PDPA_VERSION = '2026-10e';
 const MOODS = [
   { k: 'tired', img: 'assets/moods/tired.png', label: 'ขำไม่ไหว', color: '#D8F368' },
   { k: 'happy', img: 'assets/moods/happy.png', label: 'สดใสใจฟู', color: '#F3D668' },
@@ -106,7 +106,7 @@ function toast(msg) {
 }
 
 /** ย่อรูปก่อนอัปโหลด (กว้างสุด 1400px, JPEG) */
-function compressImage(file, max = 1400, quality = 0.75) {
+function compressImage(file, max = 1280, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -129,6 +129,9 @@ const blobToDataUrl = (b) => new Promise((r) => { const fr = new FileReader(); f
 /** ชื่อทางการแพทย์ของยา (generic_name) — ว่าง = ไม่แสดง · แสดงเป็นตัวเล็กบางใต้ชื่อยา (ยี่ห้อ) ทุกหน้า */
 const medGeneric = (m) => String(m?.generic_name || '').replace(/\s+/g, ' ').trim();
 const genHtml = (m) => (medGeneric(m) ? `<small class="gen">${esc(medGeneric(m))}</small>` : '');
+
+/** กากบาท × จางที่มุมขวาบนของหน้าต่างฟอร์ม = ลบรายการนั้น (แทนปุ่ม ลบ สีแดง) — กดแล้วมีกล่องถามยืนยันของแต่ละรายการ */
+const sheetX = (act, id, label = 'ลบ') => `<span class="sheet-x" role="button" tabindex="0" data-act="${act}" data-id="${id}" aria-label="${label}">×</span>`;
 
 /** ผสมสีกับสีขาว (a = 0..1 ยิ่งมากยิ่งเข้ม) — ใช้ทำสีตารางตามสีโปรไฟล์ */
 const tint = (hex, a) => { const n = parseInt(String(hex).replace('#', '').padEnd(6, '0').slice(0, 6), 16); const m = (v) => Math.round(255 - (255 - v) * a).toString(16).padStart(2, '0'); return '#' + m(n >> 16) + m((n >> 8) & 255) + m(n & 255); };

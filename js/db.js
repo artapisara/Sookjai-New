@@ -160,7 +160,11 @@ class SupaDB {
     const { data, error } = await this.sb.storage.from(BUCKET).createSignedUrl(path, 3600);
     if (error) throw error; return data.signedUrl;
   }
-  async removeFiles(paths) { if (paths.length) await this.sb.storage.from(BUCKET).remove(paths); }
+  async removeFiles(paths, strict = false) { // strict = true: ลบไม่สำเร็จให้ throw (ใช้ตอนลบบัญชี ไม่ให้ไฟล์ค้างโดยไม่รู้)
+    if (!paths.length) return;
+    const { error } = await this.sb.storage.from(BUCKET).remove(paths);
+    if (error && strict) throw new Error('ลบรูปไม่สำเร็จ: ' + error.message);
+  }
   async savePushSubscription(sub) {
     const j = sub.toJSON();
     const { error } = await this.sb.from('push_subscriptions').upsert(

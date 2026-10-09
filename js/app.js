@@ -262,7 +262,7 @@ function viewMedList() {
     ${shareTag(p.id) ? `<div class="tags">${shareTag(p.id)}</div>` : ''}
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>${esc(p.name)} แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <h2 class="fold-h"><button type="button" class="fold-btn" data-act="meds-fold" aria-expanded="${!ui.medsFold}"><span>ยาที่กำลังทาน <span class="small muted">${act.length} ตัว</span></span><span class="fold-chev">${ui.medsFold ? '▸' : '▾'}</span></button></h2>
-    <div class="med-group" id="medsFoldBody"${ui.medsFold ? ' hidden' : ''}>${act.length ? `<input type="search" id="medQ" class="stk-search" placeholder="ค้นหาชื่อยา" value="${esc(ui.medsQ || '')}" autocomplete="off" aria-label="ค้นหาชื่อยา"><p class="small muted med-none"${act.some((m) => !mq || norm(` ${medGeneric(m)}`).includes(mq)) ? ' hidden' : ''}>ไม่พบยาที่ค้นหา</p>` : ''}${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map((m) => medCard(m).replace('class="mrow', `data-q="${esc(norm(`${m.name} ${medGeneric(m)}`))}"${mq && !norm(`${m.name} ${medGeneric(m)}`).includes(mq) ? ' hidden' : ''} class="mrow`)).join('')}</div></div>
+    <div class="med-group" id="medsFoldBody"${ui.medsFold ? ' hidden' : ''}>${act.length ? `<input type="search" id="medQ" class="stk-search" placeholder="ค้นหายา / ชื่อทางการแพทย์" value="${esc(ui.medsQ || '')}" autocomplete="off" aria-label="ค้นหายาหรือชื่อทางการแพทย์"><p class="small muted med-none"${act.some((m) => !mq || norm(` ${medGeneric(m)}`).includes(mq)) ? ' hidden' : ''}>ไม่พบยาที่ค้นหา</p>` : ''}${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map((m) => medCard(m).replace('class="mrow', `data-q="${esc(norm(`${m.name} ${medGeneric(m)}`))}"${mq && !norm(`${m.name} ${medGeneric(m)}`).includes(mq) ? ' hidden' : ''} class="mrow`)).join('')}</div></div>
     ${act.length ? '' : `<div class="card empty"><div class="e">💊</div>ยังไม่มียา กดปุ่ม + เพื่อเพิ่ม</div>`}
     ${canEditProfile(p.id) ? '<button class="fab" data-act="add-med" aria-label="เพิ่มยา">+</button>' : ''}
     <h2${off.length ? ' class="fold-h"' : ''}>${off.length ? `<button type="button" class="fold-btn" data-act="off-fold" aria-expanded="${!ui.offFold}"><span>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} ตัว</span></span><span class="fold-chev">${ui.offFold ? '▸' : '▾'}</span></button>` : 'งดชั่วคราว / หยุดแล้ว <span class="small muted">0 ตัว</span>'}</h2>
@@ -325,7 +325,7 @@ function apptBrief(a) {
       <div class="line"><b>${esc(p.name)}</b>${n >= 0 && n <= 5 ? `<span class="countdown ${n <= 1 ? 'hot' : ''}">${whenText(n)}</span>` : ''}</div>
       <div class="small">🕘 ${hhmm(a.appt_time)} น. · ${esc(departmentOf(a))}${a.attachments?.length ? ` · 📎 ${a.attachments.length}` : ''}</div>
       <div class="small muted">👨‍⚕️ ${d ? esc(d.name) : 'ไม่ระบุหมอ'}</div>${a.proxy_pickup ? '<div class="proxy-tag">ญาติมารับยาแทน</div>' : ''}
-    </div><span class="muted">›</span></button>`;
+    </div><span class="muted">›</span>${canEditProfile(a.profile_id) && canDeleteRow(a, a.profile_id) ? `<span class="appt-x" role="button" tabindex="0" data-act="del-appt" data-id="${a.id}" aria-label="ลบนัด">×</span>` : ''}</button>`;
 }
 
 // ---------- หน้าต้อนรับ + เข้าสู่ระบบ ----------

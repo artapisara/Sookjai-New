@@ -2037,3 +2037,60 @@ body:not(.auth) .appt .date span { display: block; margin: 0; font-size: var(--f
 
 /* v1.3.65 — ปุ่ม [hidden] ต้องซ่อนจริง (ปุ่ม ลบรูป ในฟอร์มยา โผล่ทั้งที่ยังไม่มีรูป) */
 #mpDel[hidden] { display: none !important; }
+
+/* v1.3.68 — ตัวแก้ไขรูป: แถบเลื่อนความสว่าง */
+.pe-bright { display: flex; align-items: center; gap: var(--sp-3, 12px); margin: var(--sp-2, 8px) 0 var(--sp-3, 12px); font-size: var(--fs-sub, 15px); font-weight: var(--fw-semi, 600); }
+.pe-bright span { flex: none; min-width: 108px; }
+.pe-bright b { font-weight: var(--fw-semi, 600); color: var(--brand, #4D55F5); }
+.pe-bright input[type=range] { flex: 1; min-width: 0; accent-color: var(--brand, #4D55F5); }
+
+/* v1.3.70 — รูปเม็ดยา: กากบาท × บนรูป = ลบรูป · ปุ่ม แก้ไข */
+#mpEdit[hidden] { display: none !important; }
+.med-photo .mp-th { width: 96px; height: 96px; border-radius: 16px; border: 1.5px solid var(--line, #D5D9FF); }
+.med-photo .mp-prev .thumb img { width: 100%; height: 100%; border: 0; border-radius: 0; }
+
+/* v1.3.73 — หน้าจำนวนยาที่เหลือ: ช่อง "รูป" แยกเป็นคอลัมน์ · ชื่อยาตัวบางลง (600) */
+.stk-t th:nth-child(1) { width: 12%; } .stk-t th:nth-child(2) { width: 15%; } .stk-t th:nth-child(3) { width: 26%; } .stk-t th:nth-child(4) { width: 17%; } .stk-t th:nth-child(5) { width: 17%; } .stk-t th:nth-child(6) { width: 13%; text-align: right; }
+.stk-t td.stk-pic-td { padding-left: 2px; padding-right: 2px; text-align: center; }
+.stk-t td .stk-pic { display: block; margin: 0 auto; width: 44px; height: 44px; }
+.stk-t td b.stk-nm { font-weight: var(--fw-semi, 600); }
+
+/* v1.3.73 — ยาที่หมด (เหลือ 0) พื้นหลังแดงเข้มขึ้น · ยาใกล้หมดแดงอ่อนกว่า */
+.stk-t tr.low td { background: #FFE6E3; }
+.stk-t tr.out td { background: #FFC7C2; }
+.stk-row.low .stk-no { background: #FFD2CE; }
+.stk-row.out .stk-no { background: #FFA8A1; }
+
+/* v1.3.74 — ตารางยาที่ไม่ได้ทาน (งดชั่วคราว/หยุดแล้ว): พื้นหลังเทา มีกรอบเทา */
+.stk-card.stk-off { background: #ECEEF2; border: 2px solid #B8BDC9; }
+.stk-card.stk-off .stk-t th { border-bottom-color: #B8BDC9; }
+.stk-card.stk-off .stk-t td { border-bottom-color: #D2D6DE; }
+.stk-card.stk-off .stk-no { background: transparent; }
+
+/* v1.3.74 — ให้คอลัมน์ชื่อยากว้างขึ้น ชื่อไม่ขาดกลางคำที่จอ 390px (รหัส 11 · รูป 14 · ชื่อยา 31 · รักษา 15 · หมดประมาณ 16 · เหลือ 13) */
+.stk-t th:nth-child(1) { width: 11%; } .stk-t th:nth-child(2) { width: 14%; } .stk-t th:nth-child(3) { width: 31%; } .stk-t th:nth-child(4) { width: 15%; } .stk-t th:nth-child(5) { width: 16%; } .stk-t th:nth-child(6) { width: 13%; }
+
+/* v1.3.75 — กากบาท × ที่มุมกรอบการ์ดนัด = ลบนัด (แทนปุ่ม ลบ ในฟอร์มนัด) */
+.card.appt { position: relative; }
+.appt-x { position: absolute; top: -9px; right: -6px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(0, 0, 0, .6); color: #fff; font-size: 18px; line-height: 1; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); }
+.appt-x:active { background: #C62828; }
+
+/* v1.3.77 — กากบาท × ที่มุมกรอบการ์ดติดตามการรักษา = ลบเรื่อง (แทนปุ่ม ลบ สีแดง) · ใช้สไตล์เดียวกับ .appt-x */
+.card.care { position: relative; }
+.card-x { position: absolute; top: -9px; right: -6px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(0, 0, 0, .6); color: #fff; font-size: 18px; line-height: 1; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); z-index: 2; }
+.card-x:active { background: #C62828; }
+
+/* v1.3.78 — กากบาท × บนกรอบการ์ด จางลง (พื้นขาว ขอบเทาบาง ตัวเทาอ่อน ไม่มีเงา) ไม่ให้เด่นเกิน · แตะแล้วค่อยเป็นแดง */
+.appt-x, .card-x { width: 24px; height: 24px; top: -8px; right: -5px; background: rgba(255, 255, 255, .92); border: 1px solid #D5D9E6; color: #9AA0B8; font-size: 16px; box-shadow: none; }
+.appt-x:active, .card-x:active { background: #FDECEA; border-color: #E5A8A2; color: #C62828; }
+
+/* v1.3.78 — เบอร์ฉุกเฉิน: ปุ่ม × ลบ เป็นกากบาทเล็กจางที่มุมขวาบนของแถว (สไตล์เดียวกับกากบาทที่การ์ดนัด/ติดตามการรักษา) แทนปุ่มสี่เหลี่ยมชมพูด้านข้าง */
+.hos-row { position: relative; }
+.hos-row .hos-rm { position: absolute; top: -8px; right: -5px; width: 24px; height: 24px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .92); border: 1px solid #D5D9E6; color: #9AA0B8; font-size: 16px; line-height: 1; box-shadow: none; z-index: 2; }
+.hos-row .hos-rm:active { background: #FDECEA; border-color: #E5A8A2; color: #C62828; }
+
+/* v1.3.79 — กากบาท × จางแทนปุ่ม ลบ ในหน้าต่างฟอร์ม (โปรไฟล์ · บันทึกอาการ · กลุ่ม · ความดัน/น้ำตาล) และในรายการบันทึกอาการ */
+.sheet { position: relative; }
+.sheet-x { position: absolute; top: 14px; right: 16px; z-index: 3; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .92); border: 1px solid #D5D9E6; color: #9AA0B8; font-size: 16px; line-height: 1; cursor: pointer; }
+.sheet-x:active { background: #FDECEA; border-color: #E5A8A2; color: #C62828; }
+.log { position: relative; }

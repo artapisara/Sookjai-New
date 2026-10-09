@@ -13,7 +13,7 @@ const LIMITS = {
   FREE_MAX_APPOINTMENTS_PER_PROFILE: 3,  // ใบนัดที่เก็บอยู่ต่อโปรไฟล์
   FREE_MAX_GROUP_MEMBERS: 5,             // คนที่ถูกเชิญเข้ากลุ่ม (ต่อกลุ่ม)
 };
-const UPLOAD_MAX_BYTES = 1024 * 1024; // บีบอัดรูปก่อนอัปโหลดให้ไม่เกินประมาณ 1 MB ต่อรูป (ดู compressImage ใน util.js)
+const UPLOAD_MAX_BYTES = 400 * 1024; // บีบอัดรูปก่อนอัปโหลดให้ไม่เกินประมาณ 400 KB ต่อรูป (ประหยัดพื้นที่เก็บไฟล์) (ดู compressImage ใน util.js)
 /** ผสมค่าจากตาราง app_limits (ถ้ามี) — เรียกจาก SupaDB.loadEntitlement */
 function applyLimits(rows) {
   for (const r of rows || []) if (r && r.key in LIMITS && Number.isFinite(Number(r.value))) LIMITS[r.key] = Number(r.value);

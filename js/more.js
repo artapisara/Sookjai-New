@@ -90,7 +90,7 @@ const PDPA_TEXT = `
     <li><p><b>เก็บอะไร:</b> ข้อมูลสุขภาพของคนที่คุณใส่ไว้ (โรคประจำตัว ยา นัดแพทย์ รูป อารมณ์ ค่าความดัน/น้ำตาล ผลการพบแพทย์ที่คุณจดไว้) และอีเมลของคุณ</p></li>
     <li><p><b>ใช้ทำอะไร:</b> ทำตารางยา เตือน และแชร์ให้คนที่คุณเชิญ ไม่ขาย ไม่ส่งต่อ ไม่ใช้ทำโฆษณา</p></li>
     <li><p><b>ปลอดภัย:</b> เห็นเฉพาะคุณและกลุ่มที่คุณแชร์ · เก็บบน Supabase (สิงคโปร์) ล็อกสิทธิ์ไว้</p></li>
-    <li><p><b>เก็บนานแค่ไหน:</b> รูปใบนัดและรูปอื่นๆ เก็บไว้จนกว่าคุณจะลบเอง</p></li>
+    <li><p><b>เก็บนานแค่ไหน:</b> รูปใบนัดเก็บไว้ 1 ปีนับจากวันนัด แล้วลบอัตโนมัติ คุณลบเองได้ทุกเมื่อ ส่วนรูปติดตามการรักษาและรูปเม็ดยาเก็บไว้จนกว่าคุณจะลบเอง เมื่อลบบัญชี รูปทั้งหมดจะถูกลบด้วย</p></li>
     <li><p><b>คุณคุมได้:</b> ขอสำเนา แก้ไข ถอนความยินยอม หรือลบทั้งหมดได้ทุกเมื่อ ที่ ตั้งค่า → ความเป็นส่วนตัว</p></li>
   </ul>`;
 
@@ -162,8 +162,9 @@ function deleteMyDataSheet() {
     try {
       if (DB.mode !== 'supabase') { DB.reset(false); location.reload(); return; }
       const d = myData(); const uid = DB.user.id;
-      const files = [...d.appointments.flatMap((a) => a.attachments || []), ...d.care_logs.flatMap((l) => l.photos || [])];
-      await DB.removeFiles(files).catch(() => {});
+      const files = [...d.appointments.flatMap((a) => a.attachments || []), ...d.care_logs.flatMap((l) => l.photos || []), ...d.medications.map((m) => m.photo).filter(Boolean)];
+      // ลบไฟล์รูปให้เสร็จก่อนลบแถวข้อมูล — ถ้าลบไฟล์ไม่สำเร็จ หยุดไว้ก่อน (ไม่ลบแถวที่เก็บพาธรูป ไม่ให้มีไฟล์ค้างโดยไม่รู้)
+      await DB.removeFiles(files, true);
       for (const c of d.circles) await DB.remove('circles', c.id);
       for (const p of d.profiles) await DB.remove('profiles', p.id);
       for (const t of ['emergency_contacts', 'hospitals', 'doctors', 'med_logs', 'mood_logs', 'treatment_records', 'health_logs', 'circle_members', 'circle_invites', 'care_logs', 'care_plans', 'appointments', 'medications', 'push_subscriptions', 'user_settings']) {

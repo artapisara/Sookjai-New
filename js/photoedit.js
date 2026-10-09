@@ -1,5 +1,6 @@
 /* © 2026 สุขใจ (Sookjai) — สงวนลิขสิทธิ์ / All rights reserved · ห้ามคัดลอกหรือนำไปใช้โดยไม่ได้รับอนุญาต · ดู LICENSE.txt */
-/* สุขใจ — ตัวแก้ไขรูปก่อนใช้ (รูปเม็ดยา): หมุนซ้าย/ขวา · กลับซ้าย-ขวา · กลับบน-ล่าง · ตัดภาพ (ลากกรอบ)
+/* สุขใจ — ตัวแก้ไขรูปก่อนใช้ (รูปเม็ดยา): หมุนซ้าย/ขวา · ตัดภาพ (ลากกรอบ)
+ * + ความสว่าง (แถบเลื่อน −50…+100)
  * editPhoto(file) → Promise<Blob JPEG | null> (null = ยกเลิก) — ทำงานในเครื่อง ไม่ส่งรูปไปที่ไหนจนกว่าจะกดบันทึกยา
  */
 'use strict';
@@ -28,13 +29,15 @@ function editPhoto(file) {
       <h3>แก้ไขรูป</h3>
       <div class="pe-wrap"><div class="pe-stage"><canvas></canvas><div class="pe-crop"><i data-h="tl"></i><i data-h="tr"></i><i data-h="bl"></i><i data-h="br"></i></div></div></div>
       <p class="small muted center pe-tip">ลากกรอบสีเขียวเพื่อตัดภาพ · ลากมุมเพื่อปรับขนาด</p>
+      <label class="pe-bright"><span>ความสว่าง <b data-bv>0</b></span><input type="range" min="-50" max="100" step="5" value="0" data-bright aria-label="ความสว่าง"></label>
       <div class="pe-tools">
-        <button type="button" class="btn ghost sm" data-t="rl">หมุนซ้าย</button><button type="button" class="btn ghost sm" data-t="rr">หมุนขวา</button>
-        <button type="button" class="btn ghost sm" data-t="fh">กลับซ้าย-ขวา</button><button type="button" class="btn ghost sm" data-t="fv">กลับบน-ล่าง</button>
-      </div>
+        <button type="button" class="btn ghost sm" data-t="rl">หมุนซ้าย</button><button type="button" class="btn ghost sm" data-t="rr">หมุนขวา</button>      </div>
       <div class="row"><button type="button" class="btn ghost" data-t="cancel">ยกเลิก</button><button type="button" class="btn" data-t="ok">ใช้รูปนี้</button></div></div>`;
     document.body.appendChild(ov);
     const view = ov.querySelector('canvas'), box = ov.querySelector('.pe-crop');
+    // ความสว่าง: ดูตัวอย่างด้วย CSS filter · ตอนบันทึกคูณค่าสีทุกพิกเซลด้วยตัวคูณเดียวกัน (ไม่พึ่ง ctx.filter ที่บางเครื่องไม่รองรับ)
+    let bright = 0; const slider = ov.querySelector('[data-bright]'), bv = ov.querySelector('[data-bv]');
+    slider.addEventListener('input', () => { bright = Number(slider.value); bv.textContent = bright > 0 ? `+${bright}` : String(bright); view.style.filter = bright ? `brightness(${1 + bright / 100})` : ''; });
 
     const paint = () => {
       view.width = cv.width; view.height = cv.height; view.getContext('2d').drawImage(cv, 0, 0);
@@ -45,10 +48,7 @@ function editPhoto(file) {
     const remake = (w, h, draw) => { const n = document.createElement('canvas'); n.width = w; n.height = h; const c = n.getContext('2d'); draw(c, w, h); cv = n; resetCrop(); paint(); };
     const ops = {
       rl: () => remake(cv.height, cv.width, (c, w, h) => { c.translate(0, h); c.rotate(-Math.PI / 2); c.drawImage(cv, 0, 0); }),
-      rr: () => remake(cv.height, cv.width, (c, w) => { c.translate(w, 0); c.rotate(Math.PI / 2); c.drawImage(cv, 0, 0); }),
-      fh: () => remake(cv.width, cv.height, (c, w) => { c.translate(w, 0); c.scale(-1, 1); c.drawImage(cv, 0, 0); }),
-      fv: () => remake(cv.width, cv.height, (c, w, h) => { c.translate(0, h); c.scale(1, -1); c.drawImage(cv, 0, 0); }),
-    };
+      rr: () => remake(cv.height, cv.width, (c, w) => { c.translate(w, 0); c.rotate(Math.PI / 2); c.drawImage(cv, 0, 0); }),    };
 
     // ลากกรอบตัดภาพ (เมาส์/นิ้ว) — มุม = ปรับขนาด · ในกรอบ = เลื่อน
     let drag = null;
@@ -73,7 +73,8 @@ function editPhoto(file) {
       if (t === 'cancel') return close(null);
       if (t === 'ok') {
         const out = document.createElement('canvas'); out.width = Math.round(crop.w); out.height = Math.round(crop.h);
-        out.getContext('2d').drawImage(cv, Math.round(crop.x), Math.round(crop.y), out.width, out.height, 0, 0, out.width, out.height);
+        const octx = out.getContext('2d'); octx.drawImage(cv, Math.round(crop.x), Math.round(crop.y), out.width, out.height, 0, 0, out.width, out.height);
+        if (bright) { const f = 1 + bright / 100; const im = octx.getImageData(0, 0, out.width, out.height); const d = im.data; for (let i = 0; i < d.length; i += 4) { d[i] = Math.min(255, d[i] * f); d[i + 1] = Math.min(255, d[i + 1] * f); d[i + 2] = Math.min(255, d[i + 2] * f); } octx.putImageData(im, 0, 0); }
         out.toBlob((b) => { if (!b) { toast('บันทึกรูปไม่สำเร็จ ลองใหม่อีกครั้ง'); return; } close(b); }, 'image/jpeg', 0.85);
       }
     });

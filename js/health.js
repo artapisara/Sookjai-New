@@ -84,7 +84,7 @@ function viewHealth() {
 // ---------- ฟอร์มบันทึกค่า ----------
 function healthForm(pid, kind, r) {
   const p = profileById(pid); const e = r || { kind, log_date: todayKey(), log_time: nowHM() }; kind = e.kind;
-  const sheet = openSheet(`<h3>${r ? 'แก้ไขบันทึก' : 'บันทึกค่า'}${HEALTH_KINDS[kind].label}</h3>
+  const sheet = openSheet(`<h3>${r ? 'แก้ไขบันทึก' : 'บันทึกค่า'}${HEALTH_KINDS[kind].label}</h3>${r ? sheetX('health-del', r.id) : ''}
     <div class="detail-head">${avatarHtml(p, 'sm')}<div><b>${esc(p.name)}</b></div></div>
     <form id="f">
       <div class="two-btn"><label class="f"><span>วันที่</span><input type="date" name="log_date" required max="${todayKey()}" value="${e.log_date}"></label>
@@ -96,7 +96,6 @@ function healthForm(pid, kind, r) {
         <label class="f"><span>วัดตอนไหน</span><select name="ctx">${Object.entries(HEALTH_CTX).map(([k, v]) => `<option value="${k}" ${(e.ctx || 'fasting') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`}
       <label class="f"><span>หมายเหตุ — ไม่บังคับ</span><textarea name="note" maxlength="300" placeholder="เช่น หลังออกกำลังกาย / กินยาแล้ว">${esc(e.note)}</textarea></label>
       <div class="row sticky-actions">
-        ${r ? `<button type="button" class="btn danger" data-act="health-del" data-id="${r.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button>
         <button class="btn" type="submit">บันทึก</button>
       </div>

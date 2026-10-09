@@ -65,7 +65,8 @@ function careCard(c) {
       </div>
       ${photo ? `<div class="thumb sm"><img data-path="${esc(photo)}" alt="รูปล่าสุด"></div>` : `<div class="thumb sm nopic">${noPicHtml()}</div>`}
     </div>
-    ${(active && canEditProfile(c.profile_id)) || (canEditProfile(c.profile_id) && canDeleteRow(c, c.profile_id)) ? `<div class="care-actions">${active && canEditProfile(c.profile_id) ? `<button class="btn block sm" data-act="care-log" data-id="${c.id}">บันทึกอาการเพิ่มเติม</button>` : ''}${canEditProfile(c.profile_id) && canDeleteRow(c, c.profile_id) ? `<button class="btn danger sm care-del" data-act="del-care" data-id="${c.id}" aria-label="ลบเรื่องนี้">ลบ</button>` : ''}</div>` : ''}
+    ${active && canEditProfile(c.profile_id) ? `<div class="care-actions"><button class="btn block sm" data-act="care-log" data-id="${c.id}">บันทึกอาการเพิ่มเติม</button></div>` : ''}
+    ${canEditProfile(c.profile_id) && canDeleteRow(c, c.profile_id) ? `<span class="card-x" role="button" tabindex="0" data-act="del-care" data-id="${c.id}" aria-label="ลบเรื่องนี้">×</span>` : ''}
   </div>`;
 }
 
@@ -111,8 +112,8 @@ function careDetail(c) {
     ${c.note ? `<div class="alert sun"><div class="ic">📝</div><div><b>หมายเหตุ</b><span>${esc(c.note)}</span></div></div>` : ''}
     ${first && latest && first !== latest ? `<h4>เทียบรูปแรกกับล่าสุด</h4><div class="compare">${fig(first, 'แรก')}${fig(latest, 'ล่าสุด')}</div>` : ''}
     <h4>บันทึกอาการ</h4>
-    ${logs.map((l) => `<div class="log">
-      <div class="log-head"><b>${thDate(l.log_date)}</b>${trendTag(l.trend)}${canEdit ? `<span class="log-btns"><button class="btn ghost sm mini" data-act="care-log-edit" data-id="${l.id}">แก้ไข</button>${canDeleteRow(l, c.profile_id) ? `<button class="btn sm mini danger" data-act="del-care-log" data-id="${l.id}">ลบ</button>` : ''}</span>` : ''}</div>
+    ${logs.map((l) => `<div class="log">${canEdit && canDeleteRow(l, c.profile_id) ? `<span class="card-x" role="button" tabindex="0" data-act="del-care-log" data-id="${l.id}" aria-label="ลบบันทึกนี้">×</span>` : ''}
+      <div class="log-head"><b>${thDate(l.log_date)}</b>${trendTag(l.trend)}${canEdit ? `<span class="log-btns"><button class="btn ghost sm mini" data-act="care-log-edit" data-id="${l.id}">แก้ไข</button></span>` : ''}</div>
       ${l.note ? `<div class="small">${esc(l.note)}</div>` : ''}
       ${l.photos?.length ? `<div class="thumbs">${l.photos.map((ph) => `<div class="thumb"><img class="zoom" data-path="${esc(ph)}" alt="รูปบันทึกติดตามการรักษา"></div>`).join('')}</div>` : ''}
     </div>`).join('') || '<div class="card flat empty small">ยังไม่มีบันทึก</div>'}
@@ -178,8 +179,12 @@ function photoField(root, existing) {
     if (k !== undefined) { st.removed.push(st.keep[k]); st.keep.splice(k, 1); draw(); }
     if (n !== undefined) { URL.revokeObjectURL(st.pending[n].url); st.pending.splice(n, 1); draw(); }
   });
-  $$('input[type=file]', root).forEach((inp) => inp.addEventListener('change', () => {
-    [...inp.files].forEach((file) => st.pending.push({ file, url: URL.createObjectURL(file) })); inp.value = ''; draw();
+  $$('input[type=file]', root).forEach((inp) => inp.addEventListener('change', async () => {
+    const files = [...inp.files]; inp.value = '';
+    for (const file of files) { // ทุกรูปผ่านตัวแก้ไขรูป (หมุน ตัดภาพ ปรับความสว่าง) ก่อนแนบ · ยกเลิก = ไม่แนบรูปนั้น
+      const blob = await editPhoto(file); if (!blob) continue;
+      const edited = new File([blob], 'care.jpg', { type: 'image/jpeg' }); st.pending.push({ file: edited, url: URL.createObjectURL(edited) }); draw();
+    }
   }));
   st.count = () => st.keep.length + st.pending.length;
   st.save = async (folder, ownerUid) => { const out = []; for (const x of st.pending) out.push(await DB.upload(x.file, folder, ownerUid)); return [...st.keep, ...out]; }; // ownerUid = เจ้าของโปรไฟล์ → รูปนับเป็นพื้นที่ของเจ้าของ
@@ -194,7 +199,7 @@ function careLogForm(c, log) {
   const p = profileById(c.profile_id);
   const prev = careLogsOf(c.id).find((l) => l !== log && l.photos?.length);
   const e = log || { log_date: todayKey(), photos: [] };
-  const sheet = openSheet(`<h3>${log ? 'แก้ไขบันทึกอาการ' : 'บันทึกอาการ'}</h3>
+  const sheet = openSheet(`<h3>${log ? 'แก้ไขบันทึกอาการ' : 'บันทึกอาการ'}</h3>${log ? sheetX('del-care-log', log.id) : ''}
     <div class="detail-head">${avatarHtml(p, 'sm')}<div><b>${esc(c.title)}</b><div class="small muted">${esc(p.name)} · ${intervalText(c.interval_days)}</div></div></div>
     <form id="f">
       <label class="f"><span>วันที่</span><input type="date" name="log_date" required max="${todayKey()}" value="${e.log_date}"></label>
@@ -214,7 +219,6 @@ function careLogForm(c, log) {
       </div>
       <label class="f"><span>บันทึกเพิ่มเติม</span><textarea name="note" placeholder="เช่น แผลแห้งขึ้น ไม่มีหนอง / ขอบแผลแดงขึ้น">${esc(e.note)}</textarea></label>
       <div class="row sticky-actions">
-        ${log ? `<button type="button" class="btn danger" data-act="del-care-log" data-id="${log.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button>
         <button class="btn" type="submit">บันทึก</button>
       </div>

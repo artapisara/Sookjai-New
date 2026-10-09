@@ -143,7 +143,7 @@ function medForm(m) {
         <input type="number" name="sort_order" min="1" step="1" inputmode="numeric" required value="${e.sort_order || nextNoFor(pid0)}"></label>
       <div class="f med-photo"><span class="lbl">รูปเม็ดยา <small>(ควรถ่ายเม็ดยาใกล้ๆ)</small></span>
         <div class="mp-prev" id="mpPrev"></div>
-        <div class="row"><label class="btn ghost filebtn">ถ่ายรูป<input type="file" accept="image/*" capture="environment" class="medPhotoIn" hidden></label><label class="btn ghost filebtn">แนบรูป<input type="file" accept="image/*" class="medPhotoIn" hidden></label><button type="button" class="btn ghost" id="mpDel" hidden>ลบรูป</button></div>
+        <div class="row"><label class="btn ghost filebtn">ถ่ายรูป<input type="file" accept="image/*" capture="environment" class="medPhotoIn" hidden></label><label class="btn ghost filebtn">แนบรูป<input type="file" accept="image/*" class="medPhotoIn" hidden></label><button type="button" class="btn ghost" id="mpEdit" hidden>แก้ไข</button></div>
       </div>
             ${m ? `<p class="small muted">อัปเดตล่าสุด ${thDateTime(m.updated_at)} (อัตโนมัติ)</p>` : ''}
       <p class="small muted med-check"><b>โปรดตรวจสอบก่อนบันทึก:</b> ${CHECK_MEDS_FORM}</p>
@@ -157,11 +157,12 @@ function medForm(m) {
   bindSelectOther(f);
   // รูปยา 1 รูป: ถ่าย/แนบ → ตัวแก้ไขรูป (หมุน กลับด้าน ตัดภาพ) → แสดงตัวอย่าง · อัปโหลดตอนกดบันทึกยา
   let photoNew = null; let photoRemoved = false; const oldPhoto = m?.photo || null;
-  const mpPrev = $('#mpPrev', f), mpDel = $('#mpDel', f);
+  const mpPrev = $('#mpPrev', f), mpEdit = $('#mpEdit', f);
   const drawPhoto = () => {
     const has = !!photoNew || (!!oldPhoto && !photoRemoved);
-    mpPrev.innerHTML = photoNew ? `<img src="${photoNew.url}" alt="รูปยา">` : (oldPhoto && !photoRemoved ? `<img data-path="${esc(oldPhoto)}" alt="รูปยา">` : noPicHtml('ยังไม่มีรูป'));
-    mpDel.hidden = !has; hydrateImgs(mpPrev);
+    // มีรูป: กรอบรูป + ปุ่ม × มุมขวาบน (= ลบรูป) · ยังไม่มีรูป: กรอบว่าง
+    mpPrev.innerHTML = has ? `<div class="thumb mp-th">${photoNew ? `<img src="${photoNew.url}" alt="รูปเม็ดยา">` : `<img data-path="${esc(oldPhoto)}" alt="รูปเม็ดยา">`}<button type="button" class="mp-x" aria-label="ลบรูป">×</button></div>` : noPicHtml('ยังไม่มีรูป');
+    mpEdit.hidden = !has; hydrateImgs(mpPrev);
   };
   $$('.medPhotoIn', f).forEach((inp) => inp.addEventListener('change', async () => {
     const file = inp.files[0]; inp.value = ''; if (!file) return;
@@ -169,7 +170,14 @@ function medForm(m) {
     if (photoNew) URL.revokeObjectURL(photoNew.url);
     photoNew = { blob, url: URL.createObjectURL(blob) }; photoRemoved = false; drawPhoto();
   }));
-  mpDel.addEventListener('click', () => { if (photoNew) URL.revokeObjectURL(photoNew.url); photoNew = null; photoRemoved = true; drawPhoto(); });
+  mpPrev.addEventListener('click', (ev) => { if (!ev.target.closest('.mp-x')) return; if (photoNew) URL.revokeObjectURL(photoNew.url); photoNew = null; photoRemoved = true; drawPhoto(); }); // กากบาทบนรูป = ลบรูป
+  // แก้ไข: เปิดตัวแก้ไขรูปกับรูปที่มีอยู่ (รูปที่เลือกไว้แล้ว หรือรูปที่เก็บไว้ในระบบ)
+  mpEdit.addEventListener('click', async () => {
+    let src = photoNew?.blob;
+    if (!src && oldPhoto && !photoRemoved) { try { src = await (await fetch(await DB.fileUrl(oldPhoto))).blob(); } catch (e) { console.warn(e); return toast('เปิดรูปเดิมมาแก้ไม่ได้ — ลองถ่าย/แนบรูปใหม่แทน'); } }
+    if (!src) return; const blob = await editPhoto(src); if (!blob) return;
+    if (photoNew) URL.revokeObjectURL(photoNew.url); photoNew = { blob, url: URL.createObjectURL(blob) }; photoRemoved = false; drawPhoto();
+  });
   drawPhoto();
   // ยาที่ไม่ใช่ยาทาน (หน่วยไม่ใช่ เม็ด/แคปซูล/ซอง/แผ่น เช่น หยด ครั้ง ช้อนชา มล.) ไม่นับสต็อกเป็นเม็ด: ซ่อนช่อง "จำนวน" ของเม็ด แล้วแสดงช่อง "จำนวน (ขวด)" ที่นับเอง
   { const stBox = f.elements.stock.closest('.stock-box'), bBox = f.elements.bottles.closest('.bottle-box'), unitSel = f.elements.unit, unitOth = f.elements.unit_other;
@@ -420,7 +428,6 @@ function apptForm(a, date, pid) {
         <p class="small muted" id="photoNote" style="margin:6px 0 0"></p>
       </div>
       <div class="row sticky-actions">
-        ${a ? `<button type="button" class="btn danger" data-act="del-appt" data-id="${a.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button>
         <button class="btn" type="submit">บันทึก</button>
       </div>
@@ -457,12 +464,14 @@ function apptForm(a, date, pid) {
   });
   const photoNote = $('#photoNote', f);
   const syncPhotoNote = () => { const n = keep.length + pending.length; photoNote.textContent = `แนบได้สูงสุด ${MAX_APPT_PHOTOS} ภาพต่อ 1 นัด`; photoNote.classList.toggle('red-t', n >= MAX_APPT_PHOTOS); };
-  f.querySelectorAll('.apptFile').forEach((inp) => inp.addEventListener('change', (ev) => {
+  f.querySelectorAll('.apptFile').forEach((inp) => inp.addEventListener('change', async (ev) => {
     const room = Math.max(0, MAX_APPT_PHOTOS - keep.length - pending.length);
-    const files = [...ev.target.files];
-    files.slice(0, room).forEach((file) => pending.push({ file, url: URL.createObjectURL(file) }));
+    const files = [...ev.target.files]; ev.target.value = '';
     if (files.length > room) toast(`แนบได้สูงสุด ${MAX_APPT_PHOTOS} ภาพต่อ 1 นัด — ลบรูปเดิมก่อนถ้าอยากเปลี่ยน`);
-    ev.target.value = ''; drawThumbs(); syncPhotoNote();
+    for (const file of files.slice(0, room)) { // ทุกรูปผ่านตัวแก้ไขรูป (หมุน กลับด้าน ตัดภาพ ปรับความสว่าง) ก่อนแนบ
+      const blob = await editPhoto(file); if (!blob) continue;
+      const edited = new File([blob], 'appt.jpg', { type: 'image/jpeg' }); pending.push({ file: edited, url: URL.createObjectURL(edited) }); drawThumbs(); syncPhotoNote();
+    }
   }));
   thumbs.addEventListener('click', syncPhotoNote);
   syncPhotoNote();
@@ -538,6 +547,7 @@ async function apptDetail(a) {
     ${a.note ? `<div class="alert sun" style="margin-top:12px"><div class="ic">📝</div><div><b>หมายเหตุ</b><span>${esc(a.note)}</span></div></div>` : ''}
     ${a.visit_summary ? `<div class="alert" style="margin-top:12px"><div class="ic">🩺</div><div><b>หมอแนะนำว่า</b><span style="white-space:pre-line">${esc(a.visit_summary)}</span></div></div>` : ''}
     ${!(a.attachments || []).length && a.images_purged_at ? '<p class="small muted purged-note">🗓️ รูปใบนัดถูกลบแล้ว (เก็บไว้ครบ 1 ปี)</p>' : ''}
+    ${(a.attachments || []).length && slipDaysLeft(a) <= 30 && slipDaysLeft(a) >= 0 ? `<div class="alert sun" style="margin-top:12px"><div class="ic">🗓️</div><div><b>รูปจะถูกลบวันที่ ${thDate(slipDeleteOn(a))}</b><span>บันทึกรูปไว้ก่อนได้</span><button class="btn ghost sm" data-save-slips style="margin-top:8px">บันทึกรูป</button></div></div>` : ''}
     ${(a.attachments || []).length ? `<h4>รูปที่แนบ</h4><div class="thumbs" id="dThumbs">${a.attachments.map(() => '<div class="thumb loading"></div>').join('')}</div>` : ''}
     <div class="card flat small"><div class="preview"><b>${esc(apptMessage(a, Math.max(1, Math.min(n, 5))).title)}</b><br>${esc(apptMessage(a, 1).body).replace(/\n/g, '<br>')}</div></div>
     <div class="row sticky-actions"><button class="btn ghost" data-act="close">ปิด</button><button class="btn" data-act="edit-appt" data-id="${a.id}">✏️ แก้ไข</button></div>
@@ -547,8 +557,21 @@ async function apptDetail(a) {
     const box = $('#dThumbs', sheet); if (!box) return;
     box.innerHTML = urls.map((u) => `<button class="thumb" data-view="${esc(u)}"><img src="${esc(u)}" alt="ใบนัด"></button>`).join('');
     box.addEventListener('click', (ev) => { const b = ev.target.closest('[data-view]'); if (b) viewImage(b.dataset.view); });
+    const save = $('[data-save-slips]', sheet);
+    if (save) save.addEventListener('click', async () => { // ดาวน์โหลดรูปใบนัดลงเครื่อง (ทีละรูป)
+      for (let i = 0; i < urls.length; i++) {
+        try {
+          const blob = await (await fetch(urls[i])).blob(); const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob); link.download = `ใบนัด-${a.appt_date}-${i + 1}.jpg`; document.body.appendChild(link); link.click(); link.remove();
+          setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+        } catch (e) { console.warn(e); toast('บันทึกรูปไม่สำเร็จ ลองใหม่อีกครั้ง'); return; }
+      }
+    });
   }
 }
+/** รูปใบนัดถูกลบอัตโนมัติเมื่อครบ 1 ปีนับจากวันนัด — ต้องตรงกับ purge-appointment-images (ลบเมื่อ appt_date + 366 วัน) */
+const slipDeleteOn = (a) => new Date(Date.parse(a.appt_date + 'T00:00:00Z') + 366 * 86400000).toISOString().slice(0, 10);
+const slipDaysLeft = (a) => 366 + daysUntil(a.appt_date);
 /** รูปใบนัดทั้งหมดของคนหนึ่งคน — รวมจากนัดหมอ (รูปยังเก็บไว้กับนัดแต่ละนัดเหมือนเดิม) */
 function slipsSheet(pid) {
   ui.slipsPid = pid;
@@ -561,7 +584,7 @@ function slipsSheet(pid) {
   const sheet = openSheet(`
     ${p.drug_allergies?.length ? `<div class="alert red"><div class="ic">⚠️</div><div><b>แพ้ยา</b><div class="tags">${tagList(p.drug_allergies, 'allergy')}</div></div></div>` : ''}
     <div class="detail-head" style="--pc:${p.color}">${avatarHtml(p, 'lg')}<div><div class="small muted">ใบนัด/เอกสารของ</div><h3 style="margin:0">${esc(p.name)}</h3></div></div>
-    <p class="small muted" style="margin:0 0 10px">🗓️ รูปใบนัดเก็บไว้จนกว่าคุณจะลบเอง</p>
+    <p class="small muted" style="margin:0 0 10px">🗓️ รูปใบนัดเก็บ 1 ปีนับจากวันนัด แล้วลบอัตโนมัติ</p>
     <button class="btn block" data-act="add-appt" data-pid="${pid}">📷 เพิ่มนัดใหม่พร้อมรูปใบนัด</button>
     ${list.map((a) => { const h = hospitalById(a.hospital_id); const n = daysUntil(a.appt_date);
       return `<div class="slip">
@@ -594,7 +617,7 @@ function personForm(p, preset = {}) {
   const e = p || { color: PRESET_COLORS[S.profiles.length % PRESET_COLORS.length], avatar: 'f-elder-smile', reminder_enabled: true, chronic_diseases: [], drug_allergies: [], ...preset };
   const relOther = e.relation && !RELATIONS.includes(e.relation);
   let avatarTouched = !!p;
-  const sheet = openSheet(`<h3>${p ? (isSelfProfile(p) ? 'แก้ไขโปรไฟล์ของฉัน' : 'แก้ไขข้อมูลคน') : preset.isSelf ? 'สร้างโปรไฟล์ของฉัน' : 'เพิ่มสมาชิกที่ฉันดูแล'}</h3>
+  const sheet = openSheet(`<h3>${p ? (isSelfProfile(p) ? 'แก้ไขโปรไฟล์ของฉัน' : 'แก้ไขข้อมูลคน') : preset.isSelf ? 'สร้างโปรไฟล์ของฉัน' : 'เพิ่มสมาชิกที่ฉันดูแล'}</h3>${p ? sheetX('del-person', p.id) : ''}
     ${preset.welcome ? '<div class="alert sun welcome-note"><div class="ic">👋</div><div><b>ยินดีต้อนรับสู่สุขใจ</b><span class="small">เริ่มจากสร้างโปรไฟล์ของคุณก่อนนะ ใช้เวลาไม่ถึงนาที · คนที่คุณดูแล (พ่อ แม่ ปู่ ย่า) เพิ่มทีหลังได้</span></div></div>' : ''}
     <form id="f">
       <div class="detail-head" id="pvHead">${avatarHtml(e, 'lg')}<div><b id="pvName">${esc(e.name || 'ชื่อเรียก')}</b><div class="small muted" id="pvRel">${esc(e.relation || '')}</div></div></div>
@@ -618,7 +641,6 @@ function personForm(p, preset = {}) {
       <div class="f"><span class="lbl">โรคประจำตัว</span>${tagBox('chronic_diseases', e.chronic_diseases, 'พิมพ์แล้วกด เพิ่ม')}</div>
       <div class="f"><span class="lbl red-t">⚠️ แพ้ยา</span>${tagBox('drug_allergies', e.drug_allergies, 'เช่น Penicillin', 'allergy')}</div>
       <div class="row sticky-actions">
-        ${p ? `<button type="button" class="btn danger" data-act="del-person" data-id="${p.id}">ลบ</button>` : ''}
         <button type="button" class="btn ghost" data-act="close">ยกเลิก</button><button class="btn" type="submit">บันทึก</button>
       </div>
     </form>`);
@@ -888,7 +910,7 @@ function circleForm(c) {
   const members = isNew ? [] : S.circle_members.filter((m) => m.circle_id === c.id)
     .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : String(a.joined_at).localeCompare(String(b.joined_at))));
   const mine = S.profiles.filter((p) => ownsProfile(p.id));
-  const sheet = openSheet(`<h3>${isNew ? 'สร้างกลุ่มผู้ดูแล' : 'แก้ไขกลุ่มผู้ดูแล'}</h3>
+  const sheet = openSheet(`<h3>${isNew ? 'สร้างกลุ่มผู้ดูแล' : 'แก้ไขกลุ่มผู้ดูแล'}</h3>${isNew ? '' : sheetX('del-circle', c.id)}
     <form id="f">
       <label class="f"><span>ชื่อกลุ่ม</span><span class="grp-input"><b>กลุ่ม</b><input type="text" name="name" required maxlength="40" value="${esc(String(e.name || '').replace(/^กลุ่ม\s*/, ''))}" placeholder="เช่น ดูแลปู่ย่า"></span></label>
       <label class="f"><span>คำอธิบาย (เพิ่มเติม)</span><textarea name="description" placeholder="เช่น ลูกหลานที่ช่วยกันดูแลปู่ย่า">${esc(e.description)}</textarea></label>
@@ -917,7 +939,7 @@ function circleForm(c) {
         }).join('')}</div>
         <p class="small muted">เปลี่ยนสิทธิ์ได้ทันที เช่น จาก "แก้ไขได้" เป็น "ดูอย่างเดียว" — มีผลครั้งถัดไปที่สมาชิกคนนั้นเปิดแอป</p>`}
 
-      <div class="row">${isNew ? '' : `<button type="button" class="btn danger" data-act="del-circle" data-id="${c.id}">ลบกลุ่ม</button>`}<button type="button" class="btn ghost" data-act="close">ยกเลิก</button><button type="submit" class="btn">${isNew ? 'สร้าง' : 'บันทึก'}</button></div>
+      <div class="row"><button type="button" class="btn ghost" data-act="close">ยกเลิก</button><button type="submit" class="btn">${isNew ? 'สร้าง' : 'บันทึก'}</button></div>
     </form>
   `);
   sheet.querySelector('form').onsubmit = async (ev) => {
