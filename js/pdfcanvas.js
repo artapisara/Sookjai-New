@@ -259,7 +259,7 @@ function cvAuditReport(R, log) {
   reportBodyItems(p).forEach(([k, v]) => { need(k, 'หัวข้อ'); need(v, k); }); (p.chronic_diseases || []).forEach((x) => need(x, 'โรคประจำตัว'));
   if (prev) { need('ครั้งที่แล้วหมอแนะนำว่า', 'หัวข้อ'); need(String(prev.visit_summary).trim(), 'ข้อความหมอแนะนำ'); need(`หมอ: ${reportPrevDoc(prev)}`, 'ชื่อหมอของนัดครั้งก่อน'); }
   meds.forEach((m) => { const code = reportCode(m); need(code, 'รหัสยา'); need(m.name, 'ชื่อยา'); need(medGeneric(m), 'ชื่อทางการแพทย์'); need(`หมอ: ${reportMedDoc(m)}`, `ชื่อหมอที่จ่ายยา ${code}`); if (reportStatusLine(m)) need(reportStatusLine(m), `สถานะยา ${m.name}`); need(m.purpose || '', 'ใช้รักษา'); need(m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${unitOf(m)}`, `ทานครั้งละ ${code}`); need(medWhen(m), `เวลา ${code}`);
-    if (tracksStock(m)) need(`${qtyText(stockLeft(m))} ${unitOf(m)}`, `ยาเหลือ ${code}`); if (normTxt(m.note || '')) need(String(m.note).trim().slice(0, 220), `บันทึก ${code}`);
+    if (tracksStock(m)) need(`${stockText(m)}`, `ยาเหลือ ${code}`); if (normTxt(m.note || '')) need(String(m.note).trim().slice(0, 220), `บันทึก ${code}`);
     const ex = reportExtraNote(m, a.department); if (ex) need(ex, `บันทึกเพิ่มเติม ${code}`); else if (m.extra_note && nz(m.extra_note).length > 3 && all.includes(nz(m.extra_note))) issues.push(`แสดงบันทึกเพิ่มเติมของยาที่ไม่เกี่ยวกับแผนก ${code}`); });
   return issues;
 }
@@ -297,7 +297,7 @@ async function renderReportCanvases(R) {
       const pc = [7, 27, 20, 13, 33]; const cwI = pc.map((v) => (v / 100) * CW); const cxI = []; cwI.reduce((s, v) => (cxI.push(X + s), s + v), 0);
       const head = { h: 30, gap: 0, keep: true, isHead: true, draw: (c, y) => { ['รหัส', 'ชื่อยา', 'ทานครั้งละ · เวลา', 'ยาเหลือ', 'บันทึกของยา'].forEach((t, i) => { cvRect(c, cxI[i], y, cwI[i], 30, p.color, p.color, 1.2); cvText(c, t, i === 0 ? cxI[i] + cwI[i] / 2 : cxI[i] + 8, y + 15, F(700, 13.5), '#fff', i === 0 ? 'center' : 'left'); }); } };
       blocks.push(head);
-      meds.forEach((m) => { const left = tracksStock(m) ? `${qtyText(stockLeft(m))} ${unitOf(m)}` : '–'; const note = normTxt(m.note || '') ? String(m.note).trim().slice(0, 220) : ''; const extra = reportExtraNote(m, a.department);
+      meds.forEach((m) => { const left = tracksStock(m) ? `${stockText(m)}` : '–'; const note = normTxt(m.note || '') ? String(m.note).trim().slice(0, 220) : ''; const extra = reportExtraNote(m, a.department);
         mctx.font = F(700, 16.5); const nm = cvWrap(mctx, m.name, cwI[1] - 16); mctx.font = F(400, 13); const pu = [...(medGeneric(m) ? cvWrap(mctx, medGeneric(m), cwI[1] - 16) : []), ...(m.purpose ? cvWrap(mctx, m.purpose, cwI[1] - 16) : []), ...cvWrap(mctx, `หมอ: ${reportMedDoc(m)}`, cwI[1] - 16), ...(reportStatusLine(m) ? cvWrap(mctx, reportStatusLine(m), cwI[1] - 16) : [])]; // + ชื่อหมอที่จ่ายยา (ไม่มี = -) + สถานะงด/หยุด (ถ้ามี)
         mctx.font = F(400, 14.5); const ds = cvWrap(mctx, m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${unitOf(m)}`, cwI[2] - 16); mctx.font = F(400, 13); const wh = cvWrap(mctx, medWhen(m), cwI[2] - 16);
         mctx.font = F(700, 14.5); const lf = cvWrap(mctx, left, cwI[3] - 16); mctx.font = F(400, 13.5); const nl = note ? cvWrapPre(mctx, note, cwI[4] - 16) : []; mctx.font = F(700, 13.5); const xl = extra ? cvWrapPre(mctx, extra, cwI[4] - 16) : [];

@@ -164,7 +164,7 @@ function stockAlerts(ids) {
   const low = S.medications.filter((m) => m.status === 'active' && ids.includes(m.profile_id) && isLowStock(m));
   if (!low.length) return '';
   return `<div class="alert red"><div class="ic">📦</div><div><b>ยาใกล้หมด ควรเตรียมรับยาเพิ่ม</b>
-    <span class="small">${low.map((m) => `${esc(profileById(m.profile_id).name)}: ${esc(medNo(m))} ${esc(m.name)} เหลือ ${qtyText(stockLeft(m))} ${unitOf(m)} — หมดประมาณ ${thDate(runoutDate(m))}`).join('<br>')}</span></div></div>`;
+    <span class="small">${low.map((m) => `${esc(profileById(m.profile_id).name)}: ${esc(medNo(m))} ${esc(m.name)} ${stockLeft(m) <= 0 ? 'ยาหมดแล้ว' : `เหลือ ${stockText(m)} — หมดประมาณ ${thDate(runoutDate(m))}`}`).join('<br>')}</span></div></div>`;
 }
 
 // ตารางกินยาใน 1 วัน ของคนหนึ่งคน — แสดงเฉพาะเลขลำดับยา (ติ๊กที่วงกลมเล็ก)
@@ -225,7 +225,7 @@ function medCard(m) {
   const wd = weekdaysText(m); const open = !!ui.medOpen?.[m.id];
   const slotsTxt = m.slots.length ? m.slots.map((s) => `<span class="tag">${slotOf(s).icon} ${wd ? `<b>วัน</b>${esc(wd)} · ` : ''}${slotOf(s).display || slotOf(s).short} ${slotReminderOn(m, s) && reminderOn(p) ? '🔔' : '🔕'}</span>`).join('') : `<span class="tag sun">${unitOf(m) === 'หลอด' ? 'ยาทาภายนอก' : 'ไม่ได้กินประจำวัน'}</span>`;
   const kv = (k, v) => `<div class="mr-kv"><span>${k}</span><b>${v}</b></div>`;
-  const stock = tracksStock(m) ? kv('จำนวนที่เหลือ', `<span class="${isLowStock(m) ? 'red-t' : ''}">${qtyText(stockLeft(m))} ${esc(unitOf(m))}${out ? `<br><small>หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)</small>` : ''}</span>`) : (m.bottles != null ? kv('จำนวนขวดที่มี', `${qtyText(num(m.bottles))} ขวด` +'<br><small>ต้องนับจำนวนที่เหลือเอง</small>') : '');
+  const stock = tracksStock(m) ? kv('จำนวนที่เหลือ', `<span class="${isLowStock(m) ? 'red-t' : ''}">${esc(stockText(m))}${out && stockLeft(m) > 0 ?`<br><small>หมดประมาณ ${thDate(out)} (อีก ${dl} วัน)</small>` : ''}</span>`) : (m.bottles != null ? kv('จำนวนขวดที่มี', `${qtyText(num(m.bottles))} ขวด` +'<br><small>ต้องนับจำนวนที่เหลือเอง</small>') : '');
   return `<div class="mrow ${open ? 'open' : ''}" data-id="${m.id}">
     <button type="button" class="mr-main" data-act="med-toggle" data-id="${m.id}" aria-expanded="${open}">
       <span class="mr-no">${m.status !== 'active' ? '' : `<span class="ordnum" style="background:${p.color};color:${inkOn(p.color)}" aria-label="รหัสยา ${esc(medNo(m))}">${esc(medNo(m))}</span>`}</span>
@@ -265,7 +265,7 @@ function viewMedList() {
     <div class="med-group" id="medsFoldBody"${ui.medsFold ? ' hidden' : ''}>${act.length ? `<input type="search" id="medQ" class="stk-search" placeholder="ค้นหายา / ชื่อทางการแพทย์" value="${esc(ui.medsQ || '')}" autocomplete="off" aria-label="ค้นหายาหรือชื่อทางการแพทย์"><p class="small muted med-none"${act.some((m) => !mq || norm(` ${medGeneric(m)}`).includes(mq)) ? ' hidden' : ''}>ไม่พบยาที่ค้นหา</p>` : ''}${act.length ? '<div class="med-head"><span>รหัสยา</span><span>ชื่อยา</span></div>' : ''}<div id="medList" class="mtable">${act.map((m) => medCard(m).replace('class="mrow', `data-q="${esc(norm(`${m.name} ${medGeneric(m)}`))}"${mq && !norm(`${m.name} ${medGeneric(m)}`).includes(mq) ? ' hidden' : ''} class="mrow`)).join('')}</div></div>
     ${act.length ? '' : `<div class="card empty"><div class="e">💊</div>ยังไม่มียา กดปุ่ม + เพื่อเพิ่ม</div>`}
     ${canEditProfile(p.id) ? '<button class="fab" data-act="add-med" aria-label="เพิ่มยา">+</button>' : ''}
-    <h2${off.length ? ' class="fold-h"' : ''}>${off.length ? `<button type="button" class="fold-btn" data-act="off-fold" aria-expanded="${!ui.offFold}"><span>งดชั่วคราว / หยุดแล้ว <span class="small muted">${off.length} ตัว</span></span><span class="fold-chev">${ui.offFold ? '▸' : '▾'}</span></button>` : 'งดชั่วคราว / หยุดแล้ว <span class="small muted">0 ตัว</span>'}</h2>
+    <h2${off.length ? ' class="fold-h"' : ''}>${off.length ? `<button type="button" class="fold-btn" data-act="off-fold" aria-expanded="${!ui.offFold}"><span>งดชั่วคราว <span class="small muted">${off.length} ตัว</span></span><span class="fold-chev">${ui.offFold ? '▸' : '▾'}</span></button>` : 'งดชั่วคราว <span class="small muted">0 ตัว</span>'}</h2>
     ${off.length ? `<div class="med-group" id="offFoldBody"${ui.offFold ? ' hidden' : ''}><div class="mtable">${off.map(medCard).join('')}</div></div>` : `<div class="card empty small">ไม่มี</div>`}
   `;
 }

@@ -101,7 +101,7 @@ function reportBlocks(R) {
     const cols = '<colgroup><col style="width:7%"><col style="width:27%"><col style="width:20%"><col style="width:13%"><col style="width:33%"></colgroup>';
     B.push({ html: `<table class="rp-t rp-head-t">${cols}<tr><th>รหัส</th><th>ชื่อยา</th><th>ทานครั้งละ · เวลา</th><th>ยาเหลือ</th><th>บันทึกของยา</th></tr></table>`, title: true, hdrKey: 'meds', tight: true });
     meds.forEach((m) => {
-      const left = tracksStock(m) ? `${e(qtyText(stockLeft(m)))} ${e(unitOf(m))}` : '–';
+      const left = tracksStock(m) ? `${e(stockText(m))}` : '–';
       B.push({ html: `<table class="rp-t rp-med">${cols}<tr><td class="rp-no"><b>${m.as_needed ? '*' : ''}${e(reportCode(m))}</b></td>
         <td><b class="rp-mn">${e(m.name)}</b>${medGeneric(m) ? `<div class="s rp-gen">${e(medGeneric(m))}</div>` : ''}${m.purpose ? `<div class="s">${e(m.purpose)}</div>` : ''}<div class="s">หมอ: ${e(reportMedDoc(m))}</div>${reportStatusLine(m) ? `<div class="s"><b>${e(reportStatusLine(m))}</b></div>` : ''}</td>
         <td data-label="ทานครั้งละ">${m.as_needed ? 'เมื่อมีอาการ' : `${doseLabel(m.dose)} ${e(unitOf(m))}`}<div class="s">${e(medWhen(m))}</div></td>
@@ -199,7 +199,7 @@ function auditReport(wrap, R) {
     const note = nz(m.note || ''); if (note && !tx.includes(note.slice(0, 40))) issues.push(`ยา ${medNo(m)}: บันทึกของยาไม่ครบ`);
     const extra = nz(reportExtraNote(m, R.a.department)); if (extra && !tx.includes(extra.slice(0, 40))) issues.push(`ยา ${medNo(m)}: บันทึกเพิ่มเติมไม่ครบ`);
     if (!extra && m.extra_note && nz(m.extra_note).length > 3 && tx.includes(nz(m.extra_note).slice(0, 40))) issues.push(`ยา ${medNo(m)}: แสดงบันทึกเพิ่มเติมของยาที่ไม่เกี่ยวกับแผนก`);
-    if (tracksStock(m) && !tx.includes(`${qtyText(stockLeft(m))} ${nz(unitOf(m))}`)) issues.push(`ยา ${medNo(m)}: จำนวนยาที่เหลือไม่ตรง`); });
+    if (tracksStock(m) && !tx.includes(`${nz(stockText(m))}`)) issues.push(`ยา ${medNo(m)}: จำนวนยาที่เหลือไม่ตรง`); });
   const headRows = wrap.querySelectorAll('.rp-head-t').length; const pagesWithMeds = pages.filter((pg) => pg.querySelector('.rp-med')).length; if (meds.length && headRows < pagesWithMeds) issues.push('ตารางยาบางหน้าไม่มีหัวตาราง');
   if (prev && !text.includes(nz(prev.visit_summary).slice(0, 40))) issues.push('ไม่มีข้อความ "ครั้งที่แล้วหมอแนะนำว่า"');
   if (R.p.drug_allergies?.length && !R.p.drug_allergies.every((x) => text.includes(nz(x)))) issues.push('ข้อมูลแพ้ยาไม่ครบ');

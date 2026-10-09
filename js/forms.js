@@ -326,7 +326,7 @@ function addStockSheet(m) {
   }
   const left = stockLeft(m); const u0 = unitOf(m);
   const sh = openSheet(`<h3>➕ ได้ยามาเพิ่ม — ${esc(m.name)}</h3>
-    <p class="small muted">ตอนนี้เหลือ <b>${qtyText(left)} ${esc(u0)}</b> · ใส่จำนวนที่ได้มาใหม่ ระบบบวกกับของเดิมให้อัตโนมัติ</p>
+    <p class="small muted">${left <= 0 ? 'ตอนนี้ <b>ยาหมด</b>' : `ตอนนี้เหลือ <b>${qtyText(left)} ${esc(u0)}</b>`} · ใส่จำนวนที่ได้มาใหม่ ระบบบวกกับของเดิมให้อัตโนมัติ</p>
     <div class="two"><label class="f"><span>ระบุจำนวน</span><input type="number" id="addQty" min="0.25" step="0.25" inputmode="decimal" placeholder="เช่น 30"></label>
       <div class="f"><span class="lbl">หน่วย</span>${selectOther('unit', UNITS, u0, 'เลือกหน่วย')}</div></div>
     <p class="small" id="addSum"></p>
@@ -719,7 +719,7 @@ document.addEventListener('click', async (ev) => {
     case 'add-med': medForm(); break;
     case 'edit-med': medForm(S.medications.find((m) => m.id === id)); break;
     case 'add-stock': addStockSheet(S.medications.find((m) => m.id === id)); break;
-    case 'del-med': confirmSheet('ลบยานี้ถาวร?<br><small class="muted">ถ้าแค่เลิกทาน แนะนำเปลี่ยนสถานะเป็น "หยุดแล้ว" เพื่อเก็บประวัติ</small>', async () => {
+    case 'del-med': confirmSheet('ลบยานี้ถาวร?<br><small class="muted">ถ้าแค่เลิกทาน แนะนำเปลี่ยนสถานะเป็น "งดชั่วคราว" เพื่อเก็บประวัติ</small>', async () => {
       const gone = S.medications.find((m) => m.id === id); S.medications = S.medications.filter((m) => m.id !== id); S.med_logs = S.med_logs.filter((l) => l.medication_id !== id); if (await dbDo(DB.remove('medications', id)) && gone?.photo) DB.removeFiles([gone.photo]).catch(() => {});
     }, 'ลบ'); break;
     case 'add-appt': apptForm(null, id, el.dataset.pid); break;

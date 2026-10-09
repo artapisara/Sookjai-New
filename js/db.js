@@ -10,7 +10,11 @@ const TABLES = ['profiles', 'medications', 'appointments', 'hospitals', 'doctors
 const HISTORY_MONTHS = 24; // ดูสรุปย้อนหลังได้กี่เดือน (ข้อมูลเก็บในฐานข้อมูลไม่หาย — โหลดมาทีละเดือนตอนเปิดดู)
 const BUCKET = 'attachments';
 /** ข้อมูลที่บันทึกไว้ด้วยคำเดิม → แสดงเป็นคำใหม่ทุกหน้า (ในหน่วยความจำเท่านั้น · ค่าในฐานข้อมูลเปลี่ยนเมื่อมีการบันทึกนัดนั้นใหม่) */
-const legacyFix = (d) => { (d?.appointments || []).forEach((a) => { if (a.visit_reason === 'ติดตามอาการ') a.visit_reason = 'ติดตามการรักษา'; }); return d; };
+const legacyFix = (d) => {
+  (d?.appointments || []).forEach((a) => { if (a.visit_reason === 'ติดตามอาการ') a.visit_reason = 'ติดตามการรักษา'; });
+  (d?.medications || []).forEach((m) => { if (m.status === 'stopped') m.status = 'paused'; (m.status_history || []).forEach((h) => { if (h.status === 'stopped') h.status = 'paused'; }); }); // สถานะ 'หยุดแล้ว' ถูกยกเลิก = งดชั่วคราว
+  return d;
+};
 
 // ---------------- Supabase ----------------
 class SupaDB {
