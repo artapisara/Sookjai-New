@@ -2132,3 +2132,40 @@ body:not(.auth) .share-tag, .share-tag { background: #DAFF7C; color: #000; }
 .stk-t th:nth-child(1) { width: 16%; } .stk-t th:nth-child(2) { width: 33%; } .stk-t th:nth-child(3) { width: 24%; } .stk-t th:nth-child(4) { width: 27%; }
 .stk-t td.stk-left, .stk-t th:nth-child(4) { padding-right: var(--sp-2, 8px); }
 .stk-t td.stk-left b { white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
+
+/* v1.5.0 — ทัวร์แนะนำการใช้งาน + คำถามที่พบบ่อย (มาตรฐานตัวอักษรเดียวกับทั้งแอป) */
+.tour-ov { position: fixed; inset: 0; z-index: 600; }
+.tour-ov.dim { background: rgba(14, 18, 80, .66); }
+.tour-spot { position: fixed; border-radius: 16px; pointer-events: none; transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease; box-shadow: 0 0 0 3px #DAFF7C, 0 0 0 100vmax rgba(14, 18, 80, .66); }
+.tour-card { position: fixed; z-index: 2; text-align: left; background: #fff; color: var(--ink, #161A4D); border-radius: 18px; padding: var(--sp-3, 12px) var(--sp-4, 16px); box-shadow: 0 12px 32px rgba(0, 0, 0, .28); }
+.tour-card.center { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(88vw, 340px); }
+.tour-card h3 { margin: 2px 0 var(--sp-1, 4px); font-size: var(--fs-title); font-weight: var(--fw-bold); line-height: var(--lh-title); }
+.tour-card p { margin: 0 0 var(--sp-3, 12px); font-size: var(--fs-sub); line-height: var(--lh-body); }
+.tour-no { display: block; font-size: var(--fs-cap); font-weight: var(--fw-semi); color: var(--muted); }
+.tour-btns { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2, 8px); }
+.tour-btns-r { display: flex; gap: var(--sp-2, 8px); }
+.tour-arrow { position: absolute; width: 16px; height: 16px; background: #fff; transform: rotate(45deg); left: calc(var(--ax, 50%) - 8px); }
+.tour-card.below .tour-arrow { top: -7px; }
+.tour-card.above .tour-arrow { bottom: -7px; }
+.tour-card.center .tour-arrow { display: none; }
+.faq-item { border-bottom: 1px solid var(--line); padding: var(--sp-2, 8px) 0; }
+.faq-item summary { cursor: pointer; font-size: var(--fs-body); font-weight: var(--fw-semi); line-height: var(--lh-title); list-style: none; display: flex; justify-content: space-between; gap: var(--sp-2, 8px); }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: '›'; color: var(--muted); transition: transform .15s ease; }
+.faq-item[open] summary::after { transform: rotate(90deg); }
+.faq-item p { margin: var(--sp-2, 8px) 0; font-size: var(--fs-sub); line-height: var(--lh-body); }
+.faq-btns { display: flex; flex-wrap: wrap; gap: var(--sp-2, 8px); padding-bottom: var(--sp-1, 4px); }
+
+/* v1.5.1 — ทัวร์แบบพาทำจริง: โหมดแตะผ่าน + กล่องคำแนะนำตอนกรอกฟอร์ม */
+.tour-ov.pass { pointer-events: none; }
+.tour-ov.pass .tour-card { pointer-events: auto; }
+.tour-card.form-hint { left: 50%; top: calc(8px + env(safe-area-inset-top)); transform: translateX(-50%); width: min(94vw, 380px); max-height: 128px; overflow: auto; padding: var(--sp-2, 8px) var(--sp-3, 12px); z-index: 700; }
+.tour-card.form-hint h3 { font-size: var(--fs-body); margin: 0; }
+.tour-card.form-hint p { margin: 2px 0 var(--sp-2, 8px); font-size: var(--fs-cap); line-height: var(--lh-sub); }
+.tour-card.form-hint .tour-arrow { display: none; }
+.tour-card.center { max-height: 78vh; overflow: auto; }
+.tour-ok { margin: 0 0 var(--sp-2, 8px); padding: var(--sp-1, 4px) var(--sp-2, 8px); border-radius: 10px; background: #EDFFBD; color: #161A4D; font-size: var(--fs-cap); font-weight: var(--fw-semi); }
+.tour-hint { display: block; margin: 0 0 var(--sp-2, 8px); font-size: var(--fs-cap); color: var(--muted); }
+.tour-perks { margin: 0 0 var(--sp-3, 12px); padding-left: 18px; font-size: var(--fs-sub); line-height: var(--lh-body); }
+.tour-perks li { margin-bottom: var(--sp-1, 4px); }
+.faq-more { margin: var(--sp-3, 12px) 0 0; font-size: var(--fs-cap); line-height: var(--lh-sub); }

@@ -2,7 +2,7 @@
 /* สุขใจ v1.2 — หน้าจอตามดีไซน์ใหม่: ภาพรวมวันนี้ · เมนูยา · สรุปการกินยา/อารมณ์ (ดูย้อนหลังได้) · สมาชิก · ตั้งค่า */
 'use strict';
 
-const APP_VERSION = '1.4.31';
+const APP_VERSION = '1.5.2';
 // โลโก้: ขวดยาสี 4 สีหลัก (เขียว มิ้นต์ ส้ม เหลือง) วาดเป็น SVG — ขยับด้วย CSS (ปิดอัตโนมัติถ้าผู้ใช้ตั้งลดการเคลื่อนไหว)
 const LOGO_MARK = '<g class="lg-bottle"><path class="lg-star s1" d="M98 24l2.6 6.4 6.4 2.6-6.4 2.6L98 42l-2.6-6.4L89 33l6.4-2.6z" fill="#fff"/><path class="lg-star s2" d="M20 38l1.9 4.6 4.6 1.9-4.6 1.9L20 51l-1.9-4.6-4.6-1.9 4.6-1.9z" fill="#fff"/><rect x="39" y="12" width="42" height="20" rx="6" fill="#DAFF3A"/><rect x="39" y="20" width="42" height="5" fill="#4D55F5"/><rect x="45" y="31" width="30" height="9" rx="2" fill="#fff"/><rect class="lg-body" x="26" y="38" width="68" height="72" rx="18" fill="#fff"/><path d="M26 76q17-9 34 0t34 0v16q0 18-18 18H44q-18 0-18-18z" fill="#CA7FFE"/><rect x="32" y="46" width="5" height="30" rx="2.5" fill="#DDE0FF"/><g class="lg-cross"><rect x="53" y="46" width="14" height="34" rx="4" fill="#4D55F5"/><rect x="43" y="56" width="34" height="14" rx="4" fill="#4D55F5"/></g></g>';
 const logoSvg = () => `<svg viewBox="0 0 120 120" aria-hidden="true">${LOGO_MARK}</svg>`;
@@ -424,14 +424,15 @@ function viewSettings() {
       ${supa ? row('🔑', 'เปลี่ยนรหัสผ่าน', '', 'change-password') : ''}</div>
     ${typeof membershipSection === 'function' ? membershipSection() : ''}
     <h3 class="set-h">การใช้งาน</h3>
-    <div class="card set-group">${row('🌐', 'ภาษา', 'ไทย', 'language')}
+    <div class="card set-group"><button type="button" class="set-row" data-tour="start"><span class="sr-ic">🧭</span><span class="sr-l">แนะนำการใช้งาน</span><span class="muted chev">›</span></button>
+      <button type="button" class="set-row" data-tour="faq"><span class="sr-ic">❓</span><span class="sr-l">คำถามที่พบบ่อย</span><span class="muted chev">›</span></button>${row('🌐', 'ภาษา', 'ไทย', 'language')}
       <label class="set-row bigtext-row"><span class="sr-ic">🔠</span><span class="sr-l">ตัวอักษรใหญ่<small class="muted" style="display:block">ขยายตัวอักษรทั้งแอป (เฉพาะเครื่องนี้)</small></span><span class="switch"><input type="checkbox" data-bigtext ${bigTextOn() ? 'checked' : ''}><i></i></span></label>
       <details class="set-det"><summary class="set-row"><span class="sr-ic">⏰</span><span class="sr-l">กำหนดช่วงเวลาทานยา</span><span class="muted chev">›</span></summary>
         <div class="two">${SLOTS.map((s) => { const [hh, mm] = slotTime(s.key).split(':'); const mmOpts = [...new Set(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', mm])].sort();
           return `<div class="f"><span>${s.icon} ${s.key === 'bedtime' ? s.label : s.label.replace(/^(ก่อน|หลัง)/, '<b class="sl-b">$1</b>')}</span><div class="t24">
             <select data-slot-hh="${s.key}" aria-label="ชั่วโมง">${Array.from({ length: 24 }, (_, h) => pad(h)).map((h) => `<option ${h === hh ? 'selected' : ''}>${h}</option>`).join('')}</select><b>:</b>
             <select data-slot-mm="${s.key}" aria-label="นาที">${mmOpts.map((m) => `<option ${m === mm ? 'selected' : ''}>${m}</option>`).join('')}</select><small>น.</small></div></div>`; }).join('')}</div></details>
-      <details class="set-det"><summary class="set-row"><span class="sr-ic">🔔</span><span class="sr-l">การแจ้งเตือน</span><span class="muted chev">›</span></summary>
+      <details class="set-det" data-tour-t="notify"><summary class="set-row"><span class="sr-ic">🔔</span><span class="sr-l">การแจ้งเตือน</span><span class="muted chev">›</span></summary>
         <div class="nt-step"><span class="nt-no">1</span><div><b>เปิดการแจ้งเตือนบนเครื่องนี้</b><small class="muted">${'Notification' in window ? ({ granted: '✅ เปิดอยู่แล้ว', denied: '❌ ถูกบล็อก — ต้องไปเปิดสิทธิ์ที่เครื่องก่อน (ดูวิธีด้านล่าง)', default: 'ยังไม่ได้เปิด — กดปุ่มด้านล่าง' }[Notification.permission] || '') : 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน'}</small></div></div>
         ${'Notification' in window && Notification.permission === 'denied' ? `<div class="nt-help"><b>เปิดสิทธิ์การแจ้งเตือนที่ไหน?</b><ul><li><b>iPhone:</b> ตั้งค่า › การแจ้งเตือน › สุขใจ แล้วเปิด "อนุญาตการแจ้งเตือน" (ต้องเพิ่มแอปไปยังหน้าจอโฮมและเปิดจากไอคอนก่อน)</li><li><b>Android:</b> ตั้งค่า › แอป › สุขใจ (หรือ Chrome) › การแจ้งเตือน › เปิด · หรือแตะไอคอนแม่กุญแจข้างชื่อเว็บ › สิทธิ์ › การแจ้งเตือน › อนุญาต</li><li><b>คอมพิวเตอร์:</b> แตะไอคอนแม่กุญแจข้างชื่อเว็บ › การแจ้งเตือน › อนุญาต แล้วโหลดหน้าใหม่</li></ul></div>` : ''}
         <button class="btn block" data-act="enable-push" ${pushOk ? '' : 'disabled'}>🔔 เปิดการแจ้งเตือนบนเครื่องนี้</button>
@@ -518,6 +519,7 @@ function showSplash() {
 let onboardShown = false;
 function maybeOnboard() {
   if (onboardShown || !S || DB?.offline || S.profiles.length > 0) return;
+  if (typeof tourWillAutoStart === 'function' && tourWillAutoStart()) return; // ทัวร์แนะนำการใช้งานจะพาสร้างโปรไฟล์เอง (tour.js) — ไม่เด้งฟอร์มซ้อน
   const m = document.getElementById('modal'); if (m && !m.classList.contains('hidden')) return; // มีหน้าต่างอื่นเปิดอยู่ → ไม่แทรก
   if (document.getElementById('splash') || document.querySelector('.ask-ov')) return;
   onboardShown = true; // เด้งครั้งเดียวต่อการเปิดแอป — ถ้ากดยกเลิก ยังมีปุ่ม "เพิ่มคน" ในหน้าสมาชิกและแถบเตือนบนหน้าวันนี้

@@ -566,10 +566,11 @@ async function boot() {
       ui.tab = 'today'; navReset(); // รีเซ็ตแท็บและกองหน้า
       showSplash(); // หน้า intro แสดงก่อนเสมอ (ทับหน้าที่โหลดอยู่ด้านล่าง แล้วจางหายไป)
       // PDPA: ต้องยินยอมการเก็บข้อมูลสุขภาพก่อนใช้งานครั้งแรก (และเมื่อเนื้อหาความยินยอมเปลี่ยน)
-      if (DB.mode === 'supabase' && S.settings.pdpa_version !== PDPA_VERSION) return consentView(() => { render(); Notifier.start(); showSplash(); });
+      if (DB.mode === 'supabase' && S.settings.pdpa_version !== PDPA_VERSION) return consentView(() => { render(); Notifier.start(); showSplash(); if (typeof maybeAutoTour === 'function') maybeAutoTour(); });
       render();
       Notifier.start();
       showSplash();
+      if (typeof maybeAutoTour === 'function') maybeAutoTour();
       emptyTries = 0; retryIfEmpty();
     } finally { loading = null; }
   };
